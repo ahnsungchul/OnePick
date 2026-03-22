@@ -1,0 +1,349 @@
+"use server";
+
+import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+
+/**
+ * 전문가 전문 분야 및 추가 정보 업데이트 (V2)
+ */
+export async function updateExpertSpecialtiesAction({
+  userId,
+  specialties,
+}: {
+  userId: number;
+  specialties: string[];
+}) {
+  try {
+    console.log('[DEBUG] updateExpertSpecialtiesAction V2 starting for userId:', userId);
+    
+    // 강제 타입 캐스팅으로 빌드 오류 방지 및 실시간 반영 확인
+    const updatedUser = await (prisma.user as any).update({
+      where: { id: userId },
+      data: {
+        specialties: {
+          set: specialties
+        },
+      },
+    });
+
+    console.log('[DEBUG] updateExpertSpecialtiesAction V2 success for id:', updatedUser.id);
+    
+    revalidatePath("/(user)/estimate/[id]");
+    return { success: true, user: updatedUser };
+  } catch (error: any) {
+    console.error("updateExpertSpecialtiesAction V2 error:", error);
+    return { success: false, error: error.message || "전문 분야 저장 중 오류가 발생했습니다." };
+  }
+}
+
+/**
+ * 전문가 홈 데이타 조회 (홈/전문가홈)
+ */
+export async function getExpertHomeDataAction(userId: number) {
+  try {
+    // Guest Mode (userId 0)
+    if (userId === 0) {
+       return {
+         success: true,
+         data: {
+           user: {
+             id: 0,
+             name: "GUEST",
+             role: "USER" as any,
+             grade: "HELPER" as any,
+             isApproved: false,
+             image: null,
+           },
+           profile: {
+             introduction: "방문자 모드로 조회 중입니다. 로그인하시면 더 많은 기능을 이용하실 수 있습니다.",
+             portfolioUrl: null,
+             rating: 4.5,
+           },
+           stats: {
+             totalBids: 120,
+             matches: 45,
+             revenue: 1250000,
+           }
+         }
+       };
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        profile: true,
+      },
+    });
+
+    if (!user) {
+      throw new Error("사용자를 찾을 수 없습니다.");
+    }
+
+    // 통계 데이타 가공 (예시 데이타 포함)
+    const stats = {
+      totalBids: 0, // 나중에 Bid 테이블 카운트
+      matches: 0,
+      revenue: 0,
+    };
+
+    return { 
+      success: true, 
+      data: {
+        user: {
+          id: user.id,
+          name: user.name,
+          role: user.role,
+          grade: user.grade,
+          isApproved: (user as any).isApproved,
+          image: user.image,
+          specialties: user.specialties || [],
+          regions: user.regions || [],
+          career: user.career,
+          idCardUrl: user.idCardUrl,
+          businessLicenseUrls: user.businessLicenseUrls || [],
+          certificationUrls: user.certificationUrls || [],
+        },
+        profile: user.profile || {
+          introduction: "",
+          portfolioUrl: null,
+          rating: 0,
+        },
+        stats
+      } 
+    };
+  } catch (error: any) {
+    console.error("getExpertHomeDataAction error:", error);
+    return { success: false, error: error.message || "정보를 불러오는 중 오류가 발생했습니다." };
+  }
+}
+
+/**
+ * 전문가 프로필(소개) 업데이트
+ */
+export async function updateExpertProfileAction(userId: number, introduction: string) {
+  try {
+    const updatedProfile = await prisma.profile.upsert({
+      where: { expertId: userId },
+      update: { introduction },
+      create: {
+        expertId: userId,
+        introduction,
+      },
+    });
+
+    revalidatePath("/expert/dashboard");
+    return { success: true, profile: updatedProfile };
+  } catch (error: any) {
+    console.error("updateExpertProfileAction error:", error);
+    return { success: false, error: error.message || "프로필 저장 중 오류가 발생했습니다." };
+  }
+}
+
+/**
+ * 추천 전문가 목록을 가져옵니다 (role이 EXPERT 또는 BOTH).
+ */
+export async function getRecommendedExpertsAction() {
+  try {
+    const experts = await prisma.user.findMany({
+      where: {
+        role: { in: ['EXPERT', 'BOTH'] }
+      },
+      include: {
+        profile: true
+      },
+      take: 20,
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    const formattedExperts = experts.map((expert: any) => ({
+      id: expert.id,
+      name: `${expert.name} 고수`,
+      specialty: expert.specialties?.[0] || '전문 서비스',
+      category: expert.specialties?.[0] || '기타 서비스',
+      region: '전국, 서울, 경기, 인천, 강원, 충북, 충남, 대전, 세종, 전북, 전남, 광주, 경북, 경남, 부산, 대구, 울산, 제주', 
+      rating: expert.profile?.rating || '5.0',
+      reviews: Math.floor(Math.random() * 50) + 1,
+      image: expert.image || `https://picsum.photos/seed/${expert.name || expert.id}/200/200`
+    }));
+
+    return { success: true, data: formattedExperts };
+  } catch (error: any) {
+    console.error("getRecommendedExpertsAction error:", error);
+    return { success: false, error: error.message || "추천 전문가를 불러오는 중 오류가 발생했습니다." };
+  }
+}
+
+/**
+ * 전문가 프로필 수정 모달에서 호출하는 통합 업데이트
+ */
+export async function updateFullExpertProfileAction({
+  userId,
+  image,
+  name,
+  regions,
+  specialties,
+  career,
+  introduction,
+  businessLicenseUrls,
+  certificationUrls,
+}: {
+  userId: number;
+  image?: string | null;
+  name: string;
+  regions: string[];
+  specialties: string[];
+  career?: string | null;
+  introduction: string;
+  businessLicenseUrls?: string[];
+  certificationUrls?: string[];
+}) {
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // Check current user
+      const currentUser = await tx.user.findUnique({ where: { id: userId } });
+      
+      // Determine if documents changed
+      const docsChanged = 
+        (businessLicenseUrls && JSON.stringify(currentUser?.businessLicenseUrls) !== JSON.stringify(businessLicenseUrls)) ||
+        (certificationUrls && JSON.stringify(currentUser?.certificationUrls) !== JSON.stringify(certificationUrls));
+
+      // 1. Update User info
+      const user = await (tx.user as any).update({
+        where: { id: userId },
+        data: {
+          name,
+          regions: { set: regions },
+          specialties: { set: specialties },
+          career,
+          ...(image !== undefined && { image }),
+          ...(businessLicenseUrls !== undefined && { businessLicenseUrls: { set: businessLicenseUrls } }),
+          ...(certificationUrls !== undefined && { certificationUrls: { set: certificationUrls } }),
+          ...(docsChanged ? { isApproved: false } : {}),
+        },
+      });
+
+      // 2. Update or Create Profile intro
+      const profile = await tx.profile.upsert({
+        where: { expertId: userId },
+        update: { introduction },
+        create: {
+          expertId: userId,
+          introduction,
+        },
+      });
+
+      return { user, profile };
+    });
+
+    revalidatePath("/expert/dashboard");
+    revalidatePath("/(user)/estimate/[id]");
+    return { success: true, data: result };
+  } catch (error: any) {
+    console.error("updateFullExpertProfileAction error:", error);
+    return { success: false, error: error.message || "프로필 정보 저장 중 오류가 발생했습니다." };
+  }
+}
+
+
+/**
+ * 전문가가 보낸 견적(입찰) 목록을 조회합니다 (보낸요청)
+ */
+export async function getExpertSentBidsAction(expertId: number) {
+  try {
+    const bids = await prisma.bid.findMany({
+      where: { expertId },
+      include: {
+        items: true,
+        estimate: {
+          include: {
+            customer: {
+              select: { name: true, image: true }
+            },
+            chats: {
+              select: { id: true, senderId: true, isRead: true }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return { success: true, data: bids };
+  } catch (error: any) {
+    console.error("getExpertSentBidsAction error:", error);
+    return { success: false, error: error.message || "보낸 견적 목록을 불러오는 중 오류가 발생했습니다." };
+  }
+}
+
+/**
+ * 전송한 견적 금액과 메시지를 수정합니다.
+ */
+export async function updateBidAction({
+  bidId,
+  price,
+  message,
+  items,
+}: {
+  bidId: string;
+  price: number;
+  message: string;
+  items?: { name: string; content: string; period: string; amount: number }[];
+}) {
+  try {
+    // Check if the bid is still pending
+    const existingBid = await prisma.bid.findUnique({
+      where: { id: bidId },
+      include: { estimate: true }
+    });
+
+    if (!existingBid) {
+      throw new Error("견적을 찾을 수 없습니다.");
+    }
+    
+    // estimate status must be BIDDING, or bid status must be PENDING
+    // Depending on logic, usually bid can be updated if not accepted/rejected yet.
+    if (existingBid.status !== "PENDING") {
+      throw new Error(`이미 처리된 견적(${existingBid.status})은 수정할 수 없습니다.`);
+    }
+
+    const updatedBid = await prisma.$transaction(async (tx) => {
+      const bid = await tx.bid.update({
+        where: { id: bidId },
+        data: {
+          price,
+          message,
+        }
+      });
+
+      if (items && items.length > 0) {
+        // 기존 아이템 삭제
+        await tx.bidItem.deleteMany({
+          where: { bidId }
+        });
+
+        // 새 아이템 추가
+        for (const item of items) {
+          await tx.bidItem.create({
+            data: {
+              bidId,
+              name: item.name,
+              content: item.content,
+              period: item.period,
+              amount: item.amount,
+            }
+          });
+        }
+      }
+
+      return bid;
+    });
+
+    revalidatePath("/expert/bids");
+    return { success: true, data: updatedBid };
+  } catch (error: any) {
+    console.error("updateBidAction error:", error);
+    return { success: false, error: error.message || "견적 수정 중 오류가 발생했습니다." };
+  }
+}
