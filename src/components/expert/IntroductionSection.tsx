@@ -193,7 +193,7 @@ export default function IntroductionSection({ user, profile, isOwner }: Introduc
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900">{user.name} 고수</h2>
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900">{user.name} 전문가</h2>
                 {user.isApproved && (
                   <ShieldCheck className="w-5 h-5 text-blue-500" />
                 )}

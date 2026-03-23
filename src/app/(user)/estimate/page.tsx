@@ -51,7 +51,7 @@ const regionsData: Record<string, string[]> = {
 const mockRequests = [
   { id: 1, category: '욕실/주방', title: '싱크대 배관 누수 수리', location: '강남구 역삼동', time: '오늘 내 해결 희망', price: '견적 협의', urgent: true, date: '2023-11-20T10:00:00', author: '김*현 고객님', status: 'PENDING' },
   { id: 2, category: '기타 서비스', title: '현관 도어락 교체', location: '서초구 서초동', time: '18시 이전 방문 희망', price: '50,000원~', urgent: false, date: '2023-11-20T09:30:00', author: '이*진 고객님', status: 'MATCHED' },
-  { id: 3, category: '욕실/주방', title: '변기 막힘 뚫음', location: '송파구 잠실동', time: '즉시 방문 가능 고수님', price: '견적 협의', urgent: true, date: '2023-11-20T09:15:00', author: '박*호 고객님', status: 'COMPLETED' },
+  { id: 3, category: '욕실/주방', title: '변기 막힘 뚫음', location: '송파구 잠실동', time: '즉시 방문 가능 전문가님', price: '견적 협의', urgent: true, date: '2023-11-20T09:15:00', author: '박*호 고객님', status: 'COMPLETED' },
   { id: 4, category: '전기/조명', title: '전기 누전 점검', location: '강남구 논현동', time: '야간 방문 가능 희망', price: '80,000원~', urgent: false, date: '2023-11-19T20:00:00', author: '최*영 고객님', status: 'PENDING' },
   { id: 5, category: '도배/장판', title: '방 1개 실크 벽지 부분 도배', location: '송파구 잠실동', time: '이번 주말 희망', price: '견적 협의', urgent: false, date: '2023-11-19T18:45:00', author: '정*우 고객님', status: 'PENDING' },
   { id: 7, category: '청소/이사', title: '30평대 아파트 입주 청소', location: '강남구 삼성동', time: '다음주 수요일', price: '견적 협의', urgent: false, date: '2023-11-18T11:10:00', author: '윤*아 고객님', status: 'MATCHED' },
@@ -219,7 +219,7 @@ export default function EstimateListPage() {
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-black text-slate-900">요청 찾기</h1>
             </div>
-            <p className="text-slate-500 text-sm mt-1">원하는 지역과 분야의 고수님들을 만나보세요.</p>
+            <p className="text-slate-500 text-sm mt-1">원하는 지역과 분야의 전문가님들을 만나보세요.</p>
           </div>
           <button 
             onClick={handleNewEstimateClick}

@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import ExpertDashboardLayout from '@/components/layout/ExpertDashboardLayout';
 import ExpertHeaderContent from '@/components/layout/ExpertHeaderContent';
 import { getExpertSentBidsAction } from '@/actions/expert.action';
-import ExpertBidListItem from '@/components/expert/ExpertBidListItem';
+import ExpertBidList from '@/components/expert/ExpertBidList';
 
 export const metadata = {
   title: '보낸요청 - OnePick 전문가',
@@ -28,7 +28,7 @@ export default async function ExpertBidsPage() {
 
       <div className="bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-slate-100 min-h-[500px]">
         <div className="mb-8">
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight">보낸 요청 내역</h2>
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">참여한 견적</h2>
           <p className="text-slate-500 mt-2 font-medium">고객님들께 제안한 견적과 진행 상태를 모아볼 수 있습니다.</p>
         </div>
 
@@ -43,11 +43,7 @@ export default async function ExpertBidsPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {bids.map((bid: any) => (
-              <ExpertBidListItem key={bid.id} bid={bid} expertId={expertId} currentUserName={session.user?.name || ''} />
-            ))}
-          </div>
+          <ExpertBidList bids={bids} expertId={expertId} currentUserName={session.user?.name || ''} />
         )}
       </div>
     </ExpertDashboardLayout>

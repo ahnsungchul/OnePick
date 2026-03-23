@@ -159,7 +159,7 @@ export async function getRecommendedExpertsAction() {
 
     const formattedExperts = experts.map((expert: any) => ({
       id: expert.id,
-      name: `${expert.name} 고수`,
+      name: `${expert.name} 전문가`,
       specialty: expert.specialties?.[0] || '전문 서비스',
       category: expert.specialties?.[0] || '기타 서비스',
       region: '전국, 서울, 경기, 인천, 강원, 충북, 충남, 대전, 세종, 전북, 전남, 광주, 경북, 경남, 부산, 대구, 울산, 제주', 
@@ -285,11 +285,13 @@ export async function updateBidAction({
   price,
   message,
   items,
+  availableDate,
 }: {
   bidId: string;
   price: number;
   message: string;
   items?: { name: string; content: string; period: string; amount: number }[];
+  availableDate?: string;
 }) {
   try {
     // Check if the bid is still pending
@@ -314,6 +316,7 @@ export async function updateBidAction({
         data: {
           price,
           message,
+          availableDate,
         }
       });
 
@@ -345,5 +348,88 @@ export async function updateBidAction({
   } catch (error: any) {
     console.error("updateBidAction error:", error);
     return { success: false, error: error.message || "견적 수정 중 오류가 발생했습니다." };
+  }
+}
+
+/**
+ * 전문가 일정 관리용 견적 목록을 조회합니다 (수락되거나 제출한 서비스 가능일 포함 전체).
+ */
+export async function getExpertSchedulesAction(expertId: number) {
+  try {
+    const bids = await prisma.bid.findMany({
+      where: { 
+        expertId,
+        availableDate: { not: null }
+      },
+      include: {
+        estimate: {
+          select: { details: true, location: true, category: true, customer: { select: { name: true } } }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return { success: true, data: bids };
+  } catch (error: any) {
+    console.error("getExpertSchedulesAction error:", error);
+    return { success: false, error: error.message || "일정을 불러오는 중 오류가 발생했습니다." };
+  }
+}
+
+/**
+ * 특정 서비스 가능일 목록이 이미 다른 일정과 겹치는지 확인합니다.
+ */
+export async function checkDateAvailabilityAction(expertId: number, dates: string[], excludeBidId?: string) {
+  try {
+    const bids = await prisma.bid.findMany({
+      where: {
+        expertId,
+        availableDate: { not: null },
+        ...(excludeBidId ? { id: { not: excludeBidId } } : {})
+      }
+    });
+
+    const existingDates = new Set<string>();
+    bids.forEach((bid: any) => {
+      if (bid.availableDate) {
+        bid.availableDate.split(',').forEach((d: string) => existingDates.add(d.trim()));
+      }
+    });
+
+    const conflicts = dates.filter(d => existingDates.has(d.trim()));
+    
+    return { success: true, hasConflict: conflicts.length > 0, conflicts };
+  } catch (error: any) {
+    console.error("checkDateAvailabilityAction error:", error);
+    return { success: false, error: error.message || "일정 중복 상태를 확인하는 중 오류가 발생했습니다." };
+  }
+}
+/**
+ * 고객의 견적 수정 요청 Action
+ */
+export async function requestBidModificationAction(bidId: string, customerId: number) {
+  try {
+    const bid = await prisma.bid.findUnique({
+      where: { id: bidId },
+      include: { estimate: true }
+    });
+
+    if (!bid) {
+      throw new Error("존재하지 않는 견적 제안입니다.");
+    }
+
+    if (bid.estimate.customerId !== customerId) {
+      throw new Error("접근 권한이 없습니다.");
+    }
+
+    await prisma.bid.update({
+      where: { id: bidId },
+      data: { isEditRequested: true }
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("requestBidModificationAction error:", error);
+    return { success: false, error: error.message };
   }
 }

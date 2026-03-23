@@ -156,9 +156,14 @@ export const getReverseCategoryMap = (targetKoreanName: string): string[] => {
 /**
  * D-Day 계산 (생성일로부터 7일 기준)
  * @param createdAt 생성일
+ * @param isClosed 수동 마감 여부
  * @returns 마킹 텍스트 (e.g., D-7, D-Day, 만료) 및 색상 타입
  */
-export const calculateDDay = (createdAt: string | Date) => {
+export const calculateDDay = (createdAt: string | Date, isClosed: boolean = false) => {
+  if (isClosed) {
+    return { label: '요청 마감', isUrgent: false };
+  }
+
   const createdDate = new Date(createdAt);
   const deadline = new Date(createdDate.getTime() + 7 * 24 * 60 * 60 * 1000);
   const today = new Date();

@@ -23,8 +23,8 @@ export default function ExpertHeaderContent({ isOwner = true }: ExpertHeaderCont
   const menuItems = [
     { name: '홈', href: '/expert/dashboard', showAlways: true },
     { name: '통합 갤러리', href: '/expert/gallery', showAlways: false },
-    { name: '받은요청', href: '/expert/requests', showAlways: false },
-    { name: '보낸요청', href: '/expert/bids', showAlways: false },
+    { name: '받은 요청', href: '/expert/requests', showAlways: false },
+    { name: '참여한 견적', href: '/expert/bids', showAlways: false },
     { name: '수익/정산', href: '/expert/earnings', showAlways: false },
     { name: '고객지원', href: '/expert/support', showAlways: true },
   ];
@@ -38,7 +38,7 @@ export default function ExpertHeaderContent({ isOwner = true }: ExpertHeaderCont
           <span className="text-2xl font-black tracking-tighter">OnePick</span>
         </Link>
         <span className={cn(
-          "px-2.5 py-1 rounded-lg text-[11px] font-black uppercase tracking-wider shadow-sm",
+          "px-2.5 py-1 rounded-lg text-sm font-base tracking-wider shadow-sm",
           grade === 'PRO' ? "bg-blue-600 text-white" : "bg-emerald-600 text-white"
         )}>
           {grade === 'PRO' ? '전문가' : '헬퍼'}

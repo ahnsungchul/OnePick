@@ -14,7 +14,7 @@ export default function SNSAuthPage() {
 
   const getRoleText = () => {
     switch (role) {
-      case 'expert': return '전문가 (고수)';
+      case 'expert': return '전문가';
       case 'both': return '통합 (사용자 및 전문가)';
       case 'user':
       default: return '사용자';

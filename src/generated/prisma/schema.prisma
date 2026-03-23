@@ -117,6 +117,7 @@ model Estimate {
   isUrgent        Boolean @default(false)
   needsReestimate Boolean @default(false)
   shareContact    Boolean @default(false)
+  isClosed        Boolean @default(false) // 사용자에 의해 수동 마감되었는지 여부
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -145,12 +146,14 @@ model Bookmark {
 }
 
 model Bid {
-  id         String    @id @default(uuid())
-  estimateId String
-  expertId   Int
-  price      Int // 전문가 제안 금액
-  message    String? // 추가 제안 메시지(코멘트)
-  status     BidStatus @default(PENDING)
+  id              String    @id @default(uuid())
+  estimateId      String
+  expertId        Int
+  price           Int // 전문가 제안 금액
+  message         String? // 추가 제안 메시지(코멘트)
+  availableDate   String? // 전문가 서비스 가능 일 (고객의 희망일 중 선택)
+  status          BidStatus @default(PENDING)
+  isEditRequested Boolean   @default(false) // 마감 후 고객이 수정을 요청했는지 여부
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

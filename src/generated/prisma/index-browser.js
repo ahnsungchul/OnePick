@@ -167,6 +167,7 @@ exports.Prisma.EstimateScalarFieldEnum = {
   isUrgent: 'isUrgent',
   needsReestimate: 'needsReestimate',
   shareContact: 'shareContact',
+  isClosed: 'isClosed',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -184,7 +185,9 @@ exports.Prisma.BidScalarFieldEnum = {
   expertId: 'expertId',
   price: 'price',
   message: 'message',
+  availableDate: 'availableDate',
   status: 'status',
+  isEditRequested: 'isEditRequested',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };

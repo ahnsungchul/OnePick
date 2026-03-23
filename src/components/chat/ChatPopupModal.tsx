@@ -141,7 +141,7 @@ export default function ChatPopupModal({ isOpen, onClose, bid, currentUserId, es
                />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900">{targetUser.name} {targetUser.roleLabel === '고객님' ? '고객님' : '고수'}</h3>
+              <h3 className="text-base font-black text-slate-900">{targetUser.name} {targetUser.roleLabel === '고객님' ? '고객님' : '전문가'}</h3>
               <p className="text-xs text-slate-500 font-medium">{targetUser.roleLabel !== '고객님' ? targetUser.roleLabel : '요청 내역 상담'}</p>
             </div>
           </div>

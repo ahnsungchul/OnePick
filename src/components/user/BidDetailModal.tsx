@@ -1,5 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
+import { requestBidModificationAction } from '@/actions/expert.action';
+import { useSession } from 'next-auth/react';
 
 interface BidItem {
   id: string;
@@ -13,9 +15,13 @@ interface BidDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   bid: any;
+  isClosed?: boolean;
 }
 
-export default function BidDetailModal({ isOpen, onClose, bid }: BidDetailModalProps) {
+export default function BidDetailModal({ isOpen, onClose, bid, isClosed }: BidDetailModalProps) {
+  const { data: session } = useSession();
+  const [isRequesting, setIsRequesting] = useState(false);
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -28,6 +34,27 @@ export default function BidDetailModal({ isOpen, onClose, bid }: BidDetailModalP
   }, [isOpen]);
 
   if (!isOpen || !bid) return null;
+
+  const handleModificationRequest = async () => {
+    if (!session?.user?.id) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+    if (!window.confirm("이 전문가에게 견적 수정을 요청하시겠습니까?")) return;
+
+    setIsRequesting(true);
+    const userId = parseInt(session.user.id, 10);
+    const result = await requestBidModificationAction(bid.id, userId);
+    
+    setIsRequesting(false);
+    
+    if (result.success) {
+      alert("수정 요청이 완료되었습니다.");
+      window.location.reload();
+    } else {
+      alert(result.error || "처리 중 오류가 발생했습니다.");
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 !m-0" onClick={onClose}>
@@ -57,7 +84,7 @@ export default function BidDetailModal({ isOpen, onClose, bid }: BidDetailModalP
             />
             <div>
               <p className="text-sm text-slate-500 font-bold">{bid.expert.specialty || '전문가'}</p>
-              <h4 className="text-lg font-black text-slate-900">{bid.expert.name} 고수</h4>
+              <h4 className="text-lg font-black text-slate-900">{bid.expert.name} 전문가</h4>
             </div>
           </div>
 
@@ -103,12 +130,35 @@ export default function BidDetailModal({ isOpen, onClose, bid }: BidDetailModalP
         </div>
         
         <div className="p-6 md:p-8 bg-slate-50 border-t border-slate-100 flex-shrink-0">
-          <div className="bg-slate-900 rounded-2xl p-5 text-white flex justify-between items-center shadow-lg shadow-slate-900/20">
+          <div className="bg-slate-900 rounded-2xl p-5 text-white flex justify-between items-center shadow-lg shadow-slate-900/20 mb-4">
             <span className="font-bold text-white/80">총 제안 금액</span>
             <div className="flex items-baseline gap-1">
               <span className="text-2xl font-bold">{bid.price?.toLocaleString() || 0}</span>
               <span className="text-sm font-bold text-white/60">원</span>
             </div>
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={handleModificationRequest}
+              disabled={!isClosed || bid.isEditRequested || isRequesting}
+              className={`w-full py-3 rounded-xl font-bold transition-all ${
+                !isClosed || bid.isEditRequested || isRequesting
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98]'
+              }`}
+            >
+              {isRequesting 
+                ? '요청 중...' 
+                : bid.isEditRequested 
+                  ? '견적 수정 요청 완료' 
+                  : '견적 수정 요청하기'}
+            </button>
+            {!isClosed && !bid.isEditRequested && (
+              <p className="text-xs text-center font-medium text-slate-500">
+                요청을 마감한 후에만 견적 수정 요청이 가능합니다.
+              </p>
+            )}
           </div>
         </div>
       </div>

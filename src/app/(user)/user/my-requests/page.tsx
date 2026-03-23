@@ -151,7 +151,7 @@ export default function UserRequestsPage() {
           <h3 className="text-xl font-bold text-slate-800 mb-2">
             {activeFilter === 'ALL' ? '진행 중인 요청이 없습니다' : '해당하는 요청이 없습니다'}
           </h3>
-          <p className="text-slate-500 mb-8 max-w-xs mx-auto">생활 속 도움이 필요한 순간, 원픽 고수님들께 견적을 요청해보세요!</p>
+          <p className="text-slate-500 mb-8 max-w-xs mx-auto">생활 속 도움이 필요한 순간, 원픽 전문가님들께 견적을 요청해보세요!</p>
           <a href="/estimate/new">
             <button className="bg-blue-600 text-white px-8 py-3.5 rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-95">
               새 견적 요청하기

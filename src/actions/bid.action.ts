@@ -11,11 +11,13 @@ export async function submitBidAction({
   expertId,
   items,
   message,
+  availableDate,
 }: {
   estimateId: string;
   expertId: number;
   items: { name: string; content: string; period: string; amount: number }[];
   message?: string;
+  availableDate?: string;
 }) {
   try {
     // 1. 이미 입찰했는지 확인 (중복 입찰 방지)
@@ -67,6 +69,7 @@ export async function submitBidAction({
           expertId,
           price: totalPrice,
           message,
+          availableDate,
           items: {
             create: items,
           },

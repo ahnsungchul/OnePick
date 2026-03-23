@@ -4951,6 +4951,7 @@ export namespace Prisma {
     isUrgent: boolean | null
     needsReestimate: boolean | null
     shareContact: boolean | null
+    isClosed: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -4971,6 +4972,7 @@ export namespace Prisma {
     isUrgent: boolean | null
     needsReestimate: boolean | null
     shareContact: boolean | null
+    isClosed: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -4993,6 +4995,7 @@ export namespace Prisma {
     isUrgent: number
     needsReestimate: number
     shareContact: number
+    isClosed: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -5025,6 +5028,7 @@ export namespace Prisma {
     isUrgent?: true
     needsReestimate?: true
     shareContact?: true
+    isClosed?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -5045,6 +5049,7 @@ export namespace Prisma {
     isUrgent?: true
     needsReestimate?: true
     shareContact?: true
+    isClosed?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -5067,6 +5072,7 @@ export namespace Prisma {
     isUrgent?: true
     needsReestimate?: true
     shareContact?: true
+    isClosed?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -5176,6 +5182,7 @@ export namespace Prisma {
     isUrgent: boolean
     needsReestimate: boolean
     shareContact: boolean
+    isClosed: boolean
     createdAt: Date
     updatedAt: Date
     _count: EstimateCountAggregateOutputType | null
@@ -5217,6 +5224,7 @@ export namespace Prisma {
     isUrgent?: boolean
     needsReestimate?: boolean
     shareContact?: boolean
+    isClosed?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     customer?: boolean | UserDefaultArgs<ExtArgs>
@@ -5244,6 +5252,7 @@ export namespace Prisma {
     isUrgent?: boolean
     needsReestimate?: boolean
     shareContact?: boolean
+    isClosed?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     customer?: boolean | UserDefaultArgs<ExtArgs>
@@ -5267,6 +5276,7 @@ export namespace Prisma {
     isUrgent?: boolean
     needsReestimate?: boolean
     shareContact?: boolean
+    isClosed?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     customer?: boolean | UserDefaultArgs<ExtArgs>
@@ -5290,11 +5300,12 @@ export namespace Prisma {
     isUrgent?: boolean
     needsReestimate?: boolean
     shareContact?: boolean
+    isClosed?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type EstimateOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "requestNumber" | "customerId" | "authorName" | "contact" | "category" | "subcategories" | "location" | "details" | "serviceDate" | "serviceTime" | "photoUrls" | "status" | "currentStep" | "isUrgent" | "needsReestimate" | "shareContact" | "createdAt" | "updatedAt", ExtArgs["result"]["estimate"]>
+  export type EstimateOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "requestNumber" | "customerId" | "authorName" | "contact" | "category" | "subcategories" | "location" | "details" | "serviceDate" | "serviceTime" | "photoUrls" | "status" | "currentStep" | "isUrgent" | "needsReestimate" | "shareContact" | "isClosed" | "createdAt" | "updatedAt", ExtArgs["result"]["estimate"]>
   export type EstimateInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     customer?: boolean | UserDefaultArgs<ExtArgs>
     bids?: boolean | Estimate$bidsArgs<ExtArgs>
@@ -5335,6 +5346,7 @@ export namespace Prisma {
       isUrgent: boolean
       needsReestimate: boolean
       shareContact: boolean
+      isClosed: boolean
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["estimate"]>
@@ -5781,6 +5793,7 @@ export namespace Prisma {
     readonly isUrgent: FieldRef<"Estimate", 'Boolean'>
     readonly needsReestimate: FieldRef<"Estimate", 'Boolean'>
     readonly shareContact: FieldRef<"Estimate", 'Boolean'>
+    readonly isClosed: FieldRef<"Estimate", 'Boolean'>
     readonly createdAt: FieldRef<"Estimate", 'DateTime'>
     readonly updatedAt: FieldRef<"Estimate", 'DateTime'>
   }
@@ -7394,7 +7407,9 @@ export namespace Prisma {
     expertId: number | null
     price: number | null
     message: string | null
+    availableDate: string | null
     status: $Enums.BidStatus | null
+    isEditRequested: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -7405,7 +7420,9 @@ export namespace Prisma {
     expertId: number | null
     price: number | null
     message: string | null
+    availableDate: string | null
     status: $Enums.BidStatus | null
+    isEditRequested: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -7416,7 +7433,9 @@ export namespace Prisma {
     expertId: number
     price: number
     message: number
+    availableDate: number
     status: number
+    isEditRequested: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -7439,7 +7458,9 @@ export namespace Prisma {
     expertId?: true
     price?: true
     message?: true
+    availableDate?: true
     status?: true
+    isEditRequested?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -7450,7 +7471,9 @@ export namespace Prisma {
     expertId?: true
     price?: true
     message?: true
+    availableDate?: true
     status?: true
+    isEditRequested?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -7461,7 +7484,9 @@ export namespace Prisma {
     expertId?: true
     price?: true
     message?: true
+    availableDate?: true
     status?: true
+    isEditRequested?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -7559,7 +7584,9 @@ export namespace Prisma {
     expertId: number
     price: number
     message: string | null
+    availableDate: string | null
     status: $Enums.BidStatus
+    isEditRequested: boolean
     createdAt: Date
     updatedAt: Date
     _count: BidCountAggregateOutputType | null
@@ -7589,7 +7616,9 @@ export namespace Prisma {
     expertId?: boolean
     price?: boolean
     message?: boolean
+    availableDate?: boolean
     status?: boolean
+    isEditRequested?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     estimate?: boolean | EstimateDefaultArgs<ExtArgs>
@@ -7604,7 +7633,9 @@ export namespace Prisma {
     expertId?: boolean
     price?: boolean
     message?: boolean
+    availableDate?: boolean
     status?: boolean
+    isEditRequested?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     estimate?: boolean | EstimateDefaultArgs<ExtArgs>
@@ -7617,7 +7648,9 @@ export namespace Prisma {
     expertId?: boolean
     price?: boolean
     message?: boolean
+    availableDate?: boolean
     status?: boolean
+    isEditRequested?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     estimate?: boolean | EstimateDefaultArgs<ExtArgs>
@@ -7630,12 +7663,14 @@ export namespace Prisma {
     expertId?: boolean
     price?: boolean
     message?: boolean
+    availableDate?: boolean
     status?: boolean
+    isEditRequested?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type BidOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "estimateId" | "expertId" | "price" | "message" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["bid"]>
+  export type BidOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "estimateId" | "expertId" | "price" | "message" | "availableDate" | "status" | "isEditRequested" | "createdAt" | "updatedAt", ExtArgs["result"]["bid"]>
   export type BidInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     estimate?: boolean | EstimateDefaultArgs<ExtArgs>
     expert?: boolean | UserDefaultArgs<ExtArgs>
@@ -7664,7 +7699,9 @@ export namespace Prisma {
       expertId: number
       price: number
       message: string | null
+      availableDate: string | null
       status: $Enums.BidStatus
+      isEditRequested: boolean
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["bid"]>
@@ -8098,7 +8135,9 @@ export namespace Prisma {
     readonly expertId: FieldRef<"Bid", 'Int'>
     readonly price: FieldRef<"Bid", 'Int'>
     readonly message: FieldRef<"Bid", 'String'>
+    readonly availableDate: FieldRef<"Bid", 'String'>
     readonly status: FieldRef<"Bid", 'BidStatus'>
+    readonly isEditRequested: FieldRef<"Bid", 'Boolean'>
     readonly createdAt: FieldRef<"Bid", 'DateTime'>
     readonly updatedAt: FieldRef<"Bid", 'DateTime'>
   }
@@ -18486,6 +18525,7 @@ export namespace Prisma {
     isUrgent: 'isUrgent',
     needsReestimate: 'needsReestimate',
     shareContact: 'shareContact',
+    isClosed: 'isClosed',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -18509,7 +18549,9 @@ export namespace Prisma {
     expertId: 'expertId',
     price: 'price',
     message: 'message',
+    availableDate: 'availableDate',
     status: 'status',
+    isEditRequested: 'isEditRequested',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -19022,6 +19064,7 @@ export namespace Prisma {
     isUrgent?: BoolFilter<"Estimate"> | boolean
     needsReestimate?: BoolFilter<"Estimate"> | boolean
     shareContact?: BoolFilter<"Estimate"> | boolean
+    isClosed?: BoolFilter<"Estimate"> | boolean
     createdAt?: DateTimeFilter<"Estimate"> | Date | string
     updatedAt?: DateTimeFilter<"Estimate"> | Date | string
     customer?: XOR<UserScalarRelationFilter, UserWhereInput>
@@ -19048,6 +19091,7 @@ export namespace Prisma {
     isUrgent?: SortOrder
     needsReestimate?: SortOrder
     shareContact?: SortOrder
+    isClosed?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     customer?: UserOrderByWithRelationInput
@@ -19077,6 +19121,7 @@ export namespace Prisma {
     isUrgent?: BoolFilter<"Estimate"> | boolean
     needsReestimate?: BoolFilter<"Estimate"> | boolean
     shareContact?: BoolFilter<"Estimate"> | boolean
+    isClosed?: BoolFilter<"Estimate"> | boolean
     createdAt?: DateTimeFilter<"Estimate"> | Date | string
     updatedAt?: DateTimeFilter<"Estimate"> | Date | string
     customer?: XOR<UserScalarRelationFilter, UserWhereInput>
@@ -19103,6 +19148,7 @@ export namespace Prisma {
     isUrgent?: SortOrder
     needsReestimate?: SortOrder
     shareContact?: SortOrder
+    isClosed?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: EstimateCountOrderByAggregateInput
@@ -19133,6 +19179,7 @@ export namespace Prisma {
     isUrgent?: BoolWithAggregatesFilter<"Estimate"> | boolean
     needsReestimate?: BoolWithAggregatesFilter<"Estimate"> | boolean
     shareContact?: BoolWithAggregatesFilter<"Estimate"> | boolean
+    isClosed?: BoolWithAggregatesFilter<"Estimate"> | boolean
     createdAt?: DateTimeWithAggregatesFilter<"Estimate"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Estimate"> | Date | string
   }
@@ -19202,7 +19249,9 @@ export namespace Prisma {
     expertId?: IntFilter<"Bid"> | number
     price?: IntFilter<"Bid"> | number
     message?: StringNullableFilter<"Bid"> | string | null
+    availableDate?: StringNullableFilter<"Bid"> | string | null
     status?: EnumBidStatusFilter<"Bid"> | $Enums.BidStatus
+    isEditRequested?: BoolFilter<"Bid"> | boolean
     createdAt?: DateTimeFilter<"Bid"> | Date | string
     updatedAt?: DateTimeFilter<"Bid"> | Date | string
     estimate?: XOR<EstimateScalarRelationFilter, EstimateWhereInput>
@@ -19216,7 +19265,9 @@ export namespace Prisma {
     expertId?: SortOrder
     price?: SortOrder
     message?: SortOrderInput | SortOrder
+    availableDate?: SortOrderInput | SortOrder
     status?: SortOrder
+    isEditRequested?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     estimate?: EstimateOrderByWithRelationInput
@@ -19233,7 +19284,9 @@ export namespace Prisma {
     expertId?: IntFilter<"Bid"> | number
     price?: IntFilter<"Bid"> | number
     message?: StringNullableFilter<"Bid"> | string | null
+    availableDate?: StringNullableFilter<"Bid"> | string | null
     status?: EnumBidStatusFilter<"Bid"> | $Enums.BidStatus
+    isEditRequested?: BoolFilter<"Bid"> | boolean
     createdAt?: DateTimeFilter<"Bid"> | Date | string
     updatedAt?: DateTimeFilter<"Bid"> | Date | string
     estimate?: XOR<EstimateScalarRelationFilter, EstimateWhereInput>
@@ -19247,7 +19300,9 @@ export namespace Prisma {
     expertId?: SortOrder
     price?: SortOrder
     message?: SortOrderInput | SortOrder
+    availableDate?: SortOrderInput | SortOrder
     status?: SortOrder
+    isEditRequested?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: BidCountOrderByAggregateInput
@@ -19266,7 +19321,9 @@ export namespace Prisma {
     expertId?: IntWithAggregatesFilter<"Bid"> | number
     price?: IntWithAggregatesFilter<"Bid"> | number
     message?: StringNullableWithAggregatesFilter<"Bid"> | string | null
+    availableDate?: StringNullableWithAggregatesFilter<"Bid"> | string | null
     status?: EnumBidStatusWithAggregatesFilter<"Bid"> | $Enums.BidStatus
+    isEditRequested?: BoolWithAggregatesFilter<"Bid"> | boolean
     createdAt?: DateTimeWithAggregatesFilter<"Bid"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Bid"> | Date | string
   }
@@ -20107,6 +20164,7 @@ export namespace Prisma {
     isUrgent?: boolean
     needsReestimate?: boolean
     shareContact?: boolean
+    isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     customer: UserCreateNestedOneWithoutEstimatesInput
@@ -20133,6 +20191,7 @@ export namespace Prisma {
     isUrgent?: boolean
     needsReestimate?: boolean
     shareContact?: boolean
+    isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     bids?: BidUncheckedCreateNestedManyWithoutEstimateInput
@@ -20157,6 +20216,7 @@ export namespace Prisma {
     isUrgent?: BoolFieldUpdateOperationsInput | boolean
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
+    isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     customer?: UserUpdateOneRequiredWithoutEstimatesNestedInput
@@ -20183,6 +20243,7 @@ export namespace Prisma {
     isUrgent?: BoolFieldUpdateOperationsInput | boolean
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
+    isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     bids?: BidUncheckedUpdateManyWithoutEstimateNestedInput
@@ -20208,6 +20269,7 @@ export namespace Prisma {
     isUrgent?: boolean
     needsReestimate?: boolean
     shareContact?: boolean
+    isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -20229,6 +20291,7 @@ export namespace Prisma {
     isUrgent?: BoolFieldUpdateOperationsInput | boolean
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
+    isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -20251,6 +20314,7 @@ export namespace Prisma {
     isUrgent?: BoolFieldUpdateOperationsInput | boolean
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
+    isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -20306,7 +20370,9 @@ export namespace Prisma {
     id?: string
     price: number
     message?: string | null
+    availableDate?: string | null
     status?: $Enums.BidStatus
+    isEditRequested?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     estimate: EstimateCreateNestedOneWithoutBidsInput
@@ -20320,7 +20386,9 @@ export namespace Prisma {
     expertId: number
     price: number
     message?: string | null
+    availableDate?: string | null
     status?: $Enums.BidStatus
+    isEditRequested?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     items?: BidItemUncheckedCreateNestedManyWithoutBidInput
@@ -20330,7 +20398,9 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     price?: IntFieldUpdateOperationsInput | number
     message?: NullableStringFieldUpdateOperationsInput | string | null
+    availableDate?: NullableStringFieldUpdateOperationsInput | string | null
     status?: EnumBidStatusFieldUpdateOperationsInput | $Enums.BidStatus
+    isEditRequested?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     estimate?: EstimateUpdateOneRequiredWithoutBidsNestedInput
@@ -20344,7 +20414,9 @@ export namespace Prisma {
     expertId?: IntFieldUpdateOperationsInput | number
     price?: IntFieldUpdateOperationsInput | number
     message?: NullableStringFieldUpdateOperationsInput | string | null
+    availableDate?: NullableStringFieldUpdateOperationsInput | string | null
     status?: EnumBidStatusFieldUpdateOperationsInput | $Enums.BidStatus
+    isEditRequested?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     items?: BidItemUncheckedUpdateManyWithoutBidNestedInput
@@ -20356,7 +20428,9 @@ export namespace Prisma {
     expertId: number
     price: number
     message?: string | null
+    availableDate?: string | null
     status?: $Enums.BidStatus
+    isEditRequested?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -20365,7 +20439,9 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     price?: IntFieldUpdateOperationsInput | number
     message?: NullableStringFieldUpdateOperationsInput | string | null
+    availableDate?: NullableStringFieldUpdateOperationsInput | string | null
     status?: EnumBidStatusFieldUpdateOperationsInput | $Enums.BidStatus
+    isEditRequested?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -20376,7 +20452,9 @@ export namespace Prisma {
     expertId?: IntFieldUpdateOperationsInput | number
     price?: IntFieldUpdateOperationsInput | number
     message?: NullableStringFieldUpdateOperationsInput | string | null
+    availableDate?: NullableStringFieldUpdateOperationsInput | string | null
     status?: EnumBidStatusFieldUpdateOperationsInput | $Enums.BidStatus
+    isEditRequested?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -21411,6 +21489,7 @@ export namespace Prisma {
     isUrgent?: SortOrder
     needsReestimate?: SortOrder
     shareContact?: SortOrder
+    isClosed?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -21436,6 +21515,7 @@ export namespace Prisma {
     isUrgent?: SortOrder
     needsReestimate?: SortOrder
     shareContact?: SortOrder
+    isClosed?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -21456,6 +21536,7 @@ export namespace Prisma {
     isUrgent?: SortOrder
     needsReestimate?: SortOrder
     shareContact?: SortOrder
+    isClosed?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -21537,7 +21618,9 @@ export namespace Prisma {
     expertId?: SortOrder
     price?: SortOrder
     message?: SortOrder
+    availableDate?: SortOrder
     status?: SortOrder
+    isEditRequested?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -21553,7 +21636,9 @@ export namespace Prisma {
     expertId?: SortOrder
     price?: SortOrder
     message?: SortOrder
+    availableDate?: SortOrder
     status?: SortOrder
+    isEditRequested?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -21564,7 +21649,9 @@ export namespace Prisma {
     expertId?: SortOrder
     price?: SortOrder
     message?: SortOrder
+    availableDate?: SortOrder
     status?: SortOrder
+    isEditRequested?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -23187,6 +23274,7 @@ export namespace Prisma {
     isUrgent?: boolean
     needsReestimate?: boolean
     shareContact?: boolean
+    isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     bids?: BidCreateNestedManyWithoutEstimateInput
@@ -23211,6 +23299,7 @@ export namespace Prisma {
     isUrgent?: boolean
     needsReestimate?: boolean
     shareContact?: boolean
+    isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     bids?: BidUncheckedCreateNestedManyWithoutEstimateInput
@@ -23232,7 +23321,9 @@ export namespace Prisma {
     id?: string
     price: number
     message?: string | null
+    availableDate?: string | null
     status?: $Enums.BidStatus
+    isEditRequested?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     estimate: EstimateCreateNestedOneWithoutBidsInput
@@ -23244,7 +23335,9 @@ export namespace Prisma {
     estimateId: string
     price: number
     message?: string | null
+    availableDate?: string | null
     status?: $Enums.BidStatus
+    isEditRequested?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     items?: BidItemUncheckedCreateNestedManyWithoutBidInput
@@ -23516,6 +23609,7 @@ export namespace Prisma {
     isUrgent?: BoolFilter<"Estimate"> | boolean
     needsReestimate?: BoolFilter<"Estimate"> | boolean
     shareContact?: BoolFilter<"Estimate"> | boolean
+    isClosed?: BoolFilter<"Estimate"> | boolean
     createdAt?: DateTimeFilter<"Estimate"> | Date | string
     updatedAt?: DateTimeFilter<"Estimate"> | Date | string
   }
@@ -23545,7 +23639,9 @@ export namespace Prisma {
     expertId?: IntFilter<"Bid"> | number
     price?: IntFilter<"Bid"> | number
     message?: StringNullableFilter<"Bid"> | string | null
+    availableDate?: StringNullableFilter<"Bid"> | string | null
     status?: EnumBidStatusFilter<"Bid"> | $Enums.BidStatus
+    isEditRequested?: BoolFilter<"Bid"> | boolean
     createdAt?: DateTimeFilter<"Bid"> | Date | string
     updatedAt?: DateTimeFilter<"Bid"> | Date | string
   }
@@ -23959,7 +24055,9 @@ export namespace Prisma {
     id?: string
     price: number
     message?: string | null
+    availableDate?: string | null
     status?: $Enums.BidStatus
+    isEditRequested?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     expert: UserCreateNestedOneWithoutBidsInput
@@ -23971,7 +24069,9 @@ export namespace Prisma {
     expertId: number
     price: number
     message?: string | null
+    availableDate?: string | null
     status?: $Enums.BidStatus
+    isEditRequested?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     items?: BidItemUncheckedCreateNestedManyWithoutBidInput
@@ -24228,6 +24328,7 @@ export namespace Prisma {
     isUrgent?: boolean
     needsReestimate?: boolean
     shareContact?: boolean
+    isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     customer: UserCreateNestedOneWithoutEstimatesInput
@@ -24253,6 +24354,7 @@ export namespace Prisma {
     isUrgent?: boolean
     needsReestimate?: boolean
     shareContact?: boolean
+    isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     bids?: BidUncheckedCreateNestedManyWithoutEstimateInput
@@ -24358,6 +24460,7 @@ export namespace Prisma {
     isUrgent?: BoolFieldUpdateOperationsInput | boolean
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
+    isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     customer?: UserUpdateOneRequiredWithoutEstimatesNestedInput
@@ -24383,6 +24486,7 @@ export namespace Prisma {
     isUrgent?: BoolFieldUpdateOperationsInput | boolean
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
+    isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     bids?: BidUncheckedUpdateManyWithoutEstimateNestedInput
@@ -24406,6 +24510,7 @@ export namespace Prisma {
     isUrgent?: boolean
     needsReestimate?: boolean
     shareContact?: boolean
+    isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     customer: UserCreateNestedOneWithoutEstimatesInput
@@ -24431,6 +24536,7 @@ export namespace Prisma {
     isUrgent?: boolean
     needsReestimate?: boolean
     shareContact?: boolean
+    isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     bookmarks?: BookmarkUncheckedCreateNestedManyWithoutEstimateInput
@@ -24556,6 +24662,7 @@ export namespace Prisma {
     isUrgent?: BoolFieldUpdateOperationsInput | boolean
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
+    isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     customer?: UserUpdateOneRequiredWithoutEstimatesNestedInput
@@ -24581,6 +24688,7 @@ export namespace Prisma {
     isUrgent?: BoolFieldUpdateOperationsInput | boolean
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
+    isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     bookmarks?: BookmarkUncheckedUpdateManyWithoutEstimateNestedInput
@@ -24685,7 +24793,9 @@ export namespace Prisma {
     id?: string
     price: number
     message?: string | null
+    availableDate?: string | null
     status?: $Enums.BidStatus
+    isEditRequested?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     estimate: EstimateCreateNestedOneWithoutBidsInput
@@ -24698,7 +24808,9 @@ export namespace Prisma {
     expertId: number
     price: number
     message?: string | null
+    availableDate?: string | null
     status?: $Enums.BidStatus
+    isEditRequested?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -24723,7 +24835,9 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     price?: IntFieldUpdateOperationsInput | number
     message?: NullableStringFieldUpdateOperationsInput | string | null
+    availableDate?: NullableStringFieldUpdateOperationsInput | string | null
     status?: EnumBidStatusFieldUpdateOperationsInput | $Enums.BidStatus
+    isEditRequested?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     estimate?: EstimateUpdateOneRequiredWithoutBidsNestedInput
@@ -24736,7 +24850,9 @@ export namespace Prisma {
     expertId?: IntFieldUpdateOperationsInput | number
     price?: IntFieldUpdateOperationsInput | number
     message?: NullableStringFieldUpdateOperationsInput | string | null
+    availableDate?: NullableStringFieldUpdateOperationsInput | string | null
     status?: EnumBidStatusFieldUpdateOperationsInput | $Enums.BidStatus
+    isEditRequested?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -24878,6 +24994,7 @@ export namespace Prisma {
     isUrgent?: boolean
     needsReestimate?: boolean
     shareContact?: boolean
+    isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     customer: UserCreateNestedOneWithoutEstimatesInput
@@ -24903,6 +25020,7 @@ export namespace Prisma {
     isUrgent?: boolean
     needsReestimate?: boolean
     shareContact?: boolean
+    isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     bids?: BidUncheckedCreateNestedManyWithoutEstimateInput
@@ -25074,6 +25192,7 @@ export namespace Prisma {
     isUrgent?: BoolFieldUpdateOperationsInput | boolean
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
+    isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     customer?: UserUpdateOneRequiredWithoutEstimatesNestedInput
@@ -25099,6 +25218,7 @@ export namespace Prisma {
     isUrgent?: BoolFieldUpdateOperationsInput | boolean
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
+    isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     bids?: BidUncheckedUpdateManyWithoutEstimateNestedInput
@@ -25626,6 +25746,7 @@ export namespace Prisma {
     isUrgent?: boolean
     needsReestimate?: boolean
     shareContact?: boolean
+    isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -25635,7 +25756,9 @@ export namespace Prisma {
     estimateId: string
     price: number
     message?: string | null
+    availableDate?: string | null
     status?: $Enums.BidStatus
+    isEditRequested?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -25720,6 +25843,7 @@ export namespace Prisma {
     isUrgent?: BoolFieldUpdateOperationsInput | boolean
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
+    isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     bids?: BidUpdateManyWithoutEstimateNestedInput
@@ -25744,6 +25868,7 @@ export namespace Prisma {
     isUrgent?: BoolFieldUpdateOperationsInput | boolean
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
+    isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     bids?: BidUncheckedUpdateManyWithoutEstimateNestedInput
@@ -25768,6 +25893,7 @@ export namespace Prisma {
     isUrgent?: BoolFieldUpdateOperationsInput | boolean
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
+    isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -25776,7 +25902,9 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     price?: IntFieldUpdateOperationsInput | number
     message?: NullableStringFieldUpdateOperationsInput | string | null
+    availableDate?: NullableStringFieldUpdateOperationsInput | string | null
     status?: EnumBidStatusFieldUpdateOperationsInput | $Enums.BidStatus
+    isEditRequested?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     estimate?: EstimateUpdateOneRequiredWithoutBidsNestedInput
@@ -25788,7 +25916,9 @@ export namespace Prisma {
     estimateId?: StringFieldUpdateOperationsInput | string
     price?: IntFieldUpdateOperationsInput | number
     message?: NullableStringFieldUpdateOperationsInput | string | null
+    availableDate?: NullableStringFieldUpdateOperationsInput | string | null
     status?: EnumBidStatusFieldUpdateOperationsInput | $Enums.BidStatus
+    isEditRequested?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     items?: BidItemUncheckedUpdateManyWithoutBidNestedInput
@@ -25799,7 +25929,9 @@ export namespace Prisma {
     estimateId?: StringFieldUpdateOperationsInput | string
     price?: IntFieldUpdateOperationsInput | number
     message?: NullableStringFieldUpdateOperationsInput | string | null
+    availableDate?: NullableStringFieldUpdateOperationsInput | string | null
     status?: EnumBidStatusFieldUpdateOperationsInput | $Enums.BidStatus
+    isEditRequested?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -25998,7 +26130,9 @@ export namespace Prisma {
     expertId: number
     price: number
     message?: string | null
+    availableDate?: string | null
     status?: $Enums.BidStatus
+    isEditRequested?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -26022,7 +26156,9 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     price?: IntFieldUpdateOperationsInput | number
     message?: NullableStringFieldUpdateOperationsInput | string | null
+    availableDate?: NullableStringFieldUpdateOperationsInput | string | null
     status?: EnumBidStatusFieldUpdateOperationsInput | $Enums.BidStatus
+    isEditRequested?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     expert?: UserUpdateOneRequiredWithoutBidsNestedInput
@@ -26034,7 +26170,9 @@ export namespace Prisma {
     expertId?: IntFieldUpdateOperationsInput | number
     price?: IntFieldUpdateOperationsInput | number
     message?: NullableStringFieldUpdateOperationsInput | string | null
+    availableDate?: NullableStringFieldUpdateOperationsInput | string | null
     status?: EnumBidStatusFieldUpdateOperationsInput | $Enums.BidStatus
+    isEditRequested?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     items?: BidItemUncheckedUpdateManyWithoutBidNestedInput
@@ -26045,7 +26183,9 @@ export namespace Prisma {
     expertId?: IntFieldUpdateOperationsInput | number
     price?: IntFieldUpdateOperationsInput | number
     message?: NullableStringFieldUpdateOperationsInput | string | null
+    availableDate?: NullableStringFieldUpdateOperationsInput | string | null
     status?: EnumBidStatusFieldUpdateOperationsInput | $Enums.BidStatus
+    isEditRequested?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

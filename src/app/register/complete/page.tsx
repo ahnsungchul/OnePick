@@ -27,7 +27,7 @@ export default function RegisterCompletePage() {
       case 'both':
         return {
           title: '통합 회원 가입이 완료되었습니다!',
-          desc: '도움이 필요할 땐 사용자로, 전문 지식을 제공할 땐 프로필을 전환해 고수님으로 활동해 보세요.',
+          desc: '도움이 필요할 땐 사용자로, 전문 지식을 제공할 땐 프로필을 전환해 전문가님으로 활동해 보세요.',
           icon: <UserCheck className="w-12 h-12" />,
           bgColor: 'bg-teal-50',
           textColor: 'text-teal-600',

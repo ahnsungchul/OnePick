@@ -162,7 +162,7 @@ export default function UserPaymentsPage() {
                               </div>
                               <p className="text-slate-500 text-xs line-clamp-1">{payment.expertCompany}</p>
                             </div>
-                            <h5 className="font-bold text-slate-900">{payment.expertName} 고수</h5>
+                            <h5 className="font-bold text-slate-900">{payment.expertName} 전문가</h5>
                           </div>
                         </div>
                       </td>

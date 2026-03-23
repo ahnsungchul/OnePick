@@ -39,14 +39,14 @@ const categories = [
 const emergencyRequests = [
   { id: 1, tag: '매우 급함', title: '싱크대 배관 누수 수리', location: '강남구 역삼동', time: '오늘 내 해결 희망', price: '견적 협의', urgent: true },
   { id: 2, tag: '오늘 방문', title: '현관 도어락 교체', location: '서초구 서초동', time: '18시 이전 방문 희망', price: '50,000원~', urgent: false },
-  { id: 3, tag: '매우 급함', title: '변기 막힘 뚫음', location: '송파구 잠실동', time: '즉시 방문 가능 고수님', price: '견적 협의', urgent: true },
+  { id: 3, tag: '매우 급함', title: '변기 막힘 뚫음', location: '송파구 잠실동', time: '즉시 방문 가능 전문가님', price: '견적 협의', urgent: true },
   { id: 4, tag: '오늘 방문', title: '전기 누전 점검', location: '강남구 논현동', time: '야간 방문 가능 희망', price: '80,000원~', urgent: false },
 ];
 
 const topExperts = [
   { 
     id: 1, 
-    name: '김도준 고수', 
+    name: '김도준 전문가', 
     specialty: '도배 · 장판 시공 전문', 
     rating: 4.9, 
     reviews: 128, 
@@ -66,7 +66,7 @@ const topExperts = [
   },
   { 
     id: 3, 
-    name: '박정호 고수', 
+    name: '박정호 전문가', 
     specialty: '종합 설비/누수 수리', 
     rating: 4.8, 
     reviews: 310, 
@@ -76,7 +76,7 @@ const topExperts = [
   },
   { 
     id: 4, 
-    name: '최윤지 고수', 
+    name: '최윤지 전문가', 
     specialty: '친환경 페인트 시공', 
     rating: 4.9, 
     reviews: 95, 
@@ -97,7 +97,7 @@ const reviews = [
   { 
     id: 1, 
     category: '도배/장판', 
-    text: '고수님 덕분에 칙칙했던 거실이 너무 화사해졌어요! 시간도 잘 지켜주시고 마감도 정말 깔끔해서 감동했습니다. 다음에도 꼭 연락드릴게요!', 
+    text: '전문가님 덕분에 칙칙했던 거실이 너무 화사해졌어요! 시간도 잘 지켜주시고 마감도 정말 깔끔해서 감동했습니다. 다음에도 꼭 연락드릴게요!', 
     author: '김*하 고객님', 
     time: '2일 전', 
     image: 'https://picsum.photos/seed/review1/600/400' 
@@ -350,7 +350,7 @@ export default function App() {
           <div className="max-w-7xl mx-auto px-4">
             <SectionHeader 
               title="실시간 견적 요청 현황" 
-              subtitle="지금 바로 고수님의 손길을 기다리는 요청서들입니다" 
+              subtitle="지금 바로 전문가님의 손길을 기다리는 요청서들입니다" 
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {realTimeRequests.map(req => (
@@ -367,7 +367,7 @@ export default function App() {
                       <span>{req.location} | {req.time}</span>
                     </div>
                     <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-500">{req.participants}명의 고수 참여 중</span>
+                      <span className="text-xs font-bold text-slate-500">{req.participants}명의 전문가 참여 중</span>
                       <Zap className="w-5 h-5 text-blue-500" />
                     </div>
                   </div>

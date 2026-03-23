@@ -21,7 +21,7 @@ import EstimateDetailModal from './EstimateDetailModal';
 import EstimateEditModal from './EstimateEditModal';
 import BidDetailModal from './BidDetailModal';
 import ChatPopupModal from '../chat/ChatPopupModal';
-import { deleteEstimateAction } from '@/actions/estimate.action';
+import { deleteEstimateAction, closeEstimateAction, cancelCloseEstimateAction } from '@/actions/estimate.action';
 import { acceptBidAction } from '@/actions/bid.action';
 import { useSession } from 'next-auth/react';
 
@@ -59,6 +59,7 @@ interface Estimate {
   unreadChatCount: number;
   unreadChats?: { id: string; senderId: number }[];
   bids: Bid[];
+  isClosed?: boolean;
 }
 
 export default function MyRequestListItem({ estimate }: { estimate: Estimate }) {
@@ -128,6 +129,48 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
     }
   };
 
+  const handleCloseEstimate = async () => {
+    if (!window.confirm('정말 이 요청을 마감하시겠습니까? 마감 시 더 이상 견적을 받을 수 없습니다.')) {
+      return;
+    }
+
+    if (!session?.user?.id) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+
+    const userId = parseInt(session.user.id, 10);
+    const result = await closeEstimateAction(estimate.id, userId);
+
+    if (result.success) {
+      alert('요청이 마감되었습니다.');
+      window.location.reload();
+    } else {
+      alert(result.error || '처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleCancelCloseEstimate = async () => {
+    if (!window.confirm('견적 마감을 취소하시겠습니까? 다시 견적을 받을 수 있습니다.')) {
+      return;
+    }
+
+    if (!session?.user?.id) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+
+    const userId = parseInt(session.user.id, 10);
+    const result = await cancelCloseEstimateAction(estimate.id, userId);
+
+    if (result.success) {
+      alert('마감이 취소되었습니다.');
+      window.location.reload();
+    } else {
+      alert(result.error || '처리 중 오류가 발생했습니다.');
+    }
+  };
+
   const statusConfig: Record<string, { label: string, color: string, icon: any }> = {
     'DRAFT': { label: '작성중', color: 'bg-amber-100 text-amber-700', icon: Clock },
     'PENDING': { label: '매칭중', color: 'bg-blue-100 text-blue-700', icon: Clock },
@@ -159,11 +202,11 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
               </span>
               {(estimate.status === 'PENDING' || estimate.status === 'BIDDING') && (
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                  calculateDDay(estimate.createdAt).isUrgent 
+                  calculateDDay(estimate.createdAt, estimate.isClosed).isUrgent 
                   ? 'bg-red-100 text-red-600' 
                   : 'bg-blue-50 text-blue-600 border border-blue-100'
                 }`}>
-                  {calculateDDay(estimate.createdAt).label}
+                  {calculateDDay(estimate.createdAt, estimate.isClosed).label}
                 </span>
               )}
               {estimate.status !== 'DRAFT' && (
@@ -217,12 +260,31 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
                   </button>
                 </>
               ) : (
-                <button 
-                  onClick={() => setIsDetailOpen(true)}
-                  className="w-full md:w-auto px-4 py-1 text-sm font-bold text-slate-600 bg-slate-50 rounded-full border border-slate-200 hover:bg-slate-100 transition-colors"
-                >
-                  상세보기
-                </button>
+                <div className="flex flex-row gap-2">
+                  {estimate.status === 'BIDDING' && (
+                    estimate.isClosed ? (
+                      <button 
+                        onClick={handleCancelCloseEstimate}
+                        className="w-full md:w-auto px-4 py-1 text-sm font-bold text-blue-500 bg-blue-50 rounded-full border border-blue-200 hover:bg-blue-100 transition-colors"
+                      >
+                        마감 취소
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={handleCloseEstimate}
+                        className="w-full md:w-auto px-4 py-1 text-sm font-bold text-slate-500 bg-slate-100 rounded-full border border-slate-200 hover:bg-slate-200 transition-colors"
+                      >
+                        견적 마감
+                      </button>
+                    )
+                  )}
+                  <button 
+                    onClick={() => setIsDetailOpen(true)}
+                    className="w-full md:w-auto px-4 py-1 text-sm font-bold text-slate-600 bg-slate-50 rounded-full border border-slate-200 hover:bg-slate-100 transition-colors"
+                  >
+                    상세보기
+                  </button>
+                </div>
               )}
 
               {/* Edit and Delete Buttons */}
@@ -332,7 +394,7 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
                         )}
                         <p className="text-slate-500 text-xs line-clamp-1">{bid.expert.specialty || `${formatCategory(estimate.category)} 전문`}</p>
                       </div>
-                      <h5 className="font-bold text-slate-900">{bid.expert.name} 고수</h5>
+                      <h5 className="font-bold text-slate-900">{bid.expert.name} 전문가</h5>
                     </div>
                   </div>
 
@@ -447,6 +509,7 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
         isOpen={!!selectedBidForModal} 
         onClose={() => setSelectedBidForModal(null)} 
         bid={selectedBidForModal} 
+        isClosed={estimate.isClosed}
       />
 
       {/* 채팅 모달 */}

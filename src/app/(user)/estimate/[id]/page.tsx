@@ -27,6 +27,7 @@ import {
   getAdjacentEstimateIdsAction 
 } from '@/actions/estimate.action';
 import { submitBidAction } from '@/actions/bid.action';
+import { checkDateAvailabilityAction } from '@/actions/expert.action';
 import { maskName, maskContact, maskAddress, formatCategory, calculateDDay } from '@/lib/utils';
 import Link from 'next/link';
 import BidDetailModal from '@/components/user/BidDetailModal';
@@ -62,6 +63,8 @@ export default function EstimateDetailPage() {
     { name: '', content: '', periodValue: '1', periodUnit: '일', amount: '' }
   ]);
   const [bidMessage, setBidMessage] = useState('');
+  const [selectedAvailableDates, setSelectedAvailableDates] = useState<string[]>([]);
+  const [errorModalMessage, setErrorModalMessage] = useState('');
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   const addBidItem = () => {
@@ -203,8 +206,43 @@ export default function EstimateDetailPage() {
     // 유효성 검사
     const isValid = bidItems.every(item => item.name && item.amount && parseInt(item.amount) > 0);
     if (!isValid) {
-      alert("모든 항목의 명칭과 올바른 금액을 입력해 주세요.");
+      setErrorModalMessage("모든 항목의 명칭과 올바른 금액을 입력해 주세요.");
       return;
+    }
+
+    // 서비스 가능일 파싱
+    let parsedDates: string[] = [];
+    if (estimate?.serviceDate) {
+      if (estimate.serviceDate.startsWith('희망일:')) {
+        parsedDates = estimate.serviceDate.replace('희망일: ', '').split(', ');
+      } else if (estimate.serviceDate.startsWith('정기:')) {
+        const match = estimate.serviceDate.match(/\((.*?)\)/);
+        if (match && match[1]) {
+          parsedDates = match[1].split(', ').map((day: string) => `${day}요일`);
+        }
+      } else if (estimate.serviceDate.startsWith('가능일:')) {
+        parsedDates = estimate.serviceDate.replace('가능일: ', '').split(', ');
+      } else if (estimate.serviceDate.includes(',')) {
+        parsedDates = estimate.serviceDate.split(',').map((d: string) => d.trim());
+      } else {
+        parsedDates = [estimate.serviceDate];
+      }
+    }
+
+    if (parsedDates.length > 0 && selectedAvailableDates.length === 0) {
+      setErrorModalMessage("서비스 가능일을 확인하고 선택해 주세요.");
+      return;
+    }
+
+    // 일정 중복 검증
+    if (selectedAvailableDates.length > 0) {
+      setIsSubmittingBid(true);
+      const conflictRes = await checkDateAvailabilityAction(userId, selectedAvailableDates);
+      setIsSubmittingBid(false);
+      if (conflictRes.success && conflictRes.hasConflict) {
+        setErrorModalMessage(`이미 달력에 다른 일정이 등록된 날짜(${conflictRes.conflicts?.join(', ')})가 포함되어 있습니다. 다른 서비스 가능일을 선택해 주세요.`);
+        return;
+      }
     }
 
     setIsSubmittingBid(true);
@@ -218,6 +256,7 @@ export default function EstimateDetailPage() {
         amount: (parseInt(item.amount) || 0) * 10000
       })),
       message: bidMessage,
+      availableDate: selectedAvailableDates.length > 0 ? selectedAvailableDates.join(', ') : '',
     });
 
     setIsSubmittingBid(false);
@@ -225,6 +264,7 @@ export default function EstimateDetailPage() {
       // 폼 초기화 및 데이터 새로고침
       setBidItems([{ name: '', content: '', periodValue: '1', periodUnit: '일', amount: '' }]);
       setBidMessage('');
+      setSelectedAvailableDates([]);
       
       const refreshRes = await getEstimateByIdAction(id);
       if (refreshRes.success) {
@@ -234,7 +274,7 @@ export default function EstimateDetailPage() {
         window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
       }
     } else {
-      alert(res.error || "견적 제출에 실패했습니다.");
+      setErrorModalMessage(res.error || "견적 제출에 실패했습니다.");
     }
   };
 
@@ -250,8 +290,8 @@ export default function EstimateDetailPage() {
 
   const isAuthor = estimate && userId === estimate.customerId;
   const isExpert = userRole === 'EXPERT' || userRole === 'BOTH';
-  const isExpired = estimate && calculateDDay(estimate.createdAt).label === '요청 마감';
-  const canBid = isExpert && userGrade && !isAuthor && !hasParticipated && estimate?.status !== 'COMPLETED' && estimate?.status !== 'CANCELLED' && !isExpired;
+  const isExpired = estimate && calculateDDay(estimate.createdAt, estimate.isClosed).label === '요청 마감';
+  const canBid = isExpert && userGrade && !isAuthor && !hasParticipated && estimate?.status !== 'COMPLETED' && estimate?.status !== 'CANCELLED' && !isExpired && !estimate?.isClosed;
 
   return (
     <div className="bg-slate-50">
@@ -345,8 +385,8 @@ export default function EstimateDetailPage() {
                  estimate.status === 'COMPLETED' ? '서비스완료' : '취소됨'}
               </span>
               {(estimate.status === 'PENDING' || estimate.status === 'BIDDING') && (
-                <span className={`text-xs font-extrabold px-3 py-1 rounded-full shadow-md ${calculateDDay(estimate.createdAt).isUrgent ? 'bg-red-500 text-white animate-pulse' : 'bg-slate-700 text-white'}`}>
-                  {calculateDDay(estimate.createdAt).label}
+                <span className={`text-xs font-bold px-3 py-1 rounded-full shadow-md ${calculateDDay(estimate.createdAt, estimate.isClosed).isUrgent ? 'bg-red-500 text-white animate-pulse' : 'bg-slate-700 text-white'}`}>
+                  {calculateDDay(estimate.createdAt, estimate.isClosed).label}
                 </span>
               )}
             </div>
@@ -378,7 +418,7 @@ export default function EstimateDetailPage() {
                     <Calendar className="w-5 h-5 text-blue-500" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-blue-500 uppercase mb-0.5">서비스 희망 일정</p>
+                    <p className="text-xs font-bold text-blue-500 uppercase mb-0.5">서비스 희망 일</p>
                     <p className="text-sm font-bold text-slate-700">
                       {estimate.serviceDate}
                       {estimate.serviceTime && ` (${estimate.serviceTime})`}
@@ -410,7 +450,7 @@ export default function EstimateDetailPage() {
           </div>
 
           <div className="mt-8">
-            <h3 className="text-base font-black text-slate-900 mb-4 flex items-center gap-2">
+            <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
               <Clock className="w-4 h-4 text-blue-500" /> 상세 요청 내용
             </h3>
             <div className="bg-slate-50 rounded-2xl p-6 text-slate-700 text-base leading-relaxed whitespace-pre-wrap">
@@ -420,7 +460,7 @@ export default function EstimateDetailPage() {
 
           {estimate.photoUrls && estimate.photoUrls.length > 0 && (
             <div className="mt-8">
-              <h3 className="text-sm font-black text-slate-900 mb-4">첨부 사진 ({estimate.photoUrls.length})</h3>
+              <h3 className="text-sm font-bold text-slate-900 mb-4">첨부 사진 ({estimate.photoUrls.length})</h3>
               <div className="flex flex-wrap gap-4">
                 {estimate.photoUrls.map((url: string, index: number) => (
                   <div 
@@ -462,7 +502,7 @@ export default function EstimateDetailPage() {
             <div id="bid-form" className="mt-12 pt-12 border-t border-slate-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="text-xl font-black text-slate-900">견적서 작성하기</h3>
+                  <h3 className="text-xl font-bold text-slate-900">견적서 작성하기</h3>
                   <p className="text-slate-500 text-sm mt-1">항목별로 상세한 견적 내용을 입력해 주세요.</p>
                 </div>
                 <button 
@@ -473,6 +513,58 @@ export default function EstimateDetailPage() {
                   <Plus className="w-4 h-4" /> 항목 추가
                 </button>
               </div>
+
+              {/* 서비스 가능일 선택기 */}
+              {estimate?.serviceDate && (
+                <div className="mb-8 p-6 bg-blue-50/50 rounded-2xl border border-blue-100">
+                  <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-blue-500" /> 서비스 가능일 선택
+                    <span className="text-red-500">*</span>
+                  </h4>
+                  <p className="text-slate-500 text-xs mb-4">고객님이 희망하는 서비스 일정 중, 방문 가능한 날짜를 모두 선택해 주세요.</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(() => {
+                      let parsedDates: string[] = [];
+                      if (estimate.serviceDate.startsWith('희망일:')) {
+                        parsedDates = estimate.serviceDate.replace('희망일: ', '').split(', ');
+                      } else if (estimate.serviceDate.startsWith('정기:')) {
+                        const match = estimate.serviceDate.match(/\((.*?)\)/);
+                        if (match && match[1]) {
+                          parsedDates = match[1].split(', ').map((day: string) => `${day}요일`);
+                        }
+                      } else if (estimate.serviceDate.startsWith('가능일:')) {
+                        parsedDates = estimate.serviceDate.replace('가능일: ', '').split(', ');
+                      } else if (estimate.serviceDate.includes(',')) {
+                        parsedDates = estimate.serviceDate.split(',').map((d: string) => d.trim());
+                      } else {
+                        parsedDates = [estimate.serviceDate];
+                      }
+
+                      return parsedDates.map((dateStr, idx) => {
+                        const isSelected = selectedAvailableDates.includes(dateStr);
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setSelectedAvailableDates(prev => 
+                                isSelected ? prev.filter(d => d !== dateStr) : [...prev, dateStr]
+                              );
+                            }}
+                            className={`px-4 py-2.5 rounded-xl text-sm font-bold border transition-all ${
+                              isSelected 
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20' 
+                                : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'
+                            }`}
+                          >
+                            {dateStr}
+                          </button>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-4">
                 {bidItems.map((item, index) => (
@@ -487,7 +579,7 @@ export default function EstimateDetailPage() {
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-8 gap-4">
                       <div className="space-y-1.5 md:col-span-2">
-                        <label className="text-[11px] font-black text-slate-400 ml-1">항목명</label>
+                        <label className="text-xs font-bold text-slate-400 ml-1">항목명</label>
                         <input 
                           type="text"
                           placeholder="예: 자재비"
@@ -497,7 +589,7 @@ export default function EstimateDetailPage() {
                         />
                       </div>
                       <div className="space-y-1.5 md:col-span-4">
-                        <label className="text-[11px] font-black text-slate-400 ml-1">내용</label>
+                        <label className="text-xs font-bold text-slate-400 ml-1">내용</label>
                         <input 
                           type="text"
                           placeholder="예: 친환경 벽지"
@@ -507,7 +599,7 @@ export default function EstimateDetailPage() {
                         />
                       </div>
                       <div className="space-y-1.5 md:col-span-1">
-                        <label className="text-[11px] font-black text-slate-400 ml-1">예상 소요기간</label>
+                        <label className="text-xs font-bold text-slate-400 ml-1">예상 소요기간</label>
                         <div className="flex gap-1">
                           <select 
                             className="w-full px-3 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm font-medium"
@@ -530,7 +622,7 @@ export default function EstimateDetailPage() {
                         </div>
                       </div>
                       <div className="space-y-1.5 md:col-span-1">
-                        <label className="text-[11px] font-black text-slate-400 ml-1">예상 금액(만원)</label>
+                        <label className="text-xs font-bold text-slate-400 ml-1">예상 금액(만원)</label>
                         <div className="relative">
                           <input 
                             type="number"
@@ -550,11 +642,11 @@ export default function EstimateDetailPage() {
 
               {/* 추가 메시지 (항목 하단에 배치) */}
               <div className="mt-8 space-y-2">
-                <label className="text-sm font-black text-slate-900 ml-1 flex items-center gap-2">
+                <label className="text-sm font-bold text-slate-900 ml-1 flex items-center gap-2">
                   <Edit3 className="w-4 h-4 text-blue-500" /> 전문가 메시지 (선택)
                 </label>
                 <textarea 
-                  placeholder="고객님께 전달할 추가 제안이나 고수님만의 차별점을 2줄 이상 상세히 입력해 주세요."
+                  placeholder="고객님께 전달할 추가 제안이나 전문가님만의 차별점을 2줄 이상 상세히 입력해 주세요."
                   className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all h-28 text-base resize-none leading-relaxed"
                   value={bidMessage}
                   onChange={(e) => setBidMessage(e.target.value)}
@@ -564,7 +656,7 @@ export default function EstimateDetailPage() {
               {/* 정산 상세 내역 및 최종 금액 */}
               <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                 <div className="lg:col-span-2 bg-white rounded-3xl p-5 border border-slate-100 shadow-sm">
-                  <h4 className="text-sm font-black text-slate-900 mb-4 flex items-center gap-2 flex-wrap">
+                  <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2 flex-wrap">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-blue-500" /> 예상 정산 내역 확인
                     </div>
@@ -687,6 +779,17 @@ export default function EstimateDetailPage() {
                 </div>
               </div>
             </div>
+          ) : estimate?.isClosed ? (
+            <div className="mt-12 p-10 bg-slate-50 rounded-3xl border border-slate-100 text-center animate-in fade-in duration-700">
+              <div className="w-16 h-16 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-6 text-slate-500 shadow-sm">
+                <AlertCircle className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 mb-2">마감된 요청입니다</h3>
+              <p className="text-slate-500 text-sm leading-relaxed">
+                고객님이 견적 접수를 마감하여 더 이상 제안을 작성할 수 없습니다.<br/>
+                새로운 요청을 확인해보세요.
+              </p>
+            </div>
           ) : (userId && isExpert && !userGrade) ? (
             <div className="mt-12 p-10 bg-amber-50 rounded-3xl border border-amber-100 text-center animate-in fade-in duration-700">
               <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 text-amber-500 shadow-sm">
@@ -709,7 +812,7 @@ export default function EstimateDetailPage() {
               <h3 className="text-xl font-black text-slate-900 mb-2">전문가 전용 영역입니다</h3>
               <p className="text-slate-500 text-sm leading-relaxed">
                 견적 요청에 참여하려면 전문가 회원으로 전환이 필요합니다.<br/>
-                고수님들의 소중한 견적을 기다리고 있습니다.
+                전문가님들의 소중한 견적을 기다리고 있습니다.
               </p>
               <button 
                 onClick={() => alert("전문가 전환 서비스 준비 중입니다.")}
@@ -806,6 +909,33 @@ export default function EstimateDetailPage() {
                     className="flex-1 py-3.5 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-colors shadow-lg shadow-red-500/20 disabled:bg-red-300"
                   >
                     {isDeleting ? '삭제 중...' : '네, 삭제합니다'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 오류 안내 모달 */}
+        {errorModalMessage && (
+          <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 !m-0">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-8 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center mx-auto mb-6">
+                  <AlertCircle className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-black text-slate-900 mb-2">안내</h3>
+                <p className="text-slate-500 text-sm mb-8 leading-relaxed whitespace-pre-wrap">
+                  {errorModalMessage}
+                </p>
+                
+                <div className="flex justify-center">
+                  <button 
+                    type="button"
+                    onClick={() => setErrorModalMessage('')}
+                    className="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
+                  >
+                    확인
                   </button>
                 </div>
               </div>
@@ -921,7 +1051,7 @@ export default function EstimateDetailPage() {
                       referrerPolicy="no-referrer"
                     />
                   </div>
-                  <h5 className="font-bold text-slate-900 mb-1">{bid.expert.name} 고수</h5>
+                  <h5 className="font-bold text-slate-900 mb-1">{bid.expert.name} 전문가</h5>
                   <p className="text-slate-500 text-xs mb-4 line-clamp-1">{bid.expert.specialty || `${formatCategory(estimate.category)} 전문`}</p>
 
                   {/* 제안 금액 추가 */}

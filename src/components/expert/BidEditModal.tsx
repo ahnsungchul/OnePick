@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, AlertCircle, Plus, Trash2, CheckCircle2, Edit3 } from 'lucide-react';
-import { updateBidAction } from '@/actions/expert.action';
+import { updateBidAction, checkDateAvailabilityAction } from '@/actions/expert.action';
 import { useSession } from 'next-auth/react';
 
 export default function BidEditModal({ 
@@ -23,6 +23,7 @@ export default function BidEditModal({
   const [bidItems, setBidItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedAvailableDates, setSelectedAvailableDates] = useState<string[]>([]);
 
   // Reset form when bid changes or modal opens
   useEffect(() => {
@@ -39,6 +40,11 @@ export default function BidEditModal({
             }))
           : [{ name: '', content: '', periodValue: '1', periodUnit: '일', amount: '' }]
       );
+      if (bid.availableDate) {
+        setSelectedAvailableDates(bid.availableDate.split(',').map((d: string) => d.trim()));
+      } else {
+        setSelectedAvailableDates([]);
+      }
       setError('');
     }
   }, [isOpen, bid]);
@@ -88,6 +94,42 @@ export default function BidEditModal({
       return;
     }
 
+    // 서비스 가능일 파싱 검증
+    const estimate = bid.estimate;
+    let parsedDates: string[] = [];
+    if (estimate?.serviceDate) {
+      if (estimate.serviceDate.startsWith('희망일:')) {
+        parsedDates = estimate.serviceDate.replace('희망일: ', '').split(', ');
+      } else if (estimate.serviceDate.startsWith('정기:')) {
+        const match = estimate.serviceDate.match(/\((.*?)\)/);
+        if (match && match[1]) {
+          parsedDates = match[1].split(', ').map((day: string) => `${day}요일`);
+        }
+      } else if (estimate.serviceDate.startsWith('가능일:')) {
+        parsedDates = estimate.serviceDate.replace('가능일: ', '').split(', ');
+      } else if (estimate.serviceDate.includes(',')) {
+        parsedDates = estimate.serviceDate.split(',').map((d: string) => d.trim());
+      } else {
+        parsedDates = [estimate.serviceDate];
+      }
+    }
+
+    if (parsedDates.length > 0 && selectedAvailableDates.length === 0) {
+      setError("서비스 가능일을 확인하고 하나 이상 선택해 주세요.");
+      return;
+    }
+
+    // 일정 중복 검증
+    if (selectedAvailableDates.length > 0) {
+      setIsLoading(true);
+      const conflictRes = await checkDateAvailabilityAction(bid.expertId, selectedAvailableDates, bid.id);
+      setIsLoading(false);
+      if (conflictRes.success && conflictRes.hasConflict) {
+        setError(`이미 달력에 다른 일정이 등록된 날짜(${conflictRes.conflicts?.join(', ')})가 포함되어 있습니다. 다른 서비스 가능일을 선택해 주세요.`);
+        return;
+      }
+    }
+
     setIsLoading(true);
     setError('');
 
@@ -103,7 +145,8 @@ export default function BidEditModal({
         bidId: bid.id,
         price: getTotalAmount(),
         message,
-        items: itemsToSubmit
+        items: itemsToSubmit,
+        availableDate: selectedAvailableDates.length > 0 ? selectedAvailableDates.join(', ') : '',
       });
 
       if (result.success) {
@@ -238,13 +281,67 @@ export default function BidEditModal({
               </div>
             </div>
 
+            {/* 서비스 가능일 수정 영역 */}
+            {bid.estimate?.serviceDate && (
+              <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-6">
+                <h4 className="text-sm font-black text-slate-900 mb-2 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                  서비스 가능일 수정
+                  <span className="text-red-500">*</span>
+                </h4>
+                <p className="text-slate-500 text-xs mb-4 ml-3.5">고객님이 희망하는 서비스 일정 중, 방문 가능한 날짜를 선택해 주세요.</p>
+                <div className="flex flex-wrap gap-2 ml-3.5">
+                  {(() => {
+                    const estimate = bid.estimate;
+                    let parsedDates: string[] = [];
+                    if (estimate.serviceDate.startsWith('희망일:')) {
+                      parsedDates = estimate.serviceDate.replace('희망일: ', '').split(', ');
+                    } else if (estimate.serviceDate.startsWith('정기:')) {
+                      const match = estimate.serviceDate.match(/\((.*?)\)/);
+                      if (match && match[1]) {
+                        parsedDates = match[1].split(', ').map((day: string) => `${day}요일`);
+                      }
+                    } else if (estimate.serviceDate.startsWith('가능일:')) {
+                      parsedDates = estimate.serviceDate.replace('가능일: ', '').split(', ');
+                    } else if (estimate.serviceDate.includes(',')) {
+                      parsedDates = estimate.serviceDate.split(',').map((d: string) => d.trim());
+                    } else {
+                      parsedDates = [estimate.serviceDate];
+                    }
+
+                    return parsedDates.map((dateStr, idx) => {
+                      const isSelected = selectedAvailableDates.includes(dateStr);
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setSelectedAvailableDates(prev => 
+                              isSelected ? prev.filter(d => d !== dateStr) : [...prev, dateStr]
+                            );
+                          }}
+                          className={`px-4 py-2.5 rounded-xl text-sm font-bold border transition-all ${
+                            isSelected 
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20' 
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'
+                          }`}
+                        >
+                          {dateStr}
+                        </button>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+            )}
+
             {/* Message */}
             <div className="space-y-2">
               <label className="text-sm font-black text-slate-900 ml-1 flex items-center gap-2">
                 <Edit3 className="w-4 h-4 text-blue-500" /> 전문가 메시지 (선택)
               </label>
               <textarea 
-                placeholder="고객님께 전달할 추가 제안이나 고수님만의 차별점을 2줄 이상 상세히 입력해 주세요."
+                placeholder="고객님께 전달할 추가 제안이나 전문가님만의 차별점을 2줄 이상 상세히 입력해 주세요."
                 className="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all h-28 text-base resize-none leading-relaxed shadow-sm"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}

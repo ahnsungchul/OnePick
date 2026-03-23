@@ -39,7 +39,7 @@ export default function RegisterSelectionPage() {
             </div>
           </Link>
 
-          {/* 2. 전문가 (고수) */}
+          {/* 2. 전문가 */}
           <Link href="/register/auth?role=expert" className="group flex flex-col bg-white rounded-3xl p-8 border-2 border-slate-100 hover:border-indigo-500 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 transform hover:-translate-y-2 relative overflow-hidden text-center cursor-pointer">
             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-full -z-10 transition-transform group-hover:scale-110"></div>
             <div className="w-20 h-20 mx-auto bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">

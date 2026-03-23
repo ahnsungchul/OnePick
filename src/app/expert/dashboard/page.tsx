@@ -85,7 +85,7 @@ export default async function ExpertDashboardPage({
 
           <div className="lg:col-span-1">
             {/* 캘린더 섹션 */}
-            <CalendarSection />
+            <CalendarSection userId={targetUserId} />
           </div>
         </div>
       </div>

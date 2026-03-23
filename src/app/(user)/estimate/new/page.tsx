@@ -15,7 +15,7 @@ export default async function NewEstimatePage({
   const customerName = session?.user?.name || "고객";
   
   return (
-    <div className="py-10 px-4">
+    <div className="py-10 px-4 max-w-3xl mx-auto">
       <MultiStepEstimateForm 
         customerId={customerId} 
         customerName={customerName} 

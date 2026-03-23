@@ -27,11 +27,11 @@ export default function EstimateDetailView({ estimate }: EstimateDetailViewProps
         <h1 className="text-xl font-black text-slate-900">{formatCategory(estimate.category)} 요청</h1>
         <div className="flex flex-wrap items-center gap-2">
           {estimate.isUrgent && (
-            <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1">
+            <span className="bg-red-600 text-white text-sm font-bold px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1">
               <Clock className="w-3 h-3" /> 긴급
             </span>
           )}
-          <span className={`text-[10px] font-bold px-3 py-0.5 rounded-full shadow-sm ${
+          <span className={`text-sm font-bold px-3 py-0.5 rounded-full shadow-sm ${
             estimate.status === 'PENDING' ? 'bg-blue-600 text-white' :
             estimate.status === 'BIDDING' ? 'bg-amber-500 text-white' :
             estimate.status === 'IN_PROGRESS' ? 'bg-emerald-600 text-white' :
@@ -52,8 +52,8 @@ export default function EstimateDetailView({ estimate }: EstimateDetailViewProps
               <MapPin className="w-4 h-4 text-slate-400" />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase">지역 정보</p>
-              <p className="text-xs font-bold text-slate-700">{maskAddress(estimate.location)}</p>
+              <p className="text-[11px] font-bold text-slate-400 uppercase">지역 정보</p>
+              <p className="text-sm font-bold text-slate-700">{maskAddress(estimate.location)}</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
@@ -61,8 +61,8 @@ export default function EstimateDetailView({ estimate }: EstimateDetailViewProps
               <Calendar className="w-4 h-4 text-slate-400" />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase">요청 일시</p>
-              <p className="text-xs font-bold text-slate-700">{new Date(estimate.createdAt).toLocaleString()}</p>
+              <p className="text-[11px] font-bold text-slate-400 uppercase">요청 일시</p>
+              <p className="text-sm font-bold text-slate-700">{new Date(estimate.createdAt).toLocaleString()}</p>
             </div>
           </div>
           {estimate.serviceDate && (
@@ -71,8 +71,8 @@ export default function EstimateDetailView({ estimate }: EstimateDetailViewProps
                 <Calendar className="w-4 h-4 text-blue-500" />
               </div>
               <div>
-                <p className="text-[10px] font-bold text-blue-500 uppercase">서비스 희망 일정</p>
-                <p className="text-xs font-bold text-slate-700">
+                <p className="text-[11px] font-bold text-blue-500 uppercase">서비스 희망 일</p>
+                <p className="text-sm font-bold text-slate-700">
                   {estimate.serviceDate}
                   {estimate.serviceTime && ` (${estimate.serviceTime})`}
                 </p>
@@ -86,8 +86,8 @@ export default function EstimateDetailView({ estimate }: EstimateDetailViewProps
               <User className="w-4 h-4 text-slate-400" />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase">요청자</p>
-              <p className="text-xs font-bold text-slate-700">{maskName(estimate.authorName || estimate.customer?.name)}님</p>
+              <p className="text-[11px] font-bold text-slate-400 uppercase">요청자</p>
+              <p className="text-sm font-bold text-slate-700">{maskName(estimate.authorName || estimate.customer?.name)}님</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
@@ -95,18 +95,18 @@ export default function EstimateDetailView({ estimate }: EstimateDetailViewProps
               <Phone className="w-4 h-4 text-slate-400" />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase">연락처</p>
-              <p className="text-xs font-bold text-slate-700">{maskContact(estimate.contact)}</p>
+              <p className="text-[11px] font-bold text-slate-400 uppercase">연락처</p>
+              <p className="text-sm font-bold text-slate-700">{maskContact(estimate.contact)}</p>
             </div>
           </div>
         </div>
       </div>
 
       <div>
-        <h3 className="text-sm font-black text-slate-900 mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
           <Clock className="w-4 h-4 text-blue-500" /> 상세 요청 내용
         </h3>
-        <div className="bg-slate-50 rounded-xl p-4 text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">
+        <div className="bg-slate-50 rounded-xl p-4 text-slate-700 text-md leading-relaxed whitespace-pre-wrap">
           {estimate.details}
         </div>
       </div>
