@@ -60,10 +60,10 @@ const mockRequests = [
 const statusMap: Record<string, { label: string, color: string }> = {
   'PENDING': { label: '매칭중', color: 'bg-blue-100 text-blue-700' },
   'BIDDING': { label: '견적중', color: 'bg-emerald-100 text-emerald-700' },
-  'IN_PROGRESS': { label: '매칭완료', color: 'bg-emerald-100 text-emerald-700' },
-  'MATCHED': { label: '매칭완료', color: 'bg-emerald-100 text-emerald-700' },
+  'IN_PROGRESS': { label: '전문가확정', color: 'bg-emerald-100 text-emerald-700' },
+  'MATCHED': { label: '전문가확정', color: 'bg-emerald-100 text-emerald-700' },
   'COMPLETED': { label: '서비스완료', color: 'bg-slate-200 text-slate-600' },
-  'CANCELLED': { label: '취소됨', color: 'bg-red-100 text-red-600' }
+  'CANCELLED': { label: '취소', color: 'bg-red-100 text-red-600' }
 };
 
 export default function EstimateListPage() {
@@ -400,8 +400,8 @@ export default function EstimateListPage() {
                           {req.bids?.length || 0}명 참여
                         </span>
                         {(req.status === 'PENDING' || req.status === 'BIDDING') && (
-                          <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${calculateDDay(req.createdAt).isUrgent ? 'bg-red-500 text-white' : 'bg-slate-700 text-white'}`}>
-                            {calculateDDay(req.createdAt).label}
+                          <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${calculateDDay(req.createdAt, req.isClosed).isUrgent ? 'bg-red-500 text-white' : 'bg-slate-700 text-white'}`}>
+                            {calculateDDay(req.createdAt, req.isClosed).label}
                           </span>
                         )}
                         {isExpert && (
@@ -478,8 +478,8 @@ export default function EstimateListPage() {
                           {req.bids?.length || 0}명 참여
                         </span>
                         {(req.status === 'PENDING' || req.status === 'BIDDING') && (
-                          <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${calculateDDay(req.createdAt).isUrgent ? 'bg-red-500 text-white' : 'bg-slate-700 text-white'}`}>
-                            {calculateDDay(req.createdAt).label}
+                          <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${calculateDDay(req.createdAt, req.isClosed).isUrgent ? 'bg-red-500 text-white' : 'bg-slate-700 text-white'}`}>
+                            {calculateDDay(req.createdAt, req.isClosed).label}
                           </span>
                         )}
                         {isExpert && (

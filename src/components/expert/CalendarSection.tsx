@@ -220,7 +220,7 @@ export default function CalendarSection({ userId }: { userId: number }) {
       {/* 일정 목록 */}
       <div className="flex-1 flex flex-col">
         <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
-          <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
             <CalendarIcon className="w-3.5 h-3.5" />
             {selectedDate ? `${selectedDate.split('-')[1]}월 ${selectedDate.split('-')[2]}일 일정` : '예정된 스케줄 (향후 30일)'}
           </h4>
@@ -240,7 +240,7 @@ export default function CalendarSection({ userId }: { userId: number }) {
             <span className="text-xs font-medium">예정된 일정이 없습니다.</span>
           </div>
         ) : (
-          <div className="space-y-2.5 overflow-y-auto max-h-[300px] custom-scrollbar pr-1">
+          <div className="space-y-2.5 overflow-y-auto h-full custom-scrollbar pr-1">
             {displayedEvents.map((event) => {
               const estimate = event.bid.estimate;
               // Date formatted for list (e.g. 11.20)

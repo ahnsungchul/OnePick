@@ -121,10 +121,13 @@ export async function acceptBidAction(estimateId: string, bidId: string, custome
         data: { status: "ACCEPTED" },
       });
 
-      // 3. Estimate 상태를 IN_PROGRESS (매칭완료)로 변경
+      // 3. Estimate 상태를 IN_PROGRESS (매칭완료) 및 isClosed (마감) 로 변경
       const updatedEstimate = await tx.estimate.update({
         where: { id: estimateId },
-        data: { status: "IN_PROGRESS" },
+        data: { 
+          status: "IN_PROGRESS",
+          isClosed: true 
+        },
       });
 
       return updatedEstimate;

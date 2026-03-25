@@ -381,8 +381,8 @@ export default function EstimateDetailPage() {
               }`}>
                 {estimate.status === 'PENDING' ? '매칭중' :
                  estimate.status === 'BIDDING' ? '견적중' :
-                 estimate.status === 'IN_PROGRESS' ? '매칭완료' :
-                 estimate.status === 'COMPLETED' ? '서비스완료' : '취소됨'}
+                 estimate.status === 'IN_PROGRESS' ? '전문가확정' :
+                 estimate.status === 'COMPLETED' ? '서비스완료' : '취소'}
               </span>
               {(estimate.status === 'PENDING' || estimate.status === 'BIDDING') && (
                 <span className={`text-xs font-bold px-3 py-1 rounded-full shadow-md ${calculateDDay(estimate.createdAt, estimate.isClosed).isUrgent ? 'bg-red-500 text-white animate-pulse' : 'bg-slate-700 text-white'}`}>
@@ -628,7 +628,7 @@ export default function EstimateDetailPage() {
                             type="number"
                             placeholder="0"
                             min="0"
-                            className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm font-black text-blue-600 text-right"
+                            className="w-full pl-4 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-xl font-black text-blue-600 text-right leading-none"
                             value={item.amount}
                             onChange={(e) => updateBidItem(index, 'amount', e.target.value)}
                           />
@@ -726,8 +726,8 @@ export default function EstimateDetailPage() {
 
                     <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-end">
                       <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">최종 예상 입금액</p>
-                        <p className="text-[10px] text-slate-400">수수료 및 세금 공제 후</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase mb-0.5">최종 예상 입금액</p>
+                        <p className="text-xs text-slate-400">수수료 및 세금 공제 후</p>
                       </div>
                       <div className="text-right">
                         <span className="text-xl font-black text-blue-600">

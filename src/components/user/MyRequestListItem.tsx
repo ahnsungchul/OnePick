@@ -42,6 +42,7 @@ interface Bid {
   };
   price: number;
   message?: string;
+  availableDate?: string;
   createdAt: string;
   status: string;
 }
@@ -72,11 +73,16 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
   const [pendingBidId, setPendingBidId] = useState<string | null>(null);
   const [readExpertIds, setReadExpertIds] = useState<number[]>([]);
   const [isAccepting, setIsAccepting] = useState(false);
+  const [selectedDates, setSelectedDates] = useState<Record<string, string>>({});
+  const [showDateAlert, setShowDateAlert] = useState(false);
+  const [showCloseAlert, setShowCloseAlert] = useState(false);
+  const [showActiveBidAlert, setShowActiveBidAlert] = useState(false);
+  const [isClosedLocal, setIsClosedLocal] = useState(estimate.isClosed);
   const { data: session } = useSession();
 
   // 모달 팝업 시 배경 스크롤 방지
   useEffect(() => {
-    if (pendingBidId) {
+    if (pendingBidId || showDateAlert || showCloseAlert || showActiveBidAlert) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -84,7 +90,7 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [pendingBidId]);
+  }, [pendingBidId, showDateAlert, showCloseAlert, showActiveBidAlert]);
 
   const handleAcceptBid = async (e: React.MouseEvent, bidId: string) => {
     e.stopPropagation();
@@ -130,10 +136,6 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
   };
 
   const handleCloseEstimate = async () => {
-    if (!window.confirm('정말 이 요청을 마감하시겠습니까? 마감 시 더 이상 견적을 받을 수 없습니다.')) {
-      return;
-    }
-
     if (!session?.user?.id) {
       alert('로그인이 필요합니다.');
       return;
@@ -143,18 +145,15 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
     const result = await closeEstimateAction(estimate.id, userId);
 
     if (result.success) {
-      alert('요청이 마감되었습니다.');
+      setShowCloseAlert(false);
       window.location.reload();
     } else {
       alert(result.error || '처리 중 오류가 발생했습니다.');
+      setShowCloseAlert(false);
     }
   };
 
   const handleCancelCloseEstimate = async () => {
-    if (!window.confirm('견적 마감을 취소하시겠습니까? 다시 견적을 받을 수 있습니다.')) {
-      return;
-    }
-
     if (!session?.user?.id) {
       alert('로그인이 필요합니다.');
       return;
@@ -164,7 +163,6 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
     const result = await cancelCloseEstimateAction(estimate.id, userId);
 
     if (result.success) {
-      alert('마감이 취소되었습니다.');
       window.location.reload();
     } else {
       alert(result.error || '처리 중 오류가 발생했습니다.');
@@ -175,9 +173,9 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
     'DRAFT': { label: '작성중', color: 'bg-amber-100 text-amber-700', icon: Clock },
     'PENDING': { label: '매칭중', color: 'bg-blue-100 text-blue-700', icon: Clock },
     'BIDDING': { label: '견적중', color: 'bg-emerald-100 text-emerald-700', icon: MessageCircle },
-    'IN_PROGRESS': { label: '매칭완료', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle2 },
+    'IN_PROGRESS': { label: '전문가확정', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle2 },
     'COMPLETED': { label: '서비스완료', color: 'bg-slate-100 text-slate-600', icon: CheckCircle2 },
-    'CANCELLED': { label: '취소됨', color: 'bg-red-100 text-red-600', icon: Clock }
+    'CANCELLED': { label: '취소', color: 'bg-red-100 text-red-600', icon: Clock }
   };
 
   const currentStatus = statusConfig[estimate.status] || statusConfig['PENDING'];
@@ -202,11 +200,11 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
               </span>
               {(estimate.status === 'PENDING' || estimate.status === 'BIDDING') && (
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                  calculateDDay(estimate.createdAt, estimate.isClosed).isUrgent 
+                  calculateDDay(estimate.createdAt, isClosedLocal).isUrgent 
                   ? 'bg-red-100 text-red-600' 
                   : 'bg-blue-50 text-blue-600 border border-blue-100'
                 }`}>
-                  {calculateDDay(estimate.createdAt, estimate.isClosed).label}
+                  {calculateDDay(estimate.createdAt, isClosedLocal).label}
                 </span>
               )}
               {estimate.status !== 'DRAFT' && (
@@ -262,16 +260,22 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
               ) : (
                 <div className="flex flex-row gap-2">
                   {estimate.status === 'BIDDING' && (
-                    estimate.isClosed ? (
+                    isClosedLocal ? (
                       <button 
-                        onClick={handleCancelCloseEstimate}
+                        onClick={() => {
+                          if (activeBidId !== null) {
+                            setShowActiveBidAlert(true);
+                          } else {
+                            handleCancelCloseEstimate();
+                          }
+                        }}
                         className="w-full md:w-auto px-4 py-1 text-sm font-bold text-blue-500 bg-blue-50 rounded-full border border-blue-200 hover:bg-blue-100 transition-colors"
                       >
                         마감 취소
                       </button>
                     ) : (
                       <button 
-                        onClick={handleCloseEstimate}
+                        onClick={() => setShowCloseAlert(true)}
                         className="w-full md:w-auto px-4 py-1 text-sm font-bold text-slate-500 bg-slate-100 rounded-full border border-slate-200 hover:bg-slate-200 transition-colors"
                       >
                         견적 마감
@@ -478,17 +482,49 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
                          </button>
                       </div>
                     ) : (
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); setPendingBidId(bid.id); }}
-                        disabled={activeBidId !== null && activeBidId !== bid.id}
-                        className={`w-full mt-2 text-sm font-bold py-2.5 rounded-xl transition-all shadow-md active:scale-95 ${
-                          activeBidId !== null && activeBidId !== bid.id
-                            ? 'bg-slate-100 text-slate-400 shadow-none cursor-not-allowed'
-                            : 'bg-blue-600 text-white hover:bg-blue-700 shadow-slate-900/10'
-                        }`}
-                      >
-                        선택하기
-                      </button>
+                      <div className="flex gap-2 w-full mt-2">
+                        {bid.availableDate ? (
+                          <div className="relative flex-1">
+                            <select
+                              value={selectedDates[bid.id] || ''}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                setSelectedDates(prev => ({ ...prev, [bid.id]: e.target.value }));
+                              }}
+                              className="w-full h-full text-xs font-bold py-2.5 pl-3 pr-8 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none cursor-pointer"
+                            >
+                              <option value="" disabled hidden>서비스일 선택</option>
+                              {bid.availableDate.split(',').map((date: string, idx: number) => (
+                                <option key={idx} value={date.trim()}>{date.trim()}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                          </div>
+                        ) : null}
+                        <button 
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            if (bid.availableDate && !selectedDates[bid.id]) {
+                              setShowDateAlert(true);
+                              return;
+                            }
+                            if (!isClosedLocal && session?.user?.id) {
+                              setIsClosedLocal(true);
+                              closeEstimateAction(estimate.id, parseInt(session.user.id, 10));
+                            }
+                            setPendingBidId(bid.id); 
+                          }}
+                          disabled={activeBidId !== null && activeBidId !== bid.id}
+                          className={`flex-1 text-sm font-bold py-2.5 rounded-xl transition-all shadow-md active:scale-95 ${
+                            activeBidId !== null && activeBidId !== bid.id
+                              ? 'bg-slate-100 text-slate-400 shadow-none cursor-not-allowed'
+                              : 'bg-blue-600 text-white hover:bg-blue-700 shadow-slate-900/10'
+                          }`}
+                        >
+                          선택하기
+                        </button>
+                      </div>
                     )
                   )}
                 </div>
@@ -509,7 +545,7 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
         isOpen={!!selectedBidForModal} 
         onClose={() => setSelectedBidForModal(null)} 
         bid={selectedBidForModal} 
-        isClosed={estimate.isClosed}
+        isClosed={isClosedLocal}
       />
 
       {/* 채팅 모달 */}
@@ -571,6 +607,84 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
                 className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-95"
               >
                 진행하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 서비스일 미선택 안내 모달 */}
+      {showDateAlert && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-[32px] w-full max-w-sm overflow-hidden shadow-xl animate-in zoom-in-95 duration-300 p-8 text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="w-16 h-16 rounded-3xl bg-amber-50 flex items-center justify-center text-amber-500 mx-auto mb-6">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-2">서비스일 선택 알림</h3>
+            <p className="text-sm text-slate-500 font-medium leading-relaxed mb-8">
+              전문가를 선택하기 전에,<br/><strong className="text-blue-600">전문가 제안 리스트에 있는 서비스일</strong>을 먼저 선택해 주세요.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setShowDateAlert(false); }}
+                className="w-full py-3.5 rounded-2xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 견적 마감 모달 */}
+      {showCloseAlert && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-[32px] w-full max-w-sm overflow-hidden shadow-xl animate-in zoom-in-95 duration-300 p-8 text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="w-16 h-16 rounded-3xl bg-amber-50 flex items-center justify-center text-amber-500 mx-auto mb-6">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-2">견적 마감 확인</h3>
+            <p className="text-sm text-slate-500 font-medium leading-relaxed mb-8">
+              정말 이 요청을 마감하시겠습니까?<br/><strong className="text-red-500">마감 시 더 이상 견적을 받을 수 없습니다.</strong>
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setShowCloseAlert(false); }}
+                className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-all active:scale-95"
+              >
+                취소
+              </button>
+              <button 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  handleCloseEstimate();
+                }}
+                className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+              >
+                마감하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 전문가 선택 상태에서 마감취소 시 안내 모달 */}
+      {showActiveBidAlert && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-[32px] w-full max-w-sm overflow-hidden shadow-xl animate-in zoom-in-95 duration-300 p-8 text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="w-16 h-16 rounded-3xl bg-red-50 flex items-center justify-center text-red-500 mx-auto mb-6">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-2">마감 취소 불가</h3>
+            <p className="text-sm text-slate-500 font-medium leading-relaxed mb-8">
+              현재 <strong className="text-blue-600">선택된 전문가</strong>가 있습니다.<br/>먼저 전문가 제안 리스트에서 선택을 취소하신 후<br/>다시 마감 취소를 진행해 주세요.
+            </p>
+            <div className="flex justify-center">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setShowActiveBidAlert(false); }}
+                className="w-full py-3.5 rounded-2xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+              >
+                확인
               </button>
             </div>
           </div>

@@ -22,6 +22,7 @@ export async function getUserDashboardStatsAction(userId: number) {
       MATCHING: 0,   // 매칭중 (PENDING, BIDDING)
       FINISHED: 0,   // 매칭완료 (IN_PROGRESS)
       COMPLETED: 0,  // 서비스완료 (COMPLETED)
+      CANCELLED: 0,  // 취소 (CANCELLED)
     };
 
     // 3. 상태 매핑 및 계산
@@ -39,6 +40,9 @@ export async function getUserDashboardStatsAction(userId: number) {
           break;
         case 'COMPLETED':
           stats.COMPLETED++;
+          break;
+        case 'CANCELLED':
+          stats.CANCELLED++;
           break;
         default:
           break;

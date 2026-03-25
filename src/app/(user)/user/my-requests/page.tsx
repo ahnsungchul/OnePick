@@ -59,6 +59,7 @@ export default function UserRequestsPage() {
       MATCHING: requests.filter(r => r.status === 'PENDING' || r.status === 'BIDDING').length,
       FINISHED: requests.filter(r => r.status === 'IN_PROGRESS').length,
       COMPLETED: requests.filter(r => r.status === 'COMPLETED').length,
+      CANCELLED: requests.filter(r => r.status === 'CANCELLED').length,
     };
   }, [requests]);
 
@@ -68,6 +69,7 @@ export default function UserRequestsPage() {
     if (activeFilter === 'MATCHING') return requests.filter(r => r.status === 'PENDING' || r.status === 'BIDDING');
     if (activeFilter === 'FINISHED') return requests.filter(r => r.status === 'IN_PROGRESS');
     if (activeFilter === 'COMPLETED') return requests.filter(r => r.status === 'COMPLETED');
+    if (activeFilter === 'CANCELLED') return requests.filter(r => r.status === 'CANCELLED');
     return requests;
   }, [requests, activeFilter]);
 
@@ -75,8 +77,9 @@ export default function UserRequestsPage() {
     { label: '전체', value: 'ALL', count: counts.ALL },
     { label: '작성중', value: 'DRAFT', count: counts.DRAFT },
     { label: '매칭중', value: 'MATCHING', count: counts.MATCHING },
-    { label: '매칭완료', value: 'FINISHED', count: counts.FINISHED },
+    { label: '전문가확정', value: 'FINISHED', count: counts.FINISHED },
     { label: '서비스완료', value: 'COMPLETED', count: counts.COMPLETED },
+    { label: '취소', value: 'CANCELLED', count: counts.CANCELLED },
   ];
 
   if (status === 'loading' || isLoading) {

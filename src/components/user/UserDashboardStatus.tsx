@@ -5,7 +5,8 @@ import {
   PencilLine, 
   Search, 
   Handshake, 
-  CheckCircle2 
+  CheckCircle2,
+  XCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -38,12 +39,13 @@ export default function UserDashboardStatus({ stats }: { stats?: any }) {
   const statCounts = [
     { label: '작성중', count: stats?.DRAFT || 0, icon: PencilLine, color: 'bg-slate-50 group-hover:bg-slate-100', iconColor: 'text-slate-400', value: 'DRAFT' },
     { label: '매칭중', count: stats?.MATCHING || 0, icon: Search, color: 'bg-blue-50 group-hover:bg-blue-100', iconColor: 'text-blue-500', value: 'MATCHING' },
-    { label: '매칭완료', count: stats?.FINISHED || 0, icon: Handshake, color: 'bg-indigo-50 group-hover:bg-indigo-100', iconColor: 'text-indigo-500', value: 'FINISHED' },
+    { label: '전문가확정', count: stats?.FINISHED || 0, icon: Handshake, color: 'bg-indigo-50 group-hover:bg-indigo-100', iconColor: 'text-indigo-500', value: 'FINISHED' },
     { label: '서비스완료', count: stats?.COMPLETED || 0, icon: CheckCircle2, color: 'bg-emerald-50 group-hover:bg-emerald-100', iconColor: 'text-emerald-500', value: 'COMPLETED' },
+    { label: '취소', count: stats?.CANCELLED || 0, icon: XCircle, color: 'bg-red-50 group-hover:bg-red-100', iconColor: 'text-red-500', value: 'CANCELLED' },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
       {statCounts.map((stat) => (
         <StatusCard 
           key={stat.label}

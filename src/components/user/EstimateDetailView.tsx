@@ -38,9 +38,9 @@ export default function EstimateDetailView({ estimate }: EstimateDetailViewProps
             'bg-slate-500 text-white'
           }`}>
             {estimate.status === 'PENDING' ? '매칭중' :
-             estimate.status === 'BIDDING' ? '입찰중' :
-             estimate.status === 'IN_PROGRESS' ? '매칭완료' :
-             estimate.status === 'COMPLETED' ? '서비스완료' : '취소됨'}
+             estimate.status === 'BIDDING' ? '견적중' :
+             estimate.status === 'IN_PROGRESS' ? '전문가확정' :
+             estimate.status === 'COMPLETED' ? '서비스완료' : '취소'}
           </span>
         </div>
       </div>

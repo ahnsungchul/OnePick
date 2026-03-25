@@ -98,6 +98,19 @@ export default function BidDetailModal({ isOpen, onClose, bid, isClosed }: BidDe
               </div>
             )}
 
+            {bid.availableDate && (
+              <div>
+                <h5 className="text-sm font-bold text-slate-700 mb-2">서비스 가능일</h5>
+                <div className="flex flex-wrap gap-2">
+                  {bid.availableDate.split(',').map((date: string, idx: number) => (
+                    <span key={idx} className="bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm">
+                      {date.trim()}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div>
               <h5 className="text-sm font-bold text-slate-700 mb-3 flex items-center justify-between">
                 <span>상세 견적 항목</span>
