@@ -101,7 +101,7 @@ export async function submitBidAction({
 /**
  * 전문가 제안(견적) 채택 Server Action
  */
-export async function acceptBidAction(estimateId: string, bidId: string, customerId: number) {
+export async function acceptBidAction(estimateId: string, bidId: string, customerId: number, selectedDate?: string) {
   try {
     const result = await prisma.$transaction(async (tx) => {
       // 1. Estimate 가져오기 및 권한 확인
@@ -121,12 +121,13 @@ export async function acceptBidAction(estimateId: string, bidId: string, custome
         data: { status: "ACCEPTED" },
       });
 
-      // 3. Estimate 상태를 IN_PROGRESS (매칭완료) 및 isClosed (마감) 로 변경
+      // 3. Estimate 상태를 SELECTED (전문가선택됨/결제대기) 및 isClosed (마감) 로 변경
       const updatedEstimate = await tx.estimate.update({
         where: { id: estimateId },
         data: { 
-          status: "IN_PROGRESS",
-          isClosed: true 
+          status: "SELECTED",
+          isClosed: true,
+          ...(selectedDate ? { selectedDate } : {})
         },
       });
 
@@ -139,5 +140,50 @@ export async function acceptBidAction(estimateId: string, bidId: string, custome
   } catch (error: any) {
     console.error("acceptBidAction error:", error);
     return { success: false, error: error.message || "전문가 채택 중 오류가 발생했습니다." };
+  }
+}
+
+/**
+ * 전문가 제안(견적) 채택 취소 Server Action (SELECTED 상태에서 취소)
+ */
+export async function cancelBidSelectionAction(estimateId: string, bidId: string, customerId: number) {
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Estimate 가져오기
+      const estimate = await tx.estimate.findUnique({
+        where: { id: estimateId },
+      });
+
+      if (!estimate) throw new Error("견적 요청을 찾을 수 없습니다.");
+      if (estimate.customerId !== customerId) throw new Error("취소 권한이 없습니다.");
+      if (estimate.status !== "SELECTED") {
+        throw new Error("전문가가 선택된 상태에서만 취소할 수 있습니다.");
+      }
+
+      // 2. Bid 상태 원복
+      await tx.bid.update({
+        where: { id: bidId },
+        data: { status: "PENDING" },
+      });
+
+      // 3. Estimate 상태 및 마감 상태 원복
+      const updatedEstimate = await tx.estimate.update({
+        where: { id: estimateId },
+        data: { 
+          status: "BIDDING",
+          isClosed: false,
+          selectedDate: null
+        },
+      });
+
+      return updatedEstimate;
+    });
+
+    revalidatePath("/(user)/user/my-requests");
+    revalidatePath(`/estimate/${estimateId}`);
+    return { success: true, data: result };
+  } catch (error: any) {
+    console.error("cancelBidSelectionAction error:", error);
+    return { success: false, error: error.message || "선택 취소 중 오류가 발생했습니다." };
   }
 }

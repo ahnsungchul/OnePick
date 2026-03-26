@@ -110,6 +110,7 @@ export const EstimateStatus: {
   DRAFT: 'DRAFT',
   PENDING: 'PENDING',
   BIDDING: 'BIDDING',
+  SELECTED: 'SELECTED',
   IN_PROGRESS: 'IN_PROGRESS',
   COMPLETED: 'COMPLETED',
   CANCELLED: 'CANCELLED'
@@ -4928,11 +4929,13 @@ export namespace Prisma {
   export type EstimateAvgAggregateOutputType = {
     customerId: number | null
     currentStep: number | null
+    extendedDays: number | null
   }
 
   export type EstimateSumAggregateOutputType = {
     customerId: number | null
     currentStep: number | null
+    extendedDays: number | null
   }
 
   export type EstimateMinAggregateOutputType = {
@@ -4946,12 +4949,14 @@ export namespace Prisma {
     details: string | null
     serviceDate: string | null
     serviceTime: string | null
+    selectedDate: string | null
     status: $Enums.EstimateStatus | null
     currentStep: number | null
     isUrgent: boolean | null
     needsReestimate: boolean | null
     shareContact: boolean | null
     isClosed: boolean | null
+    extendedDays: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -4967,12 +4972,14 @@ export namespace Prisma {
     details: string | null
     serviceDate: string | null
     serviceTime: string | null
+    selectedDate: string | null
     status: $Enums.EstimateStatus | null
     currentStep: number | null
     isUrgent: boolean | null
     needsReestimate: boolean | null
     shareContact: boolean | null
     isClosed: boolean | null
+    extendedDays: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -4989,6 +4996,7 @@ export namespace Prisma {
     details: number
     serviceDate: number
     serviceTime: number
+    selectedDate: number
     photoUrls: number
     status: number
     currentStep: number
@@ -4996,6 +5004,7 @@ export namespace Prisma {
     needsReestimate: number
     shareContact: number
     isClosed: number
+    extendedDays: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -5005,11 +5014,13 @@ export namespace Prisma {
   export type EstimateAvgAggregateInputType = {
     customerId?: true
     currentStep?: true
+    extendedDays?: true
   }
 
   export type EstimateSumAggregateInputType = {
     customerId?: true
     currentStep?: true
+    extendedDays?: true
   }
 
   export type EstimateMinAggregateInputType = {
@@ -5023,12 +5034,14 @@ export namespace Prisma {
     details?: true
     serviceDate?: true
     serviceTime?: true
+    selectedDate?: true
     status?: true
     currentStep?: true
     isUrgent?: true
     needsReestimate?: true
     shareContact?: true
     isClosed?: true
+    extendedDays?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -5044,12 +5057,14 @@ export namespace Prisma {
     details?: true
     serviceDate?: true
     serviceTime?: true
+    selectedDate?: true
     status?: true
     currentStep?: true
     isUrgent?: true
     needsReestimate?: true
     shareContact?: true
     isClosed?: true
+    extendedDays?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -5066,6 +5081,7 @@ export namespace Prisma {
     details?: true
     serviceDate?: true
     serviceTime?: true
+    selectedDate?: true
     photoUrls?: true
     status?: true
     currentStep?: true
@@ -5073,6 +5089,7 @@ export namespace Prisma {
     needsReestimate?: true
     shareContact?: true
     isClosed?: true
+    extendedDays?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -5176,6 +5193,7 @@ export namespace Prisma {
     details: string
     serviceDate: string | null
     serviceTime: string | null
+    selectedDate: string | null
     photoUrls: string[]
     status: $Enums.EstimateStatus
     currentStep: number
@@ -5183,6 +5201,7 @@ export namespace Prisma {
     needsReestimate: boolean
     shareContact: boolean
     isClosed: boolean
+    extendedDays: number
     createdAt: Date
     updatedAt: Date
     _count: EstimateCountAggregateOutputType | null
@@ -5218,6 +5237,7 @@ export namespace Prisma {
     details?: boolean
     serviceDate?: boolean
     serviceTime?: boolean
+    selectedDate?: boolean
     photoUrls?: boolean
     status?: boolean
     currentStep?: boolean
@@ -5225,6 +5245,7 @@ export namespace Prisma {
     needsReestimate?: boolean
     shareContact?: boolean
     isClosed?: boolean
+    extendedDays?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     customer?: boolean | UserDefaultArgs<ExtArgs>
@@ -5246,6 +5267,7 @@ export namespace Prisma {
     details?: boolean
     serviceDate?: boolean
     serviceTime?: boolean
+    selectedDate?: boolean
     photoUrls?: boolean
     status?: boolean
     currentStep?: boolean
@@ -5253,6 +5275,7 @@ export namespace Prisma {
     needsReestimate?: boolean
     shareContact?: boolean
     isClosed?: boolean
+    extendedDays?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     customer?: boolean | UserDefaultArgs<ExtArgs>
@@ -5270,6 +5293,7 @@ export namespace Prisma {
     details?: boolean
     serviceDate?: boolean
     serviceTime?: boolean
+    selectedDate?: boolean
     photoUrls?: boolean
     status?: boolean
     currentStep?: boolean
@@ -5277,6 +5301,7 @@ export namespace Prisma {
     needsReestimate?: boolean
     shareContact?: boolean
     isClosed?: boolean
+    extendedDays?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     customer?: boolean | UserDefaultArgs<ExtArgs>
@@ -5294,6 +5319,7 @@ export namespace Prisma {
     details?: boolean
     serviceDate?: boolean
     serviceTime?: boolean
+    selectedDate?: boolean
     photoUrls?: boolean
     status?: boolean
     currentStep?: boolean
@@ -5301,11 +5327,12 @@ export namespace Prisma {
     needsReestimate?: boolean
     shareContact?: boolean
     isClosed?: boolean
+    extendedDays?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type EstimateOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "requestNumber" | "customerId" | "authorName" | "contact" | "category" | "subcategories" | "location" | "details" | "serviceDate" | "serviceTime" | "photoUrls" | "status" | "currentStep" | "isUrgent" | "needsReestimate" | "shareContact" | "isClosed" | "createdAt" | "updatedAt", ExtArgs["result"]["estimate"]>
+  export type EstimateOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "requestNumber" | "customerId" | "authorName" | "contact" | "category" | "subcategories" | "location" | "details" | "serviceDate" | "serviceTime" | "selectedDate" | "photoUrls" | "status" | "currentStep" | "isUrgent" | "needsReestimate" | "shareContact" | "isClosed" | "extendedDays" | "createdAt" | "updatedAt", ExtArgs["result"]["estimate"]>
   export type EstimateInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     customer?: boolean | UserDefaultArgs<ExtArgs>
     bids?: boolean | Estimate$bidsArgs<ExtArgs>
@@ -5340,6 +5367,7 @@ export namespace Prisma {
       details: string
       serviceDate: string | null
       serviceTime: string | null
+      selectedDate: string | null
       photoUrls: string[]
       status: $Enums.EstimateStatus
       currentStep: number
@@ -5347,6 +5375,7 @@ export namespace Prisma {
       needsReestimate: boolean
       shareContact: boolean
       isClosed: boolean
+      extendedDays: number
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["estimate"]>
@@ -5787,6 +5816,7 @@ export namespace Prisma {
     readonly details: FieldRef<"Estimate", 'String'>
     readonly serviceDate: FieldRef<"Estimate", 'String'>
     readonly serviceTime: FieldRef<"Estimate", 'String'>
+    readonly selectedDate: FieldRef<"Estimate", 'String'>
     readonly photoUrls: FieldRef<"Estimate", 'String[]'>
     readonly status: FieldRef<"Estimate", 'EstimateStatus'>
     readonly currentStep: FieldRef<"Estimate", 'Int'>
@@ -5794,6 +5824,7 @@ export namespace Prisma {
     readonly needsReestimate: FieldRef<"Estimate", 'Boolean'>
     readonly shareContact: FieldRef<"Estimate", 'Boolean'>
     readonly isClosed: FieldRef<"Estimate", 'Boolean'>
+    readonly extendedDays: FieldRef<"Estimate", 'Int'>
     readonly createdAt: FieldRef<"Estimate", 'DateTime'>
     readonly updatedAt: FieldRef<"Estimate", 'DateTime'>
   }
@@ -18519,6 +18550,7 @@ export namespace Prisma {
     details: 'details',
     serviceDate: 'serviceDate',
     serviceTime: 'serviceTime',
+    selectedDate: 'selectedDate',
     photoUrls: 'photoUrls',
     status: 'status',
     currentStep: 'currentStep',
@@ -18526,6 +18558,7 @@ export namespace Prisma {
     needsReestimate: 'needsReestimate',
     shareContact: 'shareContact',
     isClosed: 'isClosed',
+    extendedDays: 'extendedDays',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -19058,6 +19091,7 @@ export namespace Prisma {
     details?: StringFilter<"Estimate"> | string
     serviceDate?: StringNullableFilter<"Estimate"> | string | null
     serviceTime?: StringNullableFilter<"Estimate"> | string | null
+    selectedDate?: StringNullableFilter<"Estimate"> | string | null
     photoUrls?: StringNullableListFilter<"Estimate">
     status?: EnumEstimateStatusFilter<"Estimate"> | $Enums.EstimateStatus
     currentStep?: IntFilter<"Estimate"> | number
@@ -19065,6 +19099,7 @@ export namespace Prisma {
     needsReestimate?: BoolFilter<"Estimate"> | boolean
     shareContact?: BoolFilter<"Estimate"> | boolean
     isClosed?: BoolFilter<"Estimate"> | boolean
+    extendedDays?: IntFilter<"Estimate"> | number
     createdAt?: DateTimeFilter<"Estimate"> | Date | string
     updatedAt?: DateTimeFilter<"Estimate"> | Date | string
     customer?: XOR<UserScalarRelationFilter, UserWhereInput>
@@ -19085,6 +19120,7 @@ export namespace Prisma {
     details?: SortOrder
     serviceDate?: SortOrderInput | SortOrder
     serviceTime?: SortOrderInput | SortOrder
+    selectedDate?: SortOrderInput | SortOrder
     photoUrls?: SortOrder
     status?: SortOrder
     currentStep?: SortOrder
@@ -19092,6 +19128,7 @@ export namespace Prisma {
     needsReestimate?: SortOrder
     shareContact?: SortOrder
     isClosed?: SortOrder
+    extendedDays?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     customer?: UserOrderByWithRelationInput
@@ -19115,6 +19152,7 @@ export namespace Prisma {
     details?: StringFilter<"Estimate"> | string
     serviceDate?: StringNullableFilter<"Estimate"> | string | null
     serviceTime?: StringNullableFilter<"Estimate"> | string | null
+    selectedDate?: StringNullableFilter<"Estimate"> | string | null
     photoUrls?: StringNullableListFilter<"Estimate">
     status?: EnumEstimateStatusFilter<"Estimate"> | $Enums.EstimateStatus
     currentStep?: IntFilter<"Estimate"> | number
@@ -19122,6 +19160,7 @@ export namespace Prisma {
     needsReestimate?: BoolFilter<"Estimate"> | boolean
     shareContact?: BoolFilter<"Estimate"> | boolean
     isClosed?: BoolFilter<"Estimate"> | boolean
+    extendedDays?: IntFilter<"Estimate"> | number
     createdAt?: DateTimeFilter<"Estimate"> | Date | string
     updatedAt?: DateTimeFilter<"Estimate"> | Date | string
     customer?: XOR<UserScalarRelationFilter, UserWhereInput>
@@ -19142,6 +19181,7 @@ export namespace Prisma {
     details?: SortOrder
     serviceDate?: SortOrderInput | SortOrder
     serviceTime?: SortOrderInput | SortOrder
+    selectedDate?: SortOrderInput | SortOrder
     photoUrls?: SortOrder
     status?: SortOrder
     currentStep?: SortOrder
@@ -19149,6 +19189,7 @@ export namespace Prisma {
     needsReestimate?: SortOrder
     shareContact?: SortOrder
     isClosed?: SortOrder
+    extendedDays?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: EstimateCountOrderByAggregateInput
@@ -19173,6 +19214,7 @@ export namespace Prisma {
     details?: StringWithAggregatesFilter<"Estimate"> | string
     serviceDate?: StringNullableWithAggregatesFilter<"Estimate"> | string | null
     serviceTime?: StringNullableWithAggregatesFilter<"Estimate"> | string | null
+    selectedDate?: StringNullableWithAggregatesFilter<"Estimate"> | string | null
     photoUrls?: StringNullableListFilter<"Estimate">
     status?: EnumEstimateStatusWithAggregatesFilter<"Estimate"> | $Enums.EstimateStatus
     currentStep?: IntWithAggregatesFilter<"Estimate"> | number
@@ -19180,6 +19222,7 @@ export namespace Prisma {
     needsReestimate?: BoolWithAggregatesFilter<"Estimate"> | boolean
     shareContact?: BoolWithAggregatesFilter<"Estimate"> | boolean
     isClosed?: BoolWithAggregatesFilter<"Estimate"> | boolean
+    extendedDays?: IntWithAggregatesFilter<"Estimate"> | number
     createdAt?: DateTimeWithAggregatesFilter<"Estimate"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Estimate"> | Date | string
   }
@@ -20158,6 +20201,7 @@ export namespace Prisma {
     details: string
     serviceDate?: string | null
     serviceTime?: string | null
+    selectedDate?: string | null
     photoUrls?: EstimateCreatephotoUrlsInput | string[]
     status?: $Enums.EstimateStatus
     currentStep?: number
@@ -20165,6 +20209,7 @@ export namespace Prisma {
     needsReestimate?: boolean
     shareContact?: boolean
     isClosed?: boolean
+    extendedDays?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     customer: UserCreateNestedOneWithoutEstimatesInput
@@ -20185,6 +20230,7 @@ export namespace Prisma {
     details: string
     serviceDate?: string | null
     serviceTime?: string | null
+    selectedDate?: string | null
     photoUrls?: EstimateCreatephotoUrlsInput | string[]
     status?: $Enums.EstimateStatus
     currentStep?: number
@@ -20192,6 +20238,7 @@ export namespace Prisma {
     needsReestimate?: boolean
     shareContact?: boolean
     isClosed?: boolean
+    extendedDays?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     bids?: BidUncheckedCreateNestedManyWithoutEstimateInput
@@ -20210,6 +20257,7 @@ export namespace Prisma {
     details?: StringFieldUpdateOperationsInput | string
     serviceDate?: NullableStringFieldUpdateOperationsInput | string | null
     serviceTime?: NullableStringFieldUpdateOperationsInput | string | null
+    selectedDate?: NullableStringFieldUpdateOperationsInput | string | null
     photoUrls?: EstimateUpdatephotoUrlsInput | string[]
     status?: EnumEstimateStatusFieldUpdateOperationsInput | $Enums.EstimateStatus
     currentStep?: IntFieldUpdateOperationsInput | number
@@ -20217,6 +20265,7 @@ export namespace Prisma {
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    extendedDays?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     customer?: UserUpdateOneRequiredWithoutEstimatesNestedInput
@@ -20237,6 +20286,7 @@ export namespace Prisma {
     details?: StringFieldUpdateOperationsInput | string
     serviceDate?: NullableStringFieldUpdateOperationsInput | string | null
     serviceTime?: NullableStringFieldUpdateOperationsInput | string | null
+    selectedDate?: NullableStringFieldUpdateOperationsInput | string | null
     photoUrls?: EstimateUpdatephotoUrlsInput | string[]
     status?: EnumEstimateStatusFieldUpdateOperationsInput | $Enums.EstimateStatus
     currentStep?: IntFieldUpdateOperationsInput | number
@@ -20244,6 +20294,7 @@ export namespace Prisma {
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    extendedDays?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     bids?: BidUncheckedUpdateManyWithoutEstimateNestedInput
@@ -20263,6 +20314,7 @@ export namespace Prisma {
     details: string
     serviceDate?: string | null
     serviceTime?: string | null
+    selectedDate?: string | null
     photoUrls?: EstimateCreatephotoUrlsInput | string[]
     status?: $Enums.EstimateStatus
     currentStep?: number
@@ -20270,6 +20322,7 @@ export namespace Prisma {
     needsReestimate?: boolean
     shareContact?: boolean
     isClosed?: boolean
+    extendedDays?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -20285,6 +20338,7 @@ export namespace Prisma {
     details?: StringFieldUpdateOperationsInput | string
     serviceDate?: NullableStringFieldUpdateOperationsInput | string | null
     serviceTime?: NullableStringFieldUpdateOperationsInput | string | null
+    selectedDate?: NullableStringFieldUpdateOperationsInput | string | null
     photoUrls?: EstimateUpdatephotoUrlsInput | string[]
     status?: EnumEstimateStatusFieldUpdateOperationsInput | $Enums.EstimateStatus
     currentStep?: IntFieldUpdateOperationsInput | number
@@ -20292,6 +20346,7 @@ export namespace Prisma {
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    extendedDays?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -20308,6 +20363,7 @@ export namespace Prisma {
     details?: StringFieldUpdateOperationsInput | string
     serviceDate?: NullableStringFieldUpdateOperationsInput | string | null
     serviceTime?: NullableStringFieldUpdateOperationsInput | string | null
+    selectedDate?: NullableStringFieldUpdateOperationsInput | string | null
     photoUrls?: EstimateUpdatephotoUrlsInput | string[]
     status?: EnumEstimateStatusFieldUpdateOperationsInput | $Enums.EstimateStatus
     currentStep?: IntFieldUpdateOperationsInput | number
@@ -20315,6 +20371,7 @@ export namespace Prisma {
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    extendedDays?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -21483,6 +21540,7 @@ export namespace Prisma {
     details?: SortOrder
     serviceDate?: SortOrder
     serviceTime?: SortOrder
+    selectedDate?: SortOrder
     photoUrls?: SortOrder
     status?: SortOrder
     currentStep?: SortOrder
@@ -21490,6 +21548,7 @@ export namespace Prisma {
     needsReestimate?: SortOrder
     shareContact?: SortOrder
     isClosed?: SortOrder
+    extendedDays?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -21497,6 +21556,7 @@ export namespace Prisma {
   export type EstimateAvgOrderByAggregateInput = {
     customerId?: SortOrder
     currentStep?: SortOrder
+    extendedDays?: SortOrder
   }
 
   export type EstimateMaxOrderByAggregateInput = {
@@ -21510,12 +21570,14 @@ export namespace Prisma {
     details?: SortOrder
     serviceDate?: SortOrder
     serviceTime?: SortOrder
+    selectedDate?: SortOrder
     status?: SortOrder
     currentStep?: SortOrder
     isUrgent?: SortOrder
     needsReestimate?: SortOrder
     shareContact?: SortOrder
     isClosed?: SortOrder
+    extendedDays?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -21531,12 +21593,14 @@ export namespace Prisma {
     details?: SortOrder
     serviceDate?: SortOrder
     serviceTime?: SortOrder
+    selectedDate?: SortOrder
     status?: SortOrder
     currentStep?: SortOrder
     isUrgent?: SortOrder
     needsReestimate?: SortOrder
     shareContact?: SortOrder
     isClosed?: SortOrder
+    extendedDays?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -21544,6 +21608,7 @@ export namespace Prisma {
   export type EstimateSumOrderByAggregateInput = {
     customerId?: SortOrder
     currentStep?: SortOrder
+    extendedDays?: SortOrder
   }
 
   export type EnumEstimateStatusWithAggregatesFilter<$PrismaModel = never> = {
@@ -23268,6 +23333,7 @@ export namespace Prisma {
     details: string
     serviceDate?: string | null
     serviceTime?: string | null
+    selectedDate?: string | null
     photoUrls?: EstimateCreatephotoUrlsInput | string[]
     status?: $Enums.EstimateStatus
     currentStep?: number
@@ -23275,6 +23341,7 @@ export namespace Prisma {
     needsReestimate?: boolean
     shareContact?: boolean
     isClosed?: boolean
+    extendedDays?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     bids?: BidCreateNestedManyWithoutEstimateInput
@@ -23293,6 +23360,7 @@ export namespace Prisma {
     details: string
     serviceDate?: string | null
     serviceTime?: string | null
+    selectedDate?: string | null
     photoUrls?: EstimateCreatephotoUrlsInput | string[]
     status?: $Enums.EstimateStatus
     currentStep?: number
@@ -23300,6 +23368,7 @@ export namespace Prisma {
     needsReestimate?: boolean
     shareContact?: boolean
     isClosed?: boolean
+    extendedDays?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     bids?: BidUncheckedCreateNestedManyWithoutEstimateInput
@@ -23603,6 +23672,7 @@ export namespace Prisma {
     details?: StringFilter<"Estimate"> | string
     serviceDate?: StringNullableFilter<"Estimate"> | string | null
     serviceTime?: StringNullableFilter<"Estimate"> | string | null
+    selectedDate?: StringNullableFilter<"Estimate"> | string | null
     photoUrls?: StringNullableListFilter<"Estimate">
     status?: EnumEstimateStatusFilter<"Estimate"> | $Enums.EstimateStatus
     currentStep?: IntFilter<"Estimate"> | number
@@ -23610,6 +23680,7 @@ export namespace Prisma {
     needsReestimate?: BoolFilter<"Estimate"> | boolean
     shareContact?: BoolFilter<"Estimate"> | boolean
     isClosed?: BoolFilter<"Estimate"> | boolean
+    extendedDays?: IntFilter<"Estimate"> | number
     createdAt?: DateTimeFilter<"Estimate"> | Date | string
     updatedAt?: DateTimeFilter<"Estimate"> | Date | string
   }
@@ -24322,6 +24393,7 @@ export namespace Prisma {
     details: string
     serviceDate?: string | null
     serviceTime?: string | null
+    selectedDate?: string | null
     photoUrls?: EstimateCreatephotoUrlsInput | string[]
     status?: $Enums.EstimateStatus
     currentStep?: number
@@ -24329,6 +24401,7 @@ export namespace Prisma {
     needsReestimate?: boolean
     shareContact?: boolean
     isClosed?: boolean
+    extendedDays?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     customer: UserCreateNestedOneWithoutEstimatesInput
@@ -24348,6 +24421,7 @@ export namespace Prisma {
     details: string
     serviceDate?: string | null
     serviceTime?: string | null
+    selectedDate?: string | null
     photoUrls?: EstimateCreatephotoUrlsInput | string[]
     status?: $Enums.EstimateStatus
     currentStep?: number
@@ -24355,6 +24429,7 @@ export namespace Prisma {
     needsReestimate?: boolean
     shareContact?: boolean
     isClosed?: boolean
+    extendedDays?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     bids?: BidUncheckedCreateNestedManyWithoutEstimateInput
@@ -24454,6 +24529,7 @@ export namespace Prisma {
     details?: StringFieldUpdateOperationsInput | string
     serviceDate?: NullableStringFieldUpdateOperationsInput | string | null
     serviceTime?: NullableStringFieldUpdateOperationsInput | string | null
+    selectedDate?: NullableStringFieldUpdateOperationsInput | string | null
     photoUrls?: EstimateUpdatephotoUrlsInput | string[]
     status?: EnumEstimateStatusFieldUpdateOperationsInput | $Enums.EstimateStatus
     currentStep?: IntFieldUpdateOperationsInput | number
@@ -24461,6 +24537,7 @@ export namespace Prisma {
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    extendedDays?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     customer?: UserUpdateOneRequiredWithoutEstimatesNestedInput
@@ -24480,6 +24557,7 @@ export namespace Prisma {
     details?: StringFieldUpdateOperationsInput | string
     serviceDate?: NullableStringFieldUpdateOperationsInput | string | null
     serviceTime?: NullableStringFieldUpdateOperationsInput | string | null
+    selectedDate?: NullableStringFieldUpdateOperationsInput | string | null
     photoUrls?: EstimateUpdatephotoUrlsInput | string[]
     status?: EnumEstimateStatusFieldUpdateOperationsInput | $Enums.EstimateStatus
     currentStep?: IntFieldUpdateOperationsInput | number
@@ -24487,6 +24565,7 @@ export namespace Prisma {
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    extendedDays?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     bids?: BidUncheckedUpdateManyWithoutEstimateNestedInput
@@ -24504,6 +24583,7 @@ export namespace Prisma {
     details: string
     serviceDate?: string | null
     serviceTime?: string | null
+    selectedDate?: string | null
     photoUrls?: EstimateCreatephotoUrlsInput | string[]
     status?: $Enums.EstimateStatus
     currentStep?: number
@@ -24511,6 +24591,7 @@ export namespace Prisma {
     needsReestimate?: boolean
     shareContact?: boolean
     isClosed?: boolean
+    extendedDays?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     customer: UserCreateNestedOneWithoutEstimatesInput
@@ -24530,6 +24611,7 @@ export namespace Prisma {
     details: string
     serviceDate?: string | null
     serviceTime?: string | null
+    selectedDate?: string | null
     photoUrls?: EstimateCreatephotoUrlsInput | string[]
     status?: $Enums.EstimateStatus
     currentStep?: number
@@ -24537,6 +24619,7 @@ export namespace Prisma {
     needsReestimate?: boolean
     shareContact?: boolean
     isClosed?: boolean
+    extendedDays?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     bookmarks?: BookmarkUncheckedCreateNestedManyWithoutEstimateInput
@@ -24656,6 +24739,7 @@ export namespace Prisma {
     details?: StringFieldUpdateOperationsInput | string
     serviceDate?: NullableStringFieldUpdateOperationsInput | string | null
     serviceTime?: NullableStringFieldUpdateOperationsInput | string | null
+    selectedDate?: NullableStringFieldUpdateOperationsInput | string | null
     photoUrls?: EstimateUpdatephotoUrlsInput | string[]
     status?: EnumEstimateStatusFieldUpdateOperationsInput | $Enums.EstimateStatus
     currentStep?: IntFieldUpdateOperationsInput | number
@@ -24663,6 +24747,7 @@ export namespace Prisma {
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    extendedDays?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     customer?: UserUpdateOneRequiredWithoutEstimatesNestedInput
@@ -24682,6 +24767,7 @@ export namespace Prisma {
     details?: StringFieldUpdateOperationsInput | string
     serviceDate?: NullableStringFieldUpdateOperationsInput | string | null
     serviceTime?: NullableStringFieldUpdateOperationsInput | string | null
+    selectedDate?: NullableStringFieldUpdateOperationsInput | string | null
     photoUrls?: EstimateUpdatephotoUrlsInput | string[]
     status?: EnumEstimateStatusFieldUpdateOperationsInput | $Enums.EstimateStatus
     currentStep?: IntFieldUpdateOperationsInput | number
@@ -24689,6 +24775,7 @@ export namespace Prisma {
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    extendedDays?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     bookmarks?: BookmarkUncheckedUpdateManyWithoutEstimateNestedInput
@@ -24988,6 +25075,7 @@ export namespace Prisma {
     details: string
     serviceDate?: string | null
     serviceTime?: string | null
+    selectedDate?: string | null
     photoUrls?: EstimateCreatephotoUrlsInput | string[]
     status?: $Enums.EstimateStatus
     currentStep?: number
@@ -24995,6 +25083,7 @@ export namespace Prisma {
     needsReestimate?: boolean
     shareContact?: boolean
     isClosed?: boolean
+    extendedDays?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     customer: UserCreateNestedOneWithoutEstimatesInput
@@ -25014,6 +25103,7 @@ export namespace Prisma {
     details: string
     serviceDate?: string | null
     serviceTime?: string | null
+    selectedDate?: string | null
     photoUrls?: EstimateCreatephotoUrlsInput | string[]
     status?: $Enums.EstimateStatus
     currentStep?: number
@@ -25021,6 +25111,7 @@ export namespace Prisma {
     needsReestimate?: boolean
     shareContact?: boolean
     isClosed?: boolean
+    extendedDays?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     bids?: BidUncheckedCreateNestedManyWithoutEstimateInput
@@ -25186,6 +25277,7 @@ export namespace Prisma {
     details?: StringFieldUpdateOperationsInput | string
     serviceDate?: NullableStringFieldUpdateOperationsInput | string | null
     serviceTime?: NullableStringFieldUpdateOperationsInput | string | null
+    selectedDate?: NullableStringFieldUpdateOperationsInput | string | null
     photoUrls?: EstimateUpdatephotoUrlsInput | string[]
     status?: EnumEstimateStatusFieldUpdateOperationsInput | $Enums.EstimateStatus
     currentStep?: IntFieldUpdateOperationsInput | number
@@ -25193,6 +25285,7 @@ export namespace Prisma {
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    extendedDays?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     customer?: UserUpdateOneRequiredWithoutEstimatesNestedInput
@@ -25212,6 +25305,7 @@ export namespace Prisma {
     details?: StringFieldUpdateOperationsInput | string
     serviceDate?: NullableStringFieldUpdateOperationsInput | string | null
     serviceTime?: NullableStringFieldUpdateOperationsInput | string | null
+    selectedDate?: NullableStringFieldUpdateOperationsInput | string | null
     photoUrls?: EstimateUpdatephotoUrlsInput | string[]
     status?: EnumEstimateStatusFieldUpdateOperationsInput | $Enums.EstimateStatus
     currentStep?: IntFieldUpdateOperationsInput | number
@@ -25219,6 +25313,7 @@ export namespace Prisma {
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    extendedDays?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     bids?: BidUncheckedUpdateManyWithoutEstimateNestedInput
@@ -25740,6 +25835,7 @@ export namespace Prisma {
     details: string
     serviceDate?: string | null
     serviceTime?: string | null
+    selectedDate?: string | null
     photoUrls?: EstimateCreatephotoUrlsInput | string[]
     status?: $Enums.EstimateStatus
     currentStep?: number
@@ -25747,6 +25843,7 @@ export namespace Prisma {
     needsReestimate?: boolean
     shareContact?: boolean
     isClosed?: boolean
+    extendedDays?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -25837,6 +25934,7 @@ export namespace Prisma {
     details?: StringFieldUpdateOperationsInput | string
     serviceDate?: NullableStringFieldUpdateOperationsInput | string | null
     serviceTime?: NullableStringFieldUpdateOperationsInput | string | null
+    selectedDate?: NullableStringFieldUpdateOperationsInput | string | null
     photoUrls?: EstimateUpdatephotoUrlsInput | string[]
     status?: EnumEstimateStatusFieldUpdateOperationsInput | $Enums.EstimateStatus
     currentStep?: IntFieldUpdateOperationsInput | number
@@ -25844,6 +25942,7 @@ export namespace Prisma {
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    extendedDays?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     bids?: BidUpdateManyWithoutEstimateNestedInput
@@ -25862,6 +25961,7 @@ export namespace Prisma {
     details?: StringFieldUpdateOperationsInput | string
     serviceDate?: NullableStringFieldUpdateOperationsInput | string | null
     serviceTime?: NullableStringFieldUpdateOperationsInput | string | null
+    selectedDate?: NullableStringFieldUpdateOperationsInput | string | null
     photoUrls?: EstimateUpdatephotoUrlsInput | string[]
     status?: EnumEstimateStatusFieldUpdateOperationsInput | $Enums.EstimateStatus
     currentStep?: IntFieldUpdateOperationsInput | number
@@ -25869,6 +25969,7 @@ export namespace Prisma {
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    extendedDays?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     bids?: BidUncheckedUpdateManyWithoutEstimateNestedInput
@@ -25887,6 +25988,7 @@ export namespace Prisma {
     details?: StringFieldUpdateOperationsInput | string
     serviceDate?: NullableStringFieldUpdateOperationsInput | string | null
     serviceTime?: NullableStringFieldUpdateOperationsInput | string | null
+    selectedDate?: NullableStringFieldUpdateOperationsInput | string | null
     photoUrls?: EstimateUpdatephotoUrlsInput | string[]
     status?: EnumEstimateStatusFieldUpdateOperationsInput | $Enums.EstimateStatus
     currentStep?: IntFieldUpdateOperationsInput | number
@@ -25894,6 +25996,7 @@ export namespace Prisma {
     needsReestimate?: BoolFieldUpdateOperationsInput | boolean
     shareContact?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    extendedDays?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

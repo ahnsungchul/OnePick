@@ -59,6 +59,7 @@ export default function ExpertBidList({ bids, expertId, currentUserName }: Exper
       } else if (
         bidStatus === 'REJECTED' || 
         estStatus === 'CANCELLED' || 
+        estStatus === 'SELECTED' || 
         estStatus === 'IN_PROGRESS' || 
         estStatus === 'COMPLETED'
       ) {
@@ -102,6 +103,7 @@ export default function ExpertBidList({ bids, expertId, currentUserName }: Exper
       } else if (
         bidStatus === 'REJECTED' || 
         estStatus === 'CANCELLED' || 
+        estStatus === 'SELECTED' || 
         estStatus === 'IN_PROGRESS' || 
         estStatus === 'COMPLETED'
       ) {

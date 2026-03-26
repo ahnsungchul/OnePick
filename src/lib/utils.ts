@@ -154,18 +154,19 @@ export const getReverseCategoryMap = (targetKoreanName: string): string[] => {
 };
 
 /**
- * D-Day 계산 (생성일로부터 7일 기준)
+ * D-Day 계산 (생성일로부터 기본 7일 + 연장일 기준)
  * @param createdAt 생성일
  * @param isClosed 수동 마감 여부
+ * @param extendedDays 마감 연장된 일수 (기본 0)
  * @returns 마킹 텍스트 (e.g., D-7, D-Day, 만료) 및 색상 타입
  */
-export const calculateDDay = (createdAt: string | Date, isClosed: boolean = false) => {
+export const calculateDDay = (createdAt: string | Date, isClosed: boolean = false, extendedDays: number = 0) => {
   if (isClosed) {
-    return { label: '요청 마감', isUrgent: false };
+    return { label: '요청 마감', isUrgent: false, diffDays: -1 };
   }
 
   const createdDate = new Date(createdAt);
-  const deadline = new Date(createdDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const deadline = new Date(createdDate.getTime() + (7 + extendedDays) * 24 * 60 * 60 * 1000);
   const today = new Date();
   
   // 시간/분/초 제외하고 일 단위로만 계산
@@ -175,7 +176,7 @@ export const calculateDDay = (createdAt: string | Date, isClosed: boolean = fals
   const diffTime = deadlineReset.getTime() - todayReset.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   
-  if (diffDays > 0) return { label: `마감 D-${diffDays}`, isUrgent: diffDays <= 2 };
-  if (diffDays === 0) return { label: '오늘까지', isUrgent: true };
-  return { label: '요청 마감', isUrgent: false };
+  if (diffDays > 0) return { label: `마감 D-${diffDays}`, isUrgent: diffDays <= 2, diffDays };
+  if (diffDays === 0) return { label: '오늘까지', isUrgent: true, diffDays };
+  return { label: '요청 마감', isUrgent: false, diffDays };
 };

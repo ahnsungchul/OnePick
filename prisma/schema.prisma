@@ -27,6 +27,7 @@ enum EstimateStatus {
   DRAFT // 작성 중 (임시 저장)
   PENDING // 요청 대기 (전문가 탐색 중)
   BIDDING // 입찰 중 (견적 받는 중)
+  SELECTED // 전문가 선택됨 (결제 대기)
   IN_PROGRESS // 진행 중 (매칭 완료)
   COMPLETED // 작업 완료
   CANCELLED // 취소됨
@@ -109,6 +110,7 @@ model Estimate {
   details     String // 견적 요청 상세 내용
   serviceDate String? // 희망 서비스 일시 (다중 선택, 혹은 정기 기간)
   serviceTime String? // 희망 도착 시간 (선택)
+  selectedDate String? // 전문가 선택 시 확정된 서비스일
   photoUrls   String[] // 여러 장의 사진 S3 URL (LocalStack 연동, 최대 5장)
   status      EstimateStatus @default(PENDING)
   currentStep Int            @default(1) // 현재 작성 중인 단계 (1~4)
@@ -118,6 +120,7 @@ model Estimate {
   needsReestimate Boolean @default(false)
   shareContact    Boolean @default(false)
   isClosed        Boolean @default(false) // 사용자에 의해 수동 마감되었는지 여부
+  extendedDays    Int     @default(0)     // 마감 연장된 일수 (기본 0, 마감 연장 시 증가)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

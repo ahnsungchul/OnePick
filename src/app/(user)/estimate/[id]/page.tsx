@@ -291,7 +291,7 @@ export default function EstimateDetailPage() {
   const isAuthor = estimate && userId === estimate.customerId;
   const isExpert = userRole === 'EXPERT' || userRole === 'BOTH';
   const isExpired = estimate && calculateDDay(estimate.createdAt, estimate.isClosed).label === '요청 마감';
-  const canBid = isExpert && userGrade && !isAuthor && !hasParticipated && estimate?.status !== 'COMPLETED' && estimate?.status !== 'CANCELLED' && !isExpired && !estimate?.isClosed;
+  const canBid = isExpert && userGrade && !isAuthor && !hasParticipated && (estimate?.status === 'PENDING' || estimate?.status === 'BIDDING') && !isExpired && !estimate?.isClosed;
 
   return (
     <div className="bg-slate-50">
@@ -376,11 +376,13 @@ export default function EstimateDetailPage() {
               <span className={`text-xs font-bold px-4 py-1 rounded-full shadow-md ${
                 estimate.status === 'PENDING' ? 'bg-blue-600 text-white' :
                 estimate.status === 'BIDDING' ? 'bg-emerald-500 text-white' :
-                estimate.status === 'IN_PROGRESS' ? 'bg-emerald-600 text-white' :
+                estimate.status === 'SELECTED' ? 'bg-emerald-500 text-white' :
+                estimate.status === 'IN_PROGRESS' ? 'bg-blue-600 text-white' :
                 'bg-slate-500 text-white'
               }`}>
                 {estimate.status === 'PENDING' ? '매칭중' :
                  estimate.status === 'BIDDING' ? '견적중' :
+                 estimate.status === 'SELECTED' ? '전문가선택' :
                  estimate.status === 'IN_PROGRESS' ? '전문가확정' :
                  estimate.status === 'COMPLETED' ? '서비스완료' : '취소'}
               </span>
@@ -779,15 +781,35 @@ export default function EstimateDetailPage() {
                 </div>
               </div>
             </div>
-          ) : estimate?.isClosed ? (
+          ) : estimate?.isClosed || (estimate?.status !== 'PENDING' && estimate?.status !== 'BIDDING') ? (
             <div className="mt-12 p-10 bg-slate-50 rounded-3xl border border-slate-100 text-center animate-in fade-in duration-700">
               <div className="w-16 h-16 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-6 text-slate-500 shadow-sm">
                 <AlertCircle className="w-8 h-8" />
               </div>
               <h3 className="text-xl font-black text-slate-900 mb-2">마감된 요청입니다</h3>
               <p className="text-slate-500 text-sm leading-relaxed">
-                고객님이 견적 접수를 마감하여 더 이상 제안을 작성할 수 없습니다.<br/>
-                새로운 요청을 확인해보세요.
+                해당 견적 요청이 마감되었거나 이미 전문가가 선택되어<br/>더 이상 제안을 작성할 수 없습니다.
+              </p>
+            </div>
+          ) : isAuthor ? (
+            <div className="mt-12 p-10 bg-slate-50 rounded-3xl border border-slate-100 text-center animate-in fade-in duration-700">
+              <div className="w-16 h-16 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-6 text-slate-500 shadow-sm">
+                <User className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 mb-2">본인이 작성한 요청입니다</h3>
+              <p className="text-slate-500 text-sm leading-relaxed">
+                고객으로서 직접 등록하신 견적 요청에는 스스로 견적서를 작성할 수 없습니다.
+              </p>
+            </div>
+          ) : hasParticipated ? (
+            <div className="mt-12 p-10 bg-blue-50 rounded-3xl border border-blue-100 text-center animate-in fade-in duration-700">
+              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 text-blue-500 shadow-sm">
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 mb-2">이미 참여한 견적입니다</h3>
+              <p className="text-slate-500 text-sm leading-relaxed">
+                전문가님께서 이미 이 요청에 대한 견적서를 제출 완료하셨습니다.<br/>
+                상단의 제출된 견적 목록을 확인해주세요.
               </p>
             </div>
           ) : (userId && isExpert && !userGrade) ? (

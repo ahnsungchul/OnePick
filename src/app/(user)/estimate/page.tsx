@@ -60,6 +60,7 @@ const mockRequests = [
 const statusMap: Record<string, { label: string, color: string }> = {
   'PENDING': { label: '매칭중', color: 'bg-blue-100 text-blue-700' },
   'BIDDING': { label: '견적중', color: 'bg-emerald-100 text-emerald-700' },
+  'SELECTED': { label: '전문가선택', color: 'bg-emerald-100 text-emerald-700' },
   'IN_PROGRESS': { label: '전문가확정', color: 'bg-emerald-100 text-emerald-700' },
   'MATCHED': { label: '전문가확정', color: 'bg-emerald-100 text-emerald-700' },
   'COMPLETED': { label: '서비스완료', color: 'bg-slate-200 text-slate-600' },
@@ -76,6 +77,7 @@ export default function EstimateListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isFilterOpen, setIsFilterOpen] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showOnlyApplicable, setShowOnlyApplicable] = useState(false);
   const { data: session } = useSession();
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const isExpert = session?.user && ((session.user as any).role === 'EXPERT' || (session.user as any).role === 'BOTH');
@@ -136,6 +138,16 @@ export default function EstimateListPage() {
   const normalRequests = useMemo(() => {
     let filtered = estimates;
     
+    if (showOnlyApplicable && isExpert) {
+      filtered = filtered.filter(req => {
+        const isBiddableStatus = req.status === 'PENDING' || req.status === 'BIDDING';
+        const ddayResult = calculateDDay(req.createdAt, req.isClosed, req.extendedDays);
+        const hasNotExpired = ddayResult.label !== '요청 마감';
+        const hasParticipated = req.bids?.some((bid: any) => bid.expertId === Number(session?.user?.id));
+        return isBiddableStatus && !req.isClosed && hasNotExpired && !hasParticipated;
+      });
+    }
+
     if (selectedProvince !== '전국') {
       filtered = filtered.filter(req => req.location.includes(selectedProvince));
       if (selectedCity !== '전체') {
@@ -148,7 +160,7 @@ export default function EstimateListPage() {
 
     // 최신순 정렬 (날짜 내림차순)
     return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [selectedCategory, selectedProvince, selectedCity, estimates]);
+  }, [selectedCategory, selectedProvince, selectedCity, showOnlyApplicable, estimates, isExpert, session]);
 
   // 페이징 계산
   const totalPages = Math.max(1, Math.ceil(normalRequests.length / itemsPerPage));
@@ -388,7 +400,7 @@ export default function EstimateListPage() {
                     href={`/estimate/${req.id}?cat=${selectedCategory}&prv=${selectedProvince}&cit=${selectedCity}`} 
                     key={req.id}
                   >
-                    <div className="relative bg-white p-6 rounded-2xl shadow-sm transition-all flex flex-col justify-between group cursor-pointer h-full overflow-hidden">
+                    <div className={`relative ${calculateDDay(req.createdAt, req.isClosed, req.extendedDays).label === '요청 마감' ? 'bg-slate-100' : 'bg-white'} p-6 rounded-2xl shadow-sm transition-all flex flex-col justify-between group cursor-pointer h-full overflow-hidden`}>
                       <span className="text-[10px] px-8 pt-2 pb-1 font-bold uppercase bg-orange-500 text-white absolute top-0 left-0 rotate-[-45deg] translate-x-[-28px] translate-y-[0px]">
                         긴급
                       </span>
@@ -400,8 +412,8 @@ export default function EstimateListPage() {
                           {req.bids?.length || 0}명 참여
                         </span>
                         {(req.status === 'PENDING' || req.status === 'BIDDING') && (
-                          <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${calculateDDay(req.createdAt, req.isClosed).isUrgent ? 'bg-red-500 text-white' : 'bg-slate-700 text-white'}`}>
-                            {calculateDDay(req.createdAt, req.isClosed).label}
+                          <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${calculateDDay(req.createdAt, req.isClosed, req.extendedDays).isUrgent ? 'bg-red-500 text-white' : 'bg-slate-700 text-white'}`}>
+                            {calculateDDay(req.createdAt, req.isClosed, req.extendedDays).label}
                           </span>
                         )}
                         {isExpert && (
@@ -450,10 +462,29 @@ export default function EstimateListPage() {
           )}
 
           {/* 일반 요청 (최신순) */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <h2 className="text-xl font-bold text-slate-900">최신 견적 요청</h2>
-              <span className="text-sm font-medium text-slate-500">{normalRequests.length}건의 요청</span>
+          <div className="pt-8 sm:pt-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-bold text-slate-900">최신 견적 요청</h2>
+                <span className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full">{normalRequests.length}건의 요청</span>
+              </div>
+              
+              {isExpert && (
+                <label className="flex items-center gap-2 cursor-pointer group select-none bg-white border border-slate-200 px-4 py-2 rounded-xl hover:border-blue-300 hover:bg-blue-50/30 transition-all">
+                  <div className="relative flex items-center justify-center">
+                    <input 
+                      type="checkbox" 
+                      className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:bg-blue-600 checked:border-blue-600 transition-colors cursor-pointer"
+                      checked={showOnlyApplicable}
+                      onChange={(e) => setShowOnlyApplicable(e.target.checked)}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </div>
+                  </div>
+                  <span className="text-sm font-bold text-slate-600 group-hover:text-blue-700 transition-colors">지원가능 요청 보기</span>
+                </label>
+              )}
             </div>
             
             {normalRequests.length > 0 ? (
@@ -464,7 +495,7 @@ export default function EstimateListPage() {
                     key={req.id} 
                     className="block my-[5px]"
                   >
-                    <div className="relative bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 transition-colors flex flex-col sm:flex-row justify-between gap-4 group cursor-pointer items-stretch h-full overflow-hidden">
+                    <div className={`relative ${calculateDDay(req.createdAt, req.isClosed, req.extendedDays).label === '요청 마감' ? 'bg-slate-100' : 'bg-white'} p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 transition-colors flex flex-col sm:flex-row justify-between gap-4 group cursor-pointer items-stretch h-full overflow-hidden`}>
                           {req.isUrgent && (
                             <span className="text-[10px] font-bold text-white bg-orange-500 px-8 py-0.5 uppercase absolute top-0 left-0 rotate-[-45deg] translate-x-[-24px] translate-y-[8px]">
                               긴급
@@ -478,8 +509,8 @@ export default function EstimateListPage() {
                           {req.bids?.length || 0}명 참여
                         </span>
                         {(req.status === 'PENDING' || req.status === 'BIDDING') && (
-                          <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${calculateDDay(req.createdAt, req.isClosed).isUrgent ? 'bg-red-500 text-white' : 'bg-slate-700 text-white'}`}>
-                            {calculateDDay(req.createdAt, req.isClosed).label}
+                          <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${calculateDDay(req.createdAt, req.isClosed, req.extendedDays).isUrgent ? 'bg-red-500 text-white' : 'bg-slate-700 text-white'}`}>
+                            {calculateDDay(req.createdAt, req.isClosed, req.extendedDays).label}
                           </span>
                         )}
                         {isExpert && (

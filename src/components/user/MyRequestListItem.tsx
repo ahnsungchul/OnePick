@@ -21,8 +21,9 @@ import EstimateDetailModal from './EstimateDetailModal';
 import EstimateEditModal from './EstimateEditModal';
 import BidDetailModal from './BidDetailModal';
 import ChatPopupModal from '../chat/ChatPopupModal';
-import { deleteEstimateAction, closeEstimateAction, cancelCloseEstimateAction } from '@/actions/estimate.action';
-import { acceptBidAction } from '@/actions/bid.action';
+import { deleteEstimateAction, closeEstimateAction, cancelCloseEstimateAction, extendEstimateDeadlineAction } from '@/actions/estimate.action';
+import { acceptBidAction, cancelBidSelectionAction } from '@/actions/bid.action';
+import { completePaymentAction } from '@/actions/payment.action';
 import { useSession } from 'next-auth/react';
 
 interface BidItem {
@@ -61,6 +62,7 @@ interface Estimate {
   unreadChats?: { id: string; senderId: number }[];
   bids: Bid[];
   isClosed?: boolean;
+  extendedDays?: number;
 }
 
 export default function MyRequestListItem({ estimate }: { estimate: Estimate }) {
@@ -73,6 +75,31 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
   const [pendingBidId, setPendingBidId] = useState<string | null>(null);
   const [readExpertIds, setReadExpertIds] = useState<number[]>([]);
   const [isAccepting, setIsAccepting] = useState(false);
+  const [isPaying, setIsPaying] = useState(false);
+  const [isCanceling, setIsCanceling] = useState(false);
+
+  const handleCancelSelection = async (e: React.MouseEvent, bidId: string) => {
+    e.stopPropagation();
+    if (!window.confirm('전문가 선택을 취소하시겠습니까?')) return;
+    
+    if (!session?.user?.id) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+    
+    if (isCanceling) return;
+    setIsCanceling(true);
+
+    const userId = parseInt(session.user.id, 10);
+    const result = await cancelBidSelectionAction(estimate.id, bidId, userId);
+
+    if (result.success) {
+      window.location.reload();
+    } else {
+      alert(result.error || '취소 중 오류가 발생했습니다.');
+      setIsCanceling(false);
+    }
+  };
   const [selectedDates, setSelectedDates] = useState<Record<string, string>>({});
   const [showDateAlert, setShowDateAlert] = useState(false);
   const [showCloseAlert, setShowCloseAlert] = useState(false);
@@ -91,9 +118,38 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
       document.body.style.overflow = 'unset';
     };
   }, [pendingBidId, showDateAlert, showCloseAlert, showActiveBidAlert]);
-
-  const handleAcceptBid = async (e: React.MouseEvent, bidId: string) => {
+  const handleCompletePayment = async (e: React.MouseEvent, bidId: string) => {
     e.stopPropagation();
+    
+    if (!session?.user?.id) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+    
+    if (isPaying) return;
+    setIsPaying(true);
+
+    const userId = parseInt(session.user.id, 10);
+    const result = await completePaymentAction(estimate.id, userId);
+
+    if (result?.success) {
+      alert('결제가 완료되어 전문가가 최종 확정되었습니다.');
+      window.location.reload();
+    } else {
+      alert(result?.error || '결제 처리 중 서버와 통신 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      setIsPaying(false);
+    }
+  };
+
+  const handleAcceptBid = async (e: React.MouseEvent, bidId: string, bidAvailableDate: string | null) => {
+    e.stopPropagation();
+
+    const selected = selectedDates[bidId];
+    if (bidAvailableDate && !selected) {
+      setShowDateAlert(true);
+      return;
+    }
+
     if (!session?.user?.id) {
       alert('로그인이 필요합니다.');
       return;
@@ -103,14 +159,30 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
     setIsAccepting(true);
 
     const userId = parseInt(session.user.id, 10);
-    const result = await acceptBidAction(estimate.id, bidId, userId);
+    const result = await acceptBidAction(estimate.id, bidId, userId, selected);
 
     if (result.success) {
-      alert('매칭이 완료되었습니다.');
       window.location.reload();
     } else {
       alert(result.error || '처리 중 오류가 발생했습니다.');
       setIsAccepting(false);
+    }
+  };
+
+  const handleExtendDeadline = async () => {
+    if (!session?.user?.id) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+
+    const userId = parseInt(session.user.id, 10);
+    const result = await extendEstimateDeadlineAction(estimate.id, userId, 7);
+
+    if (result.success) {
+      alert('마감 기한이 7일 연장되었습니다.');
+      window.location.reload();
+    } else {
+      alert(result.error || '처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -173,7 +245,8 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
     'DRAFT': { label: '작성중', color: 'bg-amber-100 text-amber-700', icon: Clock },
     'PENDING': { label: '매칭중', color: 'bg-blue-100 text-blue-700', icon: Clock },
     'BIDDING': { label: '견적중', color: 'bg-emerald-100 text-emerald-700', icon: MessageCircle },
-    'IN_PROGRESS': { label: '전문가확정', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle2 },
+    'SELECTED': { label: '전문가선택', color: 'bg-emerald-50 text-emerald-600 border border-emerald-100', icon: Clock },
+    'IN_PROGRESS': { label: '전문가확정', color: 'bg-blue-100 text-blue-700', icon: CheckCircle2 },
     'COMPLETED': { label: '서비스완료', color: 'bg-slate-100 text-slate-600', icon: CheckCircle2 },
     'CANCELLED': { label: '취소', color: 'bg-red-100 text-red-600', icon: Clock }
   };
@@ -200,11 +273,11 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
               </span>
               {(estimate.status === 'PENDING' || estimate.status === 'BIDDING') && (
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                  calculateDDay(estimate.createdAt, isClosedLocal).isUrgent 
+                  calculateDDay(estimate.createdAt, isClosedLocal, estimate.extendedDays).isUrgent 
                   ? 'bg-red-100 text-red-600' 
                   : 'bg-blue-50 text-blue-600 border border-blue-100'
                 }`}>
-                  {calculateDDay(estimate.createdAt, isClosedLocal).label}
+                  {calculateDDay(estimate.createdAt, isClosedLocal, estimate.extendedDays).label}
                 </span>
               )}
               {estimate.status !== 'DRAFT' && (
@@ -259,7 +332,7 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
                 </>
               ) : (
                 <div className="flex flex-row gap-2">
-                  {estimate.status === 'BIDDING' && (
+                  {(estimate.status === 'PENDING' || estimate.status === 'BIDDING' || estimate.status === 'SELECTED') && (
                     isClosedLocal ? (
                       <button 
                         onClick={() => {
@@ -274,17 +347,38 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
                         마감 취소
                       </button>
                     ) : (
-                      <button 
-                        onClick={() => setShowCloseAlert(true)}
-                        className="w-full md:w-auto px-4 py-1 text-sm font-bold text-slate-500 bg-slate-100 rounded-full border border-slate-200 hover:bg-slate-200 transition-colors"
-                      >
-                        견적 마감
-                      </button>
+                      <>
+                        {(() => {
+                          const { diffDays } = calculateDDay(estimate.createdAt, isClosedLocal, estimate.extendedDays);
+                          const isExtendable = diffDays <= 1;
+                          
+                          return (
+                            <button 
+                              onClick={isExtendable ? handleExtendDeadline : undefined}
+                              disabled={!isExtendable}
+                              className={`w-full md:w-auto px-4 py-1 text-sm font-bold rounded-md border transition-colors ${
+                                isExtendable 
+                                ? 'text-blue-600 bg-blue-50 border-blue-100 hover:bg-blue-100' 
+                                : 'text-slate-400 bg-slate-50 border-slate-200 cursor-not-allowed opacity-70'
+                              }`}
+                              title={!isExtendable ? '마감 1일 전부터 연장할 수 있습니다' : ''}
+                            >
+                              마감 연장(+7일)
+                            </button>
+                          );
+                        })()}
+                        <button 
+                          onClick={() => setShowCloseAlert(true)}
+                          className="w-full md:w-auto px-4 py-1 text-sm font-bold text-slate-500 bg-slate-100 rounded-md border border-slate-200 hover:bg-slate-200 transition-colors"
+                        >
+                          견적 마감
+                        </button>
+                      </>
                     )
                   )}
                   <button 
                     onClick={() => setIsDetailOpen(true)}
-                    className="w-full md:w-auto px-4 py-1 text-sm font-bold text-slate-600 bg-slate-50 rounded-full border border-slate-200 hover:bg-slate-100 transition-colors"
+                    className="w-full md:w-auto px-4 py-1 text-sm font-bold text-slate-600 bg-slate-50 rounded-md border border-slate-200 hover:bg-slate-100 transition-colors"
                   >
                     상세보기
                   </button>
@@ -295,14 +389,26 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
               {estimate.status !== 'DRAFT' && estimate.status !== 'COMPLETED' && estimate.status !== 'CANCELLED' && (
                 <div className="flex flex-row gap-2">
                   <button 
-                    onClick={() => setIsEditOpen(true)}
-                    className="w-full md:w-auto px-4 py-1 text-sm font-bold text-blue-600 bg-blue-50 rounded-full border border-blue-100 hover:bg-blue-100 transition-colors"
+                    onClick={estimate.status === 'IN_PROGRESS' ? undefined : () => setIsEditOpen(true)}
+                    disabled={estimate.status === 'IN_PROGRESS'}
+                    className={`w-full md:w-auto px-4 py-1 text-sm font-bold rounded-md border transition-colors ${
+                      estimate.status === 'IN_PROGRESS'
+                      ? 'text-slate-400 bg-slate-50 border-slate-200 cursor-not-allowed opacity-70'
+                      : 'text-blue-600 bg-blue-50 border-blue-100 hover:bg-blue-100'
+                    }`}
+                    title={estimate.status === 'IN_PROGRESS' ? '전문가가 확정된 요청은 수정할 수 없습니다.' : ''}
                   >
                     수정
                   </button>
                   <button 
-                    onClick={handleDelete}
-                    className="w-full md:w-auto px-4 py-1 text-sm font-bold text-red-600 bg-red-50 rounded-full border border-red-100 hover:bg-red-100 transition-colors"
+                    onClick={estimate.status === 'IN_PROGRESS' ? undefined : handleDelete}
+                    disabled={estimate.status === 'IN_PROGRESS'}
+                    className={`w-full md:w-auto px-4 py-1 text-sm font-bold rounded-md border transition-colors ${
+                      estimate.status === 'IN_PROGRESS'
+                      ? 'text-slate-400 bg-slate-50 border-slate-200 cursor-not-allowed opacity-70'
+                      : 'text-red-600 bg-red-50 border-red-100 hover:bg-red-100'
+                    }`}
+                    title={estimate.status === 'IN_PROGRESS' ? '전문가가 확정된 요청은 삭제할 수 없습니다.' : ''}
                   >
                     삭제
                   </button>
@@ -313,7 +419,7 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
               {estimate.status !== 'DRAFT' && (
                 <button 
                   onClick={() => setIsBidsOpen(!isBidsOpen)}
-                  className={`px-4 py-1 text-sm font-bold rounded-full shadow-sm transition-all flex items-center justify-center gap-2 border ${
+                  className={`px-4 py-1 text-sm font-bold rounded-md shadow-sm transition-all flex items-center justify-center gap-2 border ${
                     isBidsOpen 
                     ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
                     : 'bg-white text-blue-600 border-blue-200 hover:border-blue-300 hover:bg-blue-50'
@@ -339,15 +445,16 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
           {estimate.bids.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {estimate.bids.map((bid) => {
-                const isMatched = estimate.status === 'IN_PROGRESS' || estimate.status === 'COMPLETED';
+                const isMatched = estimate.status === 'IN_PROGRESS' || estimate.status === 'COMPLETED' || estimate.status === 'SELECTED';
                 const isInactive = isMatched && bid.status !== 'ACCEPTED';
 
+                const isSelectedAndAccepted = estimate.status === 'SELECTED' && bid.status === 'ACCEPTED';
                 return (
                 <div 
                   key={bid.id} 
                   className={`relative bg-white rounded-2xl border p-5 transition-all text-center group flex flex-col items-center justify-center ${
                     isInactive ? 'opacity-50 grayscale select-none' :
-                    activeBidId === bid.id 
+                    (activeBidId === bid.id || isSelectedAndAccepted)
                       ? 'border-blue-500 shadow-lg shadow-blue-500/10' 
                       : 'border-slate-100 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5'
                   }`}
@@ -356,14 +463,21 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
                     <div className="absolute inset-0 z-20 rounded-2xl bg-white/40 cursor-not-allowed"></div>
                   )}
                   <div className='flex justify-end items-center w-full mb-2 relative z-10'>
-                    <div className='flex items-center gap-2'>
+                    <div className='w-full flex items-center'>
                     {bid.status === 'ACCEPTED' ? (
-                      <div className="bg-blue-600 text-white px-3 py-1 rounded-bl-2xl flex items-center gap-1 shadow-sm z-10">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span className="text-[10px] font-black">채택됨</span>
+                      <div className="w-full flex items-center justify-between gap-2 z-10">
+                        {estimate.selectedDate && (
+                          <span className="text-xs font-bold text-slate-500">
+                            서비스일: {estimate.selectedDate}
+                          </span>
+                        )}
+                        <div className={`${estimate.status === 'SELECTED' ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'bg-blue-600 text-white'} pl-1 pr-2 py-1 rounded-2xl flex items-center gap-1.5 shadow-sm`}>
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span className="text-[11px] font-black">{estimate.status === 'SELECTED' ? '전문가 채택' : '결제완료'}</span>
+                        </div>
                       </div>
                     ) : isInactive ? (
-                      <div className="bg-slate-500 text-white px-3 py-1 rounded-bl-2xl flex items-center gap-1 shadow-sm z-10">
+                      <div className="bg-slate-500 text-white px-3 py-1 rounded-2xl flex items-center gap-1 shadow-sm z-10">
                         <span className="text-[10px] font-black">미채택</span>
                       </div>
                     ) : (
@@ -464,7 +578,7 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
                     </button>
                   </div>
                   
-                  {(estimate.status === 'PENDING' || estimate.status === 'BIDDING') && (
+                  {(estimate.status === 'PENDING' || estimate.status === 'BIDDING' || (estimate.status === 'SELECTED' && bid.status === 'ACCEPTED')) && (
                     activeBidId === bid.id ? (
                       <div className="flex gap-2 w-full mt-2">
                          <button 
@@ -475,16 +589,16 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
                          </button>
                          <button 
                            disabled={isAccepting}
-                           onClick={(e) => handleAcceptBid(e, bid.id)}
+                           onClick={(e) => handleAcceptBid(e, bid.id, bid.availableDate)}
                            className="flex-1 text-sm font-bold bg-blue-600 text-white py-2.5 rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-900/10 active:scale-95 disabled:bg-slate-400 disabled:shadow-none"
                          >
-                           {isAccepting ? '처리 중...' : '채택 확정'}
+                           {isAccepting ? '처리 중...' : '결제하기'}
                          </button>
                       </div>
                     ) : (
                       <div className="flex gap-2 w-full mt-2">
-                        {bid.availableDate ? (
-                          <div className="relative flex-1">
+                        {estimate.status !== 'SELECTED' && bid.availableDate ? (
+                          <div className="relative w-[140px]">
                             <select
                               value={selectedDates[bid.id] || ''}
                               onClick={(e) => e.stopPropagation()}
@@ -492,7 +606,7 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
                                 e.stopPropagation();
                                 setSelectedDates(prev => ({ ...prev, [bid.id]: e.target.value }));
                               }}
-                              className="w-full h-full text-xs font-bold py-2.5 pl-3 pr-8 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none cursor-pointer"
+                              className="w-full h-full text-xs font-bold py-2.5 pl-3 pr-7 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none cursor-pointer"
                             >
                               <option value="" disabled hidden>서비스일 선택</option>
                               {bid.availableDate.split(',').map((date: string, idx: number) => (
@@ -502,28 +616,47 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
                             <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                           </div>
                         ) : null}
-                        <button 
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
-                            if (bid.availableDate && !selectedDates[bid.id]) {
-                              setShowDateAlert(true);
-                              return;
-                            }
-                            if (!isClosedLocal && session?.user?.id) {
-                              setIsClosedLocal(true);
-                              closeEstimateAction(estimate.id, parseInt(session.user.id, 10));
-                            }
-                            setPendingBidId(bid.id); 
-                          }}
-                          disabled={activeBidId !== null && activeBidId !== bid.id}
-                          className={`flex-1 text-sm font-bold py-2.5 rounded-xl transition-all shadow-md active:scale-95 ${
-                            activeBidId !== null && activeBidId !== bid.id
-                              ? 'bg-slate-100 text-slate-400 shadow-none cursor-not-allowed'
-                              : 'bg-blue-600 text-white hover:bg-blue-700 shadow-slate-900/10'
-                          }`}
-                        >
-                          선택하기
-                        </button>
+                        {estimate.status === 'SELECTED' && bid.status === 'ACCEPTED' ? (
+                          <div className="flex gap-2 w-full">
+                            <button 
+                              onClick={(e) => handleCancelSelection(e, bid.id)}
+                              disabled={isPaying || isCanceling}
+                              className="flex-1 text-sm font-bold bg-slate-500 text-white py-2.5 rounded-xl hover:bg-slate-600 transition-all shadow-md active:scale-95 disabled:bg-slate-400 disabled:shadow-none"
+                            >
+                              {isCanceling ? '처리 중...' : '선택취소'}
+                            </button>
+                            <button 
+                              onClick={(e) => handleCompletePayment(e, bid.id)}
+                              disabled={isPaying || isCanceling}
+                              className="flex-1 text-sm font-bold bg-blue-600 text-white py-2.5 rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-900/10 active:scale-95 disabled:bg-slate-400 disabled:shadow-none"
+                            >
+                              {isPaying ? '처리 중...' : '결제하기'}
+                            </button>
+                          </div>
+                        ) : (
+                          <button 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              if (bid.availableDate && !selectedDates[bid.id]) {
+                                setShowDateAlert(true);
+                                return;
+                              }
+                              if (!isClosedLocal && session?.user?.id) {
+                                setIsClosedLocal(true);
+                                closeEstimateAction(estimate.id, parseInt(session.user.id, 10));
+                              }
+                              setPendingBidId(bid.id); 
+                            }}
+                            disabled={activeBidId !== null && activeBidId !== bid.id}
+                            className={`flex-1 text-sm font-bold py-2.5 rounded-xl transition-all shadow-md active:scale-95 ${
+                              activeBidId !== null && activeBidId !== bid.id
+                                ? 'bg-slate-100 text-slate-400 shadow-none cursor-not-allowed'
+                                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-slate-900/10'
+                            }`}
+                          >
+                            선택하기
+                          </button>
+                        )}
                       </div>
                     )
                   )}
@@ -599,14 +732,15 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
                 닫기
               </button>
               <button 
+                disabled={isAccepting}
                 onClick={(e) => { 
                   e.stopPropagation(); 
-                  setActiveBidId(pendingBidId);
+                  handleAcceptBid(e, pendingBidId);
                   setPendingBidId(null);
                 }}
                 className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-95"
               >
-                진행하기
+                {isAccepting ? '처리 중...' : '진행하기'}
               </button>
             </div>
           </div>

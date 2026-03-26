@@ -235,7 +235,7 @@ export async function getEstimatesAction() {
     const estimates = await prisma.estimate.findMany({
       where: {
         status: {
-          in: ["PENDING", "BIDDING"],
+          in: ["PENDING", "BIDDING", "IN_PROGRESS", "COMPLETED"],
         },
       },
       orderBy: { createdAt: "desc" },
@@ -474,6 +474,38 @@ export async function cancelCloseEstimateAction(estimateId: string, userId: numb
     return { success: true };
   } catch (error: any) {
     console.error("cancelCloseEstimateAction error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * 견적 마감 연장 처리 Action
+ */
+export async function extendEstimateDeadlineAction(estimateId: string, userId: number, daysToAdd: number = 7) {
+  try {
+    const estimate = await prisma.estimate.findUnique({
+      where: { id: estimateId }
+    });
+
+    if (!estimate) {
+      throw new Error("존재하지 않는 견적 요청입니다.");
+    }
+
+    if (estimate.customerId !== userId) {
+      throw new Error("권한이 없습니다.");
+    }
+
+    await prisma.estimate.update({
+      where: { id: estimateId },
+      data: { 
+        extendedDays: estimate.extendedDays + daysToAdd,
+        isClosed: false
+      }
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("extendEstimateDeadlineAction error:", error);
     return { success: false, error: error.message };
   }
 }

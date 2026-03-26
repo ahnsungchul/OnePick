@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { getUserPaymentsAction, cancelPaymentAction } from '@/actions/payment.action';
 import { 
   CreditCard, 
   ChevronRight, 
@@ -15,6 +17,7 @@ import { cn } from '@/lib/utils';
 
 interface Payment {
   id: string;
+  requestNumber?: string;
   category: string;
   expertName: string;
   expertCompany: string;
@@ -28,46 +31,26 @@ interface Payment {
 }
 
 export default function UserPaymentsPage() {
-  const [payments] = useState<Payment[]>([
-    {
-      id: 'PAY-20260318-001',
-      category: '도배/장판',
-      expertName: '김전문가',
-      expertCompany: '청춘홈데코',
-      payDate: '2026-02-18',
-      startDate: '2026-03-25',
-      isDepositedToExpert: false,
-      amount: 450000,
-      status: 'IN_PROGRESS',
-    },
-    {
-      id: 'PAY-20260315-002',
-      category: '이사/입주청소',
-      expertName: '이클린',
-      expertCompany: '슈퍼클린',
-      payDate: '2026-03-15',
-      startDate: '2026-03-16',
-      isDepositedToExpert: true,
-      amount: 320000,
-      status: 'COMPLETED',
-    },
-    {
-      id: 'PAY-20240410-003',
-      category: '조립/수리',
-      expertName: '박수리',
-      expertCompany: '원픽핸디맨',
-      payDate: '2024-04-10',
-      startDate: '2024-04-28',
-      isDepositedToExpert: false,
-      amount: 85000,
-      status: 'CANCELLED',
-      cancelDate: '2024-04-20',
-      cancelFee: 12750,
-    },
-  ]);
+  const { data: session } = useSession();
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [selectedPayment, setSelectedPayment] = useState<(Payment & { calculatedFee: number }) | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // 데이터 로드
+  useEffect(() => {
+    if (session?.user?.id) {
+      getUserPaymentsAction(Number(session.user.id)).then((res) => {
+        if (res.success && res.data) {
+          setPayments(res.data as Payment[]);
+        }
+        setIsLoading(false);
+      });
+    } else if (session === null) {
+      setIsLoading(false);
+    }
+  }, [session]);
 
   // 모달 오픈 시 배경 스크롤 방지
   useEffect(() => {
@@ -104,23 +87,48 @@ export default function UserPaymentsPage() {
     setIsModalOpen(true);
   };
 
-  const confirmCancellation = () => {
-    alert('취소 처리가 완료되었습니다.');
-    setIsModalOpen(false);
-    setSelectedPayment(null);
+  const confirmCancellation = async () => {
+    if (!selectedPayment || !session?.user?.id) return;
+    
+    const res = await cancelPaymentAction(selectedPayment.id, Number(session.user.id));
+    if (res.success) {
+      alert('취소 처리가 완료되었습니다.');
+      setIsModalOpen(false);
+      setSelectedPayment(null);
+      // 리스트에서 삭제 처리 (요구사항)
+      setPayments(prev => prev.filter(p => p.id !== selectedPayment.id));
+    } else {
+      alert(res.error || '취소 중 오류가 발생했습니다.');
+    }
   };
+
+  if (isLoading) {
+    return <div className="p-8 text-center text-slate-500">결제 내역을 불러오는 중입니다...</div>;
+  }
 
   return (
     <>
-      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-5 duration-700">
+      <div className="space-y-8">
         {/* Page Header */}
         <div className="flex flex-col gap-2">
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">결제 내역</h2>
-          <p className="text-slate-500 text-lg font-medium">이용하신 서비스의 결제 내역 및 전문가 지급 현황을 확인할 수 있습니다.</p>
+          <h2 className="text-2xl font-bold text-slate-900">결제 내역</h2>
+          <p className="text-slate-500 text-sm mt-1">이용하신 서비스의 결제 내역 및 전문가 지급 현황을 확인할 수 있습니다.</p>
         </div>
 
         {/* Payment List */}
         <div className="bg-white rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+          {payments.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
+              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
+                <CreditCard className="w-10 h-10 text-slate-300" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">결제 내역이 없어요</h3>
+              <p className="text-slate-500 text-sm max-w-sm">
+                아직 진행 중이거나 완료된 서비스 결제 내역이 존재하지 않습니다.<br/>
+                전문가와 매칭하여 서비스를 이용해 보세요.
+              </p>
+            </div>
+          ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -146,7 +154,7 @@ export default function UserPaymentsPage() {
                             {payment.category}
                           </span>
                           <span className="text-[10px] text-slate-400 font-medium tracking-tight uppercase">
-                            {payment.id}
+                            {payment.requestNumber || payment.id.substring(0, 8)}
                           </span>
                         </div>
                       </td>
@@ -252,6 +260,7 @@ export default function UserPaymentsPage() {
               </tbody>
             </table>
           </div>
+          )}
         </div>
 
         <div className="bg-amber-50/50 border border-amber-100 rounded-[28px] p-8 space-y-6">

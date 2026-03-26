@@ -161,6 +161,7 @@ exports.Prisma.EstimateScalarFieldEnum = {
   details: 'details',
   serviceDate: 'serviceDate',
   serviceTime: 'serviceTime',
+  selectedDate: 'selectedDate',
   photoUrls: 'photoUrls',
   status: 'status',
   currentStep: 'currentStep',
@@ -168,6 +169,7 @@ exports.Prisma.EstimateScalarFieldEnum = {
   needsReestimate: 'needsReestimate',
   shareContact: 'shareContact',
   isClosed: 'isClosed',
+  extendedDays: 'extendedDays',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -308,6 +310,7 @@ exports.EstimateStatus = exports.$Enums.EstimateStatus = {
   DRAFT: 'DRAFT',
   PENDING: 'PENDING',
   BIDDING: 'BIDDING',
+  SELECTED: 'SELECTED',
   IN_PROGRESS: 'IN_PROGRESS',
   COMPLETED: 'COMPLETED',
   CANCELLED: 'CANCELLED'

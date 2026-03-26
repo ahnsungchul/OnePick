@@ -56,7 +56,7 @@ export default function UserRequestsPage() {
     return {
       ALL: requests.length,
       DRAFT: requests.filter(r => r.status === 'DRAFT').length,
-      MATCHING: requests.filter(r => r.status === 'PENDING' || r.status === 'BIDDING').length,
+      MATCHING: requests.filter(r => r.status === 'PENDING' || r.status === 'BIDDING' || r.status === 'SELECTED').length,
       FINISHED: requests.filter(r => r.status === 'IN_PROGRESS').length,
       COMPLETED: requests.filter(r => r.status === 'COMPLETED').length,
       CANCELLED: requests.filter(r => r.status === 'CANCELLED').length,
@@ -66,7 +66,7 @@ export default function UserRequestsPage() {
   const filteredRequests = React.useMemo(() => {
     if (activeFilter === 'ALL') return requests;
     if (activeFilter === 'DRAFT') return requests.filter(r => r.status === 'DRAFT');
-    if (activeFilter === 'MATCHING') return requests.filter(r => r.status === 'PENDING' || r.status === 'BIDDING');
+    if (activeFilter === 'MATCHING') return requests.filter(r => r.status === 'PENDING' || r.status === 'BIDDING' || r.status === 'SELECTED');
     if (activeFilter === 'FINISHED') return requests.filter(r => r.status === 'IN_PROGRESS');
     if (activeFilter === 'COMPLETED') return requests.filter(r => r.status === 'COMPLETED');
     if (activeFilter === 'CANCELLED') return requests.filter(r => r.status === 'CANCELLED');

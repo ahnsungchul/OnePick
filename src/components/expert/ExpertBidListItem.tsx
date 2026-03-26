@@ -30,7 +30,7 @@ export default function ExpertBidListItem({ bid, expertId, currentUserName }: { 
     
     // PENDING state depends on estimate status
     if (estimate.status === 'BIDDING') return { label: '매칭 대기중', color: 'bg-emerald-100 text-emerald-700 border border-emerald-200', icon: Clock };
-    if (estimate.status === 'IN_PROGRESS' || estimate.status === 'COMPLETED') return { label: '다른 전문가 채택', color: 'bg-slate-100 text-slate-500 border border-slate-200', icon: CheckCircle2 };
+    if (estimate.status === 'SELECTED' || estimate.status === 'IN_PROGRESS' || estimate.status === 'COMPLETED') return { label: '다른 전문가 채택', color: 'bg-slate-100 text-slate-500 border border-slate-200', icon: CheckCircle2 };
     if (estimate.status === 'CANCELLED') return { label: '요청 취소됨', color: 'bg-slate-100 text-slate-500 border border-slate-200', icon: AlertCircle };
 
     return { label: '심사중', color: 'bg-amber-100 text-amber-700 border border-amber-200', icon: Clock };
