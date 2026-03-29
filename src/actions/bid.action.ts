@@ -187,3 +187,47 @@ export async function cancelBidSelectionAction(estimateId: string, bidId: string
     return { success: false, error: error.message || "선택 취소 중 오류가 발생했습니다." };
   }
 }
+
+/**
+ * 전문가 견적 제안 취소 Server Action
+ */
+export async function cancelExpertBidAction(bidId: string, expertId: number) {
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const bid = await tx.bid.findUnique({
+        where: { id: bidId },
+        include: { estimate: true }
+      });
+
+      if (!bid) throw new Error("견적을 찾을 수 없습니다.");
+      if (bid.expertId !== expertId) throw new Error("취소 권한이 없습니다.");
+      if (bid.status === "ACCEPTED" || bid.estimate.status === "SELECTED" || bid.estimate.status === "COMPLETED") {
+        throw new Error("이미 채택되었거나 진행/완료된 견적은 취소할 수 없습니다.");
+      }
+
+      await tx.bid.delete({
+        where: { id: bidId },
+      });
+
+      // 만약 해당 견적 요청의 남은 입찰이 없다면 상태를 다시 PENDING으로 되돌림 (선택적)
+      const remainingBids = await tx.bid.count({
+        where: { estimateId: bid.estimateId }
+      });
+
+      if (remainingBids === 0 && bid.estimate.status === "BIDDING") {
+         await tx.estimate.update({
+           where: { id: bid.estimateId },
+           data: { status: "PENDING" }
+         });
+      }
+
+      return true;
+    });
+
+    revalidatePath("/expert/bids");
+    return { success: true };
+  } catch (error: any) {
+    console.error("cancelExpertBidAction error:", error);
+    return { success: false, error: error.message || "견적 취소 중 오류가 발생했습니다." };
+  }
+}

@@ -5,7 +5,7 @@ import ExpertBidListItem from './ExpertBidListItem';
 import { Filter, Calendar, SearchX } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-type BidFilterStatus = 'ALL' | 'PENDING' | 'ACCEPTED' | 'REJECTED';
+type BidFilterStatus = 'ALL' | 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'UNREAD';
 
 interface ExpertBidListProps {
   bids: any[];
@@ -17,10 +17,15 @@ export default function ExpertBidList({ bids, expertId, currentUserName }: Exper
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialBidId = searchParams?.get('bidId') || '';
+  const initialFilterParam = searchParams?.get('filter') as string;
+  const initialFilter = ['ALL', 'PENDING', 'ACCEPTED', 'REJECTED', 'UNREAD'].includes(initialFilterParam) 
+    ? (initialFilterParam as BidFilterStatus) 
+    : 'ALL';
 
-  const [statusFilter, setStatusFilter] = useState<BidFilterStatus>('ALL');
+  const [statusFilter, setStatusFilter] = useState<BidFilterStatus>(initialFilter);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [targetBidId, setTargetBidId] = useState(initialBidId);
+  const [readChatsLocally, setReadChatsLocally] = useState<string[]>([]);
 
   useEffect(() => {
     const bidIdParam = searchParams?.get('bidId');
@@ -49,10 +54,18 @@ export default function ExpertBidList({ bids, expertId, currentUserName }: Exper
     let pending = 0;
     let accepted = 0;
     let rejected = 0;
+    let unread = 0;
 
     bids.forEach(bid => {
       const bidStatus = bid.status;
       const estStatus = bid.estimate.status;
+
+      const unreadCount = !readChatsLocally.includes(bid.estimate.id)
+        ? bid.estimate.chats?.filter((c: any) => c.senderId !== expertId && !c.isRead).length || 0
+        : 0;
+      if (unreadCount > 0) {
+        unread++;
+      }
 
       if (bidStatus === 'ACCEPTED') {
         accepted++;
@@ -69,8 +82,8 @@ export default function ExpertBidList({ bids, expertId, currentUserName }: Exper
       }
     });
 
-    return { all: bids.length, pending, accepted, rejected };
-  }, [bids]);
+    return { all: bids.length, pending, accepted, rejected, unread };
+  }, [bids, expertId, readChatsLocally]);
 
   const filteredBids = useMemo(() => {
     return bids.filter(bid => {
@@ -93,6 +106,13 @@ export default function ExpertBidList({ bids, expertId, currentUserName }: Exper
       // 2. 상태(Status) 필터
       if (statusFilter === 'ALL') return true;
 
+      const unreadCount = !readChatsLocally.includes(bid.estimate.id)
+        ? bid.estimate.chats?.filter((c: any) => c.senderId !== expertId && !c.isRead).length || 0
+        : 0;
+      if (statusFilter === 'UNREAD') {
+        return unreadCount > 0;
+      }
+
       const bidStatus = bid.status;
       const estStatus = bid.estimate.status;
 
@@ -113,7 +133,7 @@ export default function ExpertBidList({ bids, expertId, currentUserName }: Exper
 
       return statusFilter === category;
     });
-  }, [bids, statusFilter, dateRange, targetBidId]);
+  }, [bids, statusFilter, dateRange, targetBidId, expertId, readChatsLocally]);
 
   return (
     <div className="space-y-6">
@@ -123,8 +143,9 @@ export default function ExpertBidList({ bids, expertId, currentUserName }: Exper
           {[
             { id: 'ALL', label: '전체 견적', count: stats.all, activeCls: 'text-slate-900 border-slate-800', badgeActive: 'bg-slate-800 text-white' },
             { id: 'PENDING', label: '매칭 대기중', count: stats.pending, activeCls: 'text-emerald-600 border-emerald-500', badgeActive: 'bg-emerald-500 text-white' },
+            { id: 'UNREAD', label: '신규 메시지', count: stats.unread, activeCls: 'text-red-500 border-red-500', badgeActive: 'bg-red-500 text-white' },
             { id: 'ACCEPTED', label: '채택된 견적', count: stats.accepted, activeCls: 'text-blue-600 border-blue-500', badgeActive: 'bg-blue-500 text-white' },
-            { id: 'REJECTED', label: '거절/취소', count: stats.rejected, activeCls: 'text-red-500 border-red-500', badgeActive: 'bg-red-500 text-white' },
+            { id: 'REJECTED', label: '거절/취소', count: stats.rejected, activeCls: 'text-slate-500 border-slate-500', badgeActive: 'bg-slate-500 text-white' },
           ].map(tab => {
             const isActive = statusFilter === tab.id;
             return (
@@ -208,6 +229,11 @@ export default function ExpertBidList({ bids, expertId, currentUserName }: Exper
               bid={bid} 
               expertId={expertId} 
               currentUserName={currentUserName} 
+              activeFilter={statusFilter}
+              onMoveToStatus={handleStatusChange}
+              onMarkChatAsRead={(estimateId: string) => {
+                setReadChatsLocally(prev => Array.from(new Set([...prev, estimateId])));
+              }}
             />
           ))}
         </div>

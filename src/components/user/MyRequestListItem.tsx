@@ -63,9 +63,22 @@ interface Estimate {
   bids: Bid[];
   isClosed?: boolean;
   extendedDays?: number;
+  selectedDate?: string;
 }
 
-export default function MyRequestListItem({ estimate }: { estimate: Estimate }) {
+export default function MyRequestListItem({ 
+  estimate,
+  activeFilter,
+  onMoveToStatus,
+  onMarkBidsAsRead,
+  onMarkChatAsRead
+}: { 
+  estimate: Estimate;
+  activeFilter?: string;
+  onMoveToStatus?: (status: string) => void;
+  onMarkBidsAsRead?: (bidIds: string[]) => void;
+  onMarkChatAsRead?: (estimateId: string) => void;
+}) {
   const [isBidsOpen, setIsBidsOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -159,7 +172,7 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
     setIsAccepting(true);
 
     const userId = parseInt(session.user.id, 10);
-    const result = await acceptBidAction(estimate.id, bidId, userId, selected);
+    const result = await acceptBidAction(estimate.id, bidId, userId, selected || null);
 
     if (result.success) {
       window.location.reload();
@@ -418,7 +431,18 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
               {/* Action Button */}
               {estimate.status !== 'DRAFT' && (
                 <button 
-                  onClick={() => setIsBidsOpen(!isBidsOpen)}
+                  onClick={() => {
+                    const willOpen = !isBidsOpen;
+                    if (willOpen && onMarkBidsAsRead && estimate.bids.length > 0) {
+                      onMarkBidsAsRead(estimate.bids.map((b: any) => b.id));
+                    }
+                    setIsBidsOpen(willOpen);
+
+                    // Move to MATCHING status tab if viewing from NEW_BIDS
+                    if (willOpen && activeFilter === 'NEW_BIDS' && onMoveToStatus) {
+                      onMoveToStatus('MATCHING');
+                    }
+                  }}
                   className={`px-4 py-1 text-sm font-bold rounded-md shadow-sm transition-all flex items-center justify-center gap-2 border ${
                     isBidsOpen 
                     ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
@@ -556,9 +580,31 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
+                        // Open the modal and bids immediately
                         setSelectedChatBid(bid);
+                        setIsBidsOpen(true);
+                        
                         if (bid.expert.id && !readExpertIds.includes(bid.expert.id)) {
                           setReadExpertIds(prev => [...prev, bid.expert.id]);
+                        }
+                        // Mark as read immediately
+                        if (onMarkChatAsRead) {
+                          onMarkChatAsRead(estimate.id);
+                        }
+                        if (onMarkBidsAsRead && estimate.bids.length > 0) {
+                          onMarkBidsAsRead(estimate.bids.map((b: any) => b.id));
+                        }
+                        
+                        // Move to native status tab immediately (synchronous to batch with other updates)
+                        if (activeFilter === 'NEW_MESSAGE' && onMoveToStatus) {
+                          let nextFilter = 'MATCHING';
+                          if (['PENDING', 'BIDDING', 'SELECTED'].includes(estimate.status)) nextFilter = 'MATCHING';
+                          else if (['IN_PROGRESS'].includes(estimate.status)) nextFilter = 'FINISHED';
+                          else if (['COMPLETED'].includes(estimate.status)) nextFilter = 'COMPLETED';
+                          else if (['DRAFT'].includes(estimate.status)) nextFilter = 'DRAFT';
+                          else nextFilter = 'ALL';
+                          
+                          onMoveToStatus(nextFilter);
                         }
                       }}
                       className="relative flex-1 text-xs font-bold bg-blue-50 text-blue-600 py-2.5 rounded-xl hover:bg-blue-600 hover:text-white transition-all border border-blue-100"

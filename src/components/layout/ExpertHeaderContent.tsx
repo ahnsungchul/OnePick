@@ -1,12 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Zap, Share2, Star } from 'lucide-react';
+import { Zap, Share2, Star, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ShareButton from '@/components/expert/ShareButton';
+import { getExpertUnreadMessageCountAction } from '@/actions/expert.action';
 
 interface ExpertHeaderContentProps {
   isOwner?: boolean;
@@ -22,10 +23,26 @@ export default function ExpertHeaderContent({ isOwner = true }: ExpertHeaderCont
   const grade = user?.grade || 'HELPER';
   const isLoggedIn = !!session?.user;
 
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (userIdParam && isOwner) {
+      getExpertUnreadMessageCountAction(Number(userIdParam)).then(res => {
+        if (res.success && typeof res.data === 'number') setUnreadCount(res.data);
+      });
+    }
+
+    const handleChatRead = () => {
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    };
+    window.addEventListener('expertChatRead', handleChatRead);
+    return () => window.removeEventListener('expertChatRead', handleChatRead);
+  }, [userIdParam, isOwner]);
+
   const menuItems = [
     { name: '홈', href: '/expert/dashboard', showAlways: true },
     { name: '통합 갤러리', href: '/expert/gallery', showAlways: false },
-    { name: '받은 요청', href: '/expert/requests', showAlways: false },
+    { name: '1:1 견적 요청', href: '/expert/requests', showAlways: false },
     { name: '참여한 견적', href: '/expert/bids', showAlways: false },
     { name: '수익/정산', href: '/expert/earnings', showAlways: false },
     { name: '고객지원', href: '/expert/support', showAlways: true },
@@ -67,8 +84,22 @@ export default function ExpertHeaderContent({ isOwner = true }: ExpertHeaderCont
         </nav>
       )}
 
-      {/* 우측 기능 (공유하기, 즐겨찾기) */}
-      <div className="flex items-center gap-2">
+      {/* 우측 기능 (메시지, 공유하기, 즐겨찾기) */}
+      <div className="flex items-center gap-1 sm:gap-2">
+        {isOwner && userIdParam && (
+          <Link 
+            href={`/expert/bids?userId=${userIdParam}&filter=UNREAD`}
+            className="relative flex items-center justify-center w-10 h-10 rounded-full hover:bg-slate-100 transition-colors text-slate-500 hover:text-blue-500"
+            title="신규 메시지"
+          >
+            <MessageCircle className="w-5 h-5" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold tracking-tighter text-white shadow-sm border-2 border-white">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </Link>
+        )}
         {userIdParam && <ShareButton />}
         {userIdParam && !isOwner && (
           <button 

@@ -79,12 +79,12 @@ export default function ScheduleDetailModal({ estimateId, expertId, onClose }: S
                     </div>
                     <div className='flex-1'>
                       <div className="text-xs text-slate-500 mb-1">카테고리</div>
-                      <div className="font-bold text-slate-800">{data.estimate.category}</div>
+                      <div className="font-bold text-slate-800">{data.estimate.category?.name || '알 수 없음'}</div>
                     </div>
-                  {data.estimate.subcategories && data.estimate.subcategories.length > 0 && (
+                  {data.estimate.services && data.estimate.services.length > 0 && (
                     <div className='flex-1'>
                       <div className="text-xs text-slate-500 mb-1">상세 카테고리</div>
-                      <div className="font-bold text-slate-800">{data.estimate.subcategories.join(', ')}</div>
+                      <div className="font-bold text-slate-800">{data.estimate.services.map((s: any) => s.name).join(', ')}</div>
                     </div>
                   )}
                   </div>

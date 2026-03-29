@@ -58,6 +58,9 @@ export async function getExpertHomeDataAction(userId: number) {
              role: "USER" as any,
              grade: "HELPER" as any,
              isApproved: false,
+             idCardApproved: false,
+             businessLicenseApproved: false,
+             certifications: [],
              image: null,
            },
            profile: {
@@ -79,6 +82,7 @@ export async function getExpertHomeDataAction(userId: number) {
       include: {
         profile: true,
         specialties: true,
+        certifications: true,
       },
     });
 
@@ -102,13 +106,15 @@ export async function getExpertHomeDataAction(userId: number) {
           role: user.role,
           grade: user.grade,
           isApproved: (user as any).isApproved,
+          idCardApproved: (user as any).idCardApproved,
+          businessLicenseApproved: (user as any).businessLicenseApproved,
           image: user.image,
           specialties: (user as any).specialties?.map((s: any) => s.name) || [],
           regions: user.regions || [],
           career: user.career,
           idCardUrl: user.idCardUrl,
           businessLicenseUrls: user.businessLicenseUrls || [],
-          certificationUrls: user.certificationUrls || [],
+          certifications: user.certifications || [],
         },
         profile: user.profile || {
           introduction: "",
@@ -199,8 +205,9 @@ export async function updateFullExpertProfileAction({
   specialties,
   career,
   introduction,
+  idCardUrl,
   businessLicenseUrls,
-  certificationUrls,
+  certifications,
 }: {
   userId: number;
   image?: string | null;
@@ -209,8 +216,9 @@ export async function updateFullExpertProfileAction({
   specialties: string[];
   career?: string | null;
   introduction: string;
+  idCardUrl?: string | null;
   businessLicenseUrls?: string[];
-  certificationUrls?: string[];
+  certifications?: { id?: string; name: string; isApproved?: boolean }[];
 }) {
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -218,9 +226,9 @@ export async function updateFullExpertProfileAction({
       const currentUser = await tx.user.findUnique({ where: { id: userId } });
       
       // Determine if documents changed
-      const docsChanged = 
-        (businessLicenseUrls && JSON.stringify(currentUser?.businessLicenseUrls) !== JSON.stringify(businessLicenseUrls)) ||
-        (certificationUrls && JSON.stringify(currentUser?.certificationUrls) !== JSON.stringify(certificationUrls));
+      const idCardChanged = idCardUrl !== undefined && currentUser?.idCardUrl !== idCardUrl;
+      const businessLicenseChanged = 
+        businessLicenseUrls && JSON.stringify(currentUser?.businessLicenseUrls || []) !== JSON.stringify(businessLicenseUrls);
 
       const categoryRecords = await tx.category.findMany({ where: { name: { in: specialties } } });
 
@@ -236,13 +244,41 @@ export async function updateFullExpertProfileAction({
           },
           career,
           ...(image !== undefined && { image }),
+          ...(idCardUrl !== undefined && { idCardUrl }),
           ...(businessLicenseUrls !== undefined && { businessLicenseUrls: { set: businessLicenseUrls } }),
-          ...(certificationUrls !== undefined && { certificationUrls: { set: certificationUrls } }),
-          ...(docsChanged ? { isApproved: false } : {}),
+          ...(idCardChanged ? { idCardApproved: false } : {}),
+          ...(businessLicenseChanged ? { businessLicenseApproved: false } : {}),
         },
       });
 
-      // 2. Update or Create Profile intro
+      // 2. Handle Certifications
+      if (certifications !== undefined) {
+        const existingCerts = await tx.certification.findMany({ where: { userId } });
+        const existingCertIds = existingCerts.map(c => c.id);
+        const incomingCertIds = certifications.filter(c => c.id).map(c => c.id as string);
+        
+        // Find which to delete
+        const toDeleteIds = existingCertIds.filter(id => !incomingCertIds.includes(id));
+        if (toDeleteIds.length > 0) {
+          await tx.certification.deleteMany({
+            where: { id: { in: toDeleteIds } }
+          });
+        }
+        
+        // Add new certifications
+        const newCerts = certifications.filter(c => !c.id);
+        if (newCerts.length > 0) {
+          await tx.certification.createMany({
+            data: newCerts.map(c => ({
+              userId,
+              name: c.name,
+              isApproved: false, // 새 자격증은 무조건 승인 false
+            }))
+          });
+        }
+      }
+
+      // 3. Update or Create Profile intro
       const profile = await tx.profile.upsert({
         where: { expertId: userId },
         update: { introduction },
@@ -529,5 +565,37 @@ export async function getExpertReceivedRequestsAction(expertId: number) {
   } catch (error: any) {
     console.error('getExpertReceivedRequestsAction error:', error);
     return { success: false, error: '받은 요청 목록을 불러오는 중 오류가 발생했습니다.' };
+  }
+}
+
+/**
+ * 전문가 헤더 알림용: 새로운 메시지가 있는 참여한 견적의 개수를 가져옵니다.
+ */
+export async function getExpertUnreadMessageCountAction(expertId: number) {
+  try {
+    const bidsWithUnread = await prisma.bid.findMany({
+      where: { expertId },
+      include: {
+        estimate: {
+          select: {
+            id: true,
+            chats: {
+              where: {
+                senderId: { not: expertId },
+                isRead: false
+              },
+              select: { id: true }
+            }
+          }
+        }
+      }
+    });
+
+    const unreadCount = bidsWithUnread.filter(b => b.estimate && b.estimate.chats && b.estimate.chats.length > 0).length;
+
+    return { success: true, data: unreadCount };
+  } catch (error: any) {
+    console.error("getExpertUnreadMessageCountAction error:", error);
+    return { success: false, data: 0 };
   }
 }

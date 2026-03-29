@@ -11,16 +11,48 @@ import {
   AlertCircle,
   Phone,
   Calendar,
-  Settings
+  Settings,
+  Trash2
 } from 'lucide-react';
 import { formatCategory, calculateDDay } from '@/lib/utils';
 import BidEditModal from './BidEditModal';
 import ChatPopupModal from '../chat/ChatPopupModal';
+import { cancelExpertBidAction } from '@/actions/bid.action';
 
-export default function ExpertBidListItem({ bid, expertId, currentUserName }: { bid: any, expertId: number, currentUserName: string }) {
+export default function ExpertBidListItem({ 
+  bid, 
+  expertId, 
+  currentUserName,
+  activeFilter,
+  onMoveToStatus,
+  onMarkChatAsRead
+}: { 
+  bid: any;
+  expertId: number;
+  currentUserName: string;
+  activeFilter?: string;
+  onMoveToStatus?: (status: any) => void;
+  onMarkChatAsRead?: (estimateId: string) => void;
+}) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [hasReadChat, setHasReadChat] = useState(false);
+  const [isCanceling, setIsCanceling] = useState(false);
+
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+
+  const executeCancelBid = async () => {
+    setIsCanceling(true);
+    const res = await cancelExpertBidAction(bid.id, expertId);
+    if (!res.success) {
+      alert(res.error);
+      setIsCanceling(false);
+      setIsCancelModalOpen(false);
+    } else {
+      alert('견적 제안이 정상적으로 취소되었습니다.');
+      setIsCancelModalOpen(false);
+    }
+  };
 
   const estimate = bid.estimate;
 
@@ -160,23 +192,59 @@ export default function ExpertBidListItem({ bid, expertId, currentUserName }: { 
           </div>
         <div className="flex gap-2 mt-auto">
           {bid.status === 'PENDING' && estimate.status === 'BIDDING' && (
-            <button 
-              onClick={() => setIsEditOpen(true)}
-              disabled={estimate.isClosed && !bid.isEditRequested}
-              className={`flex-1 px-4 py-3 border font-bold text-sm rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm ${
-                estimate.isClosed && !bid.isEditRequested
-                  ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 active:scale-95'
-              }`}
-            >
-              <Edit2 className="w-4 h-4" />
-              수정하기
-            </button>
+            <>
+              <button
+                onClick={() => setIsCancelModalOpen(true)}
+                disabled={isCanceling || (estimate.isClosed && !bid.isEditRequested)}
+                className={`px-3 sm:px-4 py-3 border font-bold text-sm rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm ${
+                  isCanceling || (estimate.isClosed && !bid.isEditRequested)
+                    ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                    : 'bg-white border-red-200 text-red-500 hover:bg-red-50 active:scale-95'
+                }`}
+              >
+                <Trash2 className="w-4 h-4" />
+                <span className="hidden sm:inline">취소하기</span>
+              </button>
+              <button 
+                onClick={() => setIsEditOpen(true)}
+                disabled={estimate.isClosed && !bid.isEditRequested}
+                className={`flex-1 px-4 py-3 border font-bold text-sm rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm ${
+                  estimate.isClosed && !bid.isEditRequested
+                    ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 active:scale-95'
+                }`}
+              >
+                <Edit2 className="w-4 h-4" />
+                수정하기
+              </button>
+            </>
           )}
           <button 
             onClick={() => {
               setIsChatOpen(true);
+              
+              const currentUnreadCount = !hasReadChat ? (estimate.chats?.filter((c: any) => c.senderId !== expertId && !c.isRead).length || 0) : 0;
+              if (currentUnreadCount > 0) {
+                if (onMarkChatAsRead) onMarkChatAsRead(estimate.id);
+                window.dispatchEvent(new Event('expertChatRead'));
+              }
               setHasReadChat(true);
+
+              if (activeFilter === 'UNREAD' && onMoveToStatus) {
+                let category = 'PENDING';
+                if (bid.status === 'ACCEPTED') {
+                  category = 'ACCEPTED';
+                } else if (
+                  bid.status === 'REJECTED' || 
+                  estimate.status === 'CANCELLED' || 
+                  estimate.status === 'SELECTED' || 
+                  estimate.status === 'IN_PROGRESS' || 
+                  estimate.status === 'COMPLETED'
+                ) {
+                  category = 'REJECTED'; 
+                }
+                onMoveToStatus(category);
+              }
             }}
             className="flex-1 relative px-4 py-3 bg-blue-600 text-white font-bold text-sm rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-md shadow-blue-500/20"
           >
@@ -214,6 +282,45 @@ export default function ExpertBidListItem({ bid, expertId, currentUserName }: { 
           roleLabel: '고객님'
         }}
       />
+
+      {isCancelModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm flex flex-col shadow-2xl p-6 relative" onClick={e => e.stopPropagation()}>
+            <div className="flex flex-col items-center justify-center text-center space-y-4 mb-6 mt-4">
+              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-2">
+                <Trash2 className="w-8 h-8" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-800 mb-2">견적 제안 취소</h3>
+                <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                  정말로 이 견적 제안을 취소하시겠습니까?<br/>
+                  취소 시 고객님께 제안된 견적이 삭제됩니다.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 w-full">
+              <button
+                onClick={() => setIsCancelModalOpen(false)}
+                disabled={isCanceling}
+                className="flex-1 py-3.5 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50"
+              >
+                아니오
+              </button>
+              <button
+                onClick={executeCancelBid}
+                disabled={isCanceling}
+                className="flex-1 py-3.5 rounded-xl font-bold text-white bg-red-500 hover:bg-red-600 transition-colors flex items-center justify-center disabled:opacity-50"
+              >
+                {isCanceling ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  '예, 취소합니다'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

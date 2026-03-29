@@ -60,7 +60,7 @@ export async function getExpertSchedulesAction(expertId: number) {
           items.push({
             id: `auto-${b.id}-${idx}`,
             date: cleanDate,
-            title: `[${displayStatus}] ${b.estimate.category}`,
+            title: `[${displayStatus}] ${b.estimate.category?.name || '카테고리 없음'}`,
             content: b.estimate.details,
             type: 'AUTO',
             estimateId: b.estimate.id,
@@ -124,6 +124,8 @@ export async function getScheduleDetailAction(estimateId: string, expertId: numb
       where: { id: estimateId },
       include: {
         customer: { select: { name: true } },
+        category: true,
+        services: true,
       }
     });
 

@@ -59,7 +59,6 @@ export default async function ExpertDashboardPage({
   }
 
   const { user, profile, stats } = result.data;
-  const isApproved = user.isApproved;
 
   const categoriesRes = await getCategoriesAction();
   const categoriesData = categoriesRes.success && categoriesRes.data ? categoriesRes.data : [];
@@ -68,19 +67,19 @@ export default async function ExpertDashboardPage({
     <ExpertDashboardLayout>
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
-        {isOwner && !isApproved && (
+        {isOwner && !user.idCardUrl && (
           <div className="bg-amber-50 border border-amber-200 p-5 rounded-3xl flex items-center justify-between">
             <div className="flex gap-4 items-center">
               <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center text-2xl">
                 ⏳
               </div>
               <div>
-                <h4 className="font-black text-amber-900">현재 서비스 심사 중입니다.</h4>
-                <p className="text-sm text-amber-700 font-medium">심사가 완료되면 견적 요청을 받고 입찰에 참여하실 수 있습니다.</p>
+                <h4 className="font-black text-amber-900">현재 본인인증 심사 중입니다.</h4>
+                <p className="text-sm text-amber-700 font-medium">본인인증 심사를 위해 신분증을 등록해주세요.</p>
               </div>
             </div>
             <button className="text-sm font-bold text-amber-700 underline decoration-2 underline-offset-4 pointer-events-none opacity-50">
-              서류 보완하기
+              본인인증
             </button>
           </div>
         )}

@@ -150,8 +150,9 @@ exports.Prisma.UserScalarFieldEnum = {
   grade: 'grade',
   career: 'career',
   idCardUrl: 'idCardUrl',
+  idCardApproved: 'idCardApproved',
   businessLicenseUrls: 'businessLicenseUrls',
-  certificationUrls: 'certificationUrls',
+  businessLicenseApproved: 'businessLicenseApproved',
   isApproved: 'isApproved',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
@@ -309,6 +310,15 @@ exports.Prisma.ScheduleScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.CertificationScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  fileUrl: 'fileUrl',
+  isApproved: 'isApproved',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -373,7 +383,8 @@ exports.Prisma.ModelName = {
   Report: 'Report',
   Notice: 'Notice',
   FAQ: 'FAQ',
-  Schedule: 'Schedule'
+  Schedule: 'Schedule',
+  Certification: 'Certification'
 };
 
 /**

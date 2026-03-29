@@ -57,7 +57,14 @@ export async function registerUserAction({
           grade: initialGrade,
           idCardUrl,
           businessLicenseUrls,
-          certificationUrls,
+          ...(certificationUrls && certificationUrls.length > 0 && {
+            certifications: {
+              create: certificationUrls.map(url => ({
+                name: url,
+                isApproved: false,
+              }))
+            }
+          }),
         },
       });
 

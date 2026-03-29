@@ -97,26 +97,28 @@ model User {
   career        String? // 경력 (예: '경력 5년', '신입' 등)
 
   // 전문가 인증 서류
-  idCardUrl           String? // 신분증 사본 경로
-  businessLicenseUrls String[] @default([]) // 사업자등록증 경로 배열
-  certificationUrls   String[] @default([]) // 자격증 사본 경로 배열
-  isApproved          Boolean  @default(false) // 관리자 승인 여부
+  idCardUrl               String? // 신분증 사본 경로
+  idCardApproved          Boolean  @default(false) // 신분증 승인 여부 (견적 참여 권한의 기준)
+  businessLicenseUrls     String[] @default([]) // 사업자등록증 경로 배열
+  businessLicenseApproved Boolean  @default(false) // 사업자등록증 승인 여부
+  isApproved              Boolean  @default(false) // 관리자 승인 여부
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
-  estimates Estimate[] @relation("CustomerEstimates")
-  bids      Bid[]      @relation("ExpertBids")
-  sentChats Chat[]     @relation("SentChats")
-  recvChats Chat[]     @relation("ReceivedChats")
-  profile   Profile?   @relation("ExpertProfile") // 전문가 프로필 (1:1)
-  accounts  Account[]
-  sessions  Session[]
-  bookmarks Bookmark[] @relation("UserBookmarks")
-  inquiries Inquiry[]  @relation("UserInquiries")
-  reports   Report[]   @relation("UserReports")
-  schedules Schedule[] @relation("ExpertSchedules")
+  estimates      Estimate[]      @relation("CustomerEstimates")
+  bids           Bid[]           @relation("ExpertBids")
+  sentChats      Chat[]          @relation("SentChats")
+  recvChats      Chat[]          @relation("ReceivedChats")
+  profile        Profile?        @relation("ExpertProfile") // 전문가 프로필 (1:1)
+  accounts       Account[]
+  sessions       Session[]
+  bookmarks      Bookmark[]      @relation("UserBookmarks")
+  inquiries      Inquiry[]       @relation("UserInquiries")
+  reports        Report[]        @relation("UserReports")
+  schedules      Schedule[]      @relation("ExpertSchedules")
+  certifications Certification[] @relation("UserCertifications")
 
   @@map("users")
 }
@@ -351,4 +353,17 @@ model Schedule {
   expert User @relation("ExpertSchedules", fields: [expertId], references: [id], onDelete: Cascade)
 
   @@map("schedules")
+}
+
+model Certification {
+  id         String   @id @default(uuid())
+  userId     Int
+  name       String // 자격증명 (예: 도배기능사)
+  fileUrl    String? // 실제 파일 URL (저장용)
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user User @relation("UserCertifications", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("certifications")
 }

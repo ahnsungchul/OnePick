@@ -14,6 +14,25 @@ export default function UserRequestsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState('ALL');
+  const [readBids, setReadBids] = useState<string[]>([]);
+  const [readChatsLocally, setReadChatsLocally] = useState<string[]>([]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('read_bids');
+    if (stored) setReadBids(JSON.parse(stored));
+  }, []);
+
+  const handleMarkBidsAsRead = (bidIds: string[]) => {
+    setReadBids(prev => {
+      const updated = Array.from(new Set([...prev, ...bidIds]));
+      localStorage.setItem('read_bids', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const handleMarkChatAsRead = (estimateId: string) => {
+    setReadChatsLocally(prev => Array.from(new Set([...prev, estimateId])));
+  };
 
   // URL 파라미터에서 필터 상태 가져오기
   useEffect(() => {
@@ -53,29 +72,54 @@ export default function UserRequestsPage() {
   }, [session, status]);
 
   const counts = React.useMemo(() => {
+    let newBids = 0;
+    let newMessage = 0;
+
+    requests.forEach(r => {
+      const isChatRead = readChatsLocally.includes(r.id);
+      if (r.unreadChatCount > 0 && !isChatRead) newMessage++;
+      
+      const hasNewBid = r.bids && r.bids.some((b: any) => !readBids.includes(b.id));
+      if ((r.status === 'PENDING' || r.status === 'BIDDING') && hasNewBid) {
+        newBids++;
+      }
+    });
+
     return {
       ALL: requests.length,
       DRAFT: requests.filter(r => r.status === 'DRAFT').length,
+      NEW_BIDS: newBids,
+      NEW_MESSAGE: newMessage,
       MATCHING: requests.filter(r => r.status === 'PENDING' || r.status === 'BIDDING' || r.status === 'SELECTED').length,
       FINISHED: requests.filter(r => r.status === 'IN_PROGRESS').length,
       COMPLETED: requests.filter(r => r.status === 'COMPLETED').length,
       CANCELLED: requests.filter(r => r.status === 'CANCELLED').length,
     };
-  }, [requests]);
+  }, [requests, readBids, readChatsLocally]);
 
   const filteredRequests = React.useMemo(() => {
     if (activeFilter === 'ALL') return requests;
     if (activeFilter === 'DRAFT') return requests.filter(r => r.status === 'DRAFT');
+    
+    if (activeFilter === 'NEW_BIDS') {
+      return requests.filter(r => (r.status === 'PENDING' || r.status === 'BIDDING') && r.bids?.some((b: any) => !readBids.includes(b.id)));
+    }
+    if (activeFilter === 'NEW_MESSAGE') {
+      return requests.filter(r => r.unreadChatCount > 0 && !readChatsLocally.includes(r.id));
+    }
+
     if (activeFilter === 'MATCHING') return requests.filter(r => r.status === 'PENDING' || r.status === 'BIDDING' || r.status === 'SELECTED');
     if (activeFilter === 'FINISHED') return requests.filter(r => r.status === 'IN_PROGRESS');
     if (activeFilter === 'COMPLETED') return requests.filter(r => r.status === 'COMPLETED');
     if (activeFilter === 'CANCELLED') return requests.filter(r => r.status === 'CANCELLED');
     return requests;
-  }, [requests, activeFilter]);
+  }, [requests, activeFilter, readBids, readChatsLocally]);
 
   const filters = [
     { label: '전체', value: 'ALL', count: counts.ALL },
     { label: '작성중', value: 'DRAFT', count: counts.DRAFT },
+    { label: '신규견적', value: 'NEW_BIDS', count: counts.NEW_BIDS },
+    { label: '신규메시지', value: 'NEW_MESSAGE', count: counts.NEW_MESSAGE },
     { label: '매칭중', value: 'MATCHING', count: counts.MATCHING },
     { label: '전문가확정', value: 'FINISHED', count: counts.FINISHED },
     { label: '서비스완료', value: 'COMPLETED', count: counts.COMPLETED },
@@ -143,7 +187,14 @@ export default function UserRequestsPage() {
       {filteredRequests.length > 0 ? (
         <div className="flex flex-col">
           {filteredRequests.map((request) => (
-            <MyRequestListItem key={request.id} estimate={request} />
+            <MyRequestListItem 
+              key={request.id} 
+              estimate={request} 
+              activeFilter={activeFilter}
+              onMoveToStatus={(status) => setActiveFilter(status)}
+              onMarkBidsAsRead={handleMarkBidsAsRead}
+              onMarkChatAsRead={handleMarkChatAsRead}
+            />
           ))}
         </div>
       ) : (

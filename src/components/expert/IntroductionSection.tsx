@@ -35,14 +35,15 @@ export default function IntroductionSection({ user, profile, isOwner, categories
     : ['도배/장판', '욕실/주방', '전기/조명', '청소/이사', '가전/에어컨', '자동차 수리', '베이비/펫시터', '과외/레슨', '디자인/IT', '기타 서비스'];
 
   // Document Edit States
+  const [editIdCard, setEditIdCard] = useState<{ name: string } | null>(null);
   const [editBusinessLicenses, setEditBusinessLicenses] = useState<{ id: number; name: string }[]>([]);
   const [newCertName, setNewCertName] = useState('');
-  const [editCertifications, setEditCertifications] = useState<{ id: number; name: string }[]>([]);
+  const [editCertifications, setEditCertifications] = useState<{ id?: string | number; name: string; isApproved?: boolean }[]>([]);
 
   // Derived state for verified marks
   const hasIdCard = !!user.idCardUrl;
   const hasBusinessLicense = user.businessLicenseUrls && user.businessLicenseUrls.length > 0;
-  const hasCertification = user.certificationUrls && user.certificationUrls.length > 0;
+  const hasCertification = user.certifications && user.certifications.length > 0;
   
   // Custom Verification Mark Component
   const VerificationMark = ({ name, active, icon: Icon }: { name: string, active: boolean, icon: any }) => (
@@ -65,6 +66,7 @@ export default function IntroductionSection({ user, profile, isOwner, categories
   const [selectedSigungu, setSelectedSigungu] = useState<string>('');
 
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const idCardInputRef = useRef<HTMLInputElement>(null);
   const businessLicenseInputRef = useRef<HTMLInputElement>(null);
   const certificationInputRef = useRef<HTMLInputElement>(null);
 
@@ -94,8 +96,9 @@ export default function IntroductionSection({ user, profile, isOwner, categories
       setEditSpecialties(user.specialties || []);
       setEditIntroduction(profile?.introduction || '');
       setEditImagePreview(user.image || null);
+      setEditIdCard(user.idCardUrl ? { name: user.idCardUrl } : null);
       setEditBusinessLicenses(user.businessLicenseUrls?.map((url: string, i: number) => ({ id: i, name: url })) || []);
-      setEditCertifications(user.certificationUrls?.map((url: string, i: number) => ({ id: i, name: url })) || []);
+      setEditCertifications(user.certifications?.map((c: any) => ({ id: c.id, name: c.name, isApproved: c.isApproved })) || []);
       setNewCertName('');
     } else {
       document.body.style.overflow = 'unset';
@@ -112,6 +115,21 @@ export default function IntroductionSection({ user, profile, isOwner, categories
       const url = URL.createObjectURL(file);
       setEditImagePreview(url);
     }
+  };
+
+  const handleIdCardFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        alert('이미지 파일(jpg, png 등)만 등록 가능합니다.'); return;
+      }
+      setEditIdCard({ name: file.name });
+    }
+    e.target.value = '';
+  };
+
+  const handleRemoveIdCard = () => {
+    setEditIdCard(null);
   };
 
   const handleBusinessLicenseFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -142,7 +160,7 @@ export default function IntroductionSection({ user, profile, isOwner, categories
     e.target.value = '';
   };
 
-  const handleRemoveCertification = (id: number) => {
+  const handleRemoveCertification = (id: string | number) => {
     setEditCertifications(prev => prev.filter(item => item.id !== id));
   };
 
@@ -175,8 +193,12 @@ export default function IntroductionSection({ user, profile, isOwner, categories
       specialties: editSpecialties,
       career: editCareerYear && editCareerMonth ? `${editCareerYear}년 ${editCareerMonth}월 시작` : '경력 미입력',
       introduction: editIntroduction,
+      idCardUrl: editIdCard ? editIdCard.name : null,
       businessLicenseUrls: editBusinessLicenses.map(b => b.name),
-      certificationUrls: editCertifications.map(c => c.name)
+      certifications: editCertifications.map(c => ({
+        id: typeof c.id === 'string' ? c.id : undefined,
+        name: c.name,
+      }))
     });
     
     setIsLoading(false);
@@ -268,7 +290,7 @@ export default function IntroductionSection({ user, profile, isOwner, categories
                 className="flex items-center justify-center gap-2 text-sm font-bold text-slate-600 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 hover:text-slate-900 transition-colors shrink-0"
               >
                 <Pencil className="w-4 h-4" />
-                소개 수정
+                프로필 수정
               </button>
             )}
           </div>
@@ -294,13 +316,15 @@ export default function IntroductionSection({ user, profile, isOwner, categories
               <h4 className="font-bold text-slate-700 text-xs mb-3 flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-blue-500" /> 신원 및 검증 서류</h4>
               <div className="flex items-start gap-4 flex-wrap">
                 {hasIdCard && (
-                  <VerificationMark name="신분증" active={user.isApproved} icon={User} />
+                  <VerificationMark name="본인인증" active={user.idCardApproved} icon={User} />
                 )}
                 {hasBusinessLicense && (
-                  <VerificationMark name="사업자 등록증" active={user.isApproved} icon={FileText} />
+                  <VerificationMark name="사업자 등록증" active={user.businessLicenseApproved} icon={FileText} />
                 )}
-                {hasCertification && (
-                  <VerificationMark name="자격 및 인증서" active={user.isApproved} icon={Award} />
+                {hasCertification && user.certifications && (
+                  user.certifications.map((cert: any, index: number) => (
+                    <VerificationMark key={`cert-${index}`} name={cert.name} active={cert.isApproved} icon={Award} />
+                  ))
                 )}
               </div>
             </div>
@@ -486,6 +510,41 @@ export default function IntroductionSection({ user, profile, isOwner, categories
                 )}
               </div>
 
+              {/* ID Card Upload */}
+              <div className="space-y-3 pt-6 border-t border-slate-100">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <label className="font-bold text-slate-900 block text-sm mb-1">신분증 관리</label>
+                    <p className="text-xs text-slate-500">신분증 사본을 등록해주세요. <span className="text-orange-500 font-bold">(변경 시 권한 재심사 진행)</span></p>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => idCardInputRef.current?.click()}
+                    className="px-3 py-1.5 text-xs font-bold rounded-lg transition-colors border bg-white text-slate-600 border-slate-200 hover:bg-slate-50 whitespace-nowrap"
+                  >
+                    파일 등록
+                  </button>
+                  <input 
+                    type="file" 
+                    ref={idCardInputRef} 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={handleIdCardFileChange} 
+                  />
+                </div>
+                
+                {editIdCard && (
+                  <div className="space-y-2 mt-2">
+                    <div className="flex justify-between items-center bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
+                      <span className="text-xs text-slate-700 truncate mr-2 font-medium">{editIdCard.name}</span>
+                      <button type="button" onClick={handleRemoveIdCard} className="text-slate-400 hover:text-red-500 text-xs font-bold">
+                        삭제
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Business License Upload */}
               <div className="space-y-3 pt-6 border-t border-slate-100">
                 <div className="flex justify-between items-start mb-2">
@@ -552,10 +611,10 @@ export default function IntroductionSection({ user, profile, isOwner, categories
                 
                 {editCertifications.length > 0 && (
                   <div className="space-y-2 mt-2">
-                    {editCertifications.map((cert) => (
-                      <div key={cert.id} className="flex justify-between items-center bg-blue-50/50 px-3 py-2 rounded-lg border border-blue-100">
+                    {editCertifications.map((cert, index) => (
+                      <div key={cert.id || index} className="flex justify-between items-center bg-blue-50/50 px-3 py-2 rounded-lg border border-blue-100">
                         <span className="text-sm font-bold text-slate-800 truncate">{cert.name}</span>
-                        <button type="button" onClick={() => handleRemoveCertification(cert.id)} className="text-slate-400 hover:text-red-500 text-xs font-bold shrink-0">
+                        <button type="button" onClick={() => handleRemoveCertification(cert.id!)} className="text-slate-400 hover:text-red-500 text-xs font-bold shrink-0">
                           삭제
                         </button>
                       </div>
