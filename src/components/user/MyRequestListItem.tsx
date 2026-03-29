@@ -491,7 +491,7 @@ export default function MyRequestListItem({ estimate }: { estimate: Estimate }) 
                   </div>
                   
                   <div className='flex flex-row gap-2 items-center mb-2'>
-                    <div className="w-16 h-16 rounded-full overflow-hidden mx-auto border border-slate-100 group-hover:scale-105 transition-transform duration-300 shrink-0">
+                    <div className="w-16 h-16 rounded-xl overflow-hidden mx-auto border border-slate-100 group-hover:scale-105 transition-transform duration-300 shrink-0">
                       <img 
                         src={bid.expert.image || `https://picsum.photos/seed/${bid.expert.id || bid.expert.name}/100/100`} 
                         alt={bid.expert.name} 

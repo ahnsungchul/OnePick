@@ -24,12 +24,12 @@ exports.Prisma = Prisma
 exports.$Enums = {}
 
 /**
- * Prisma Client JS version: 7.5.0
- * Query Engine version: 280c870be64f457428992c43c1f6d557fab6e29e
+ * Prisma Client JS version: 7.6.0
+ * Query Engine version: 75cbdc1eb7150937890ad5465d861175c6624711
  */
 Prisma.prismaVersion = {
-  client: "7.5.0",
-  engine: "280c870be64f457428992c43c1f6d557fab6e29e"
+  client: "7.6.0",
+  engine: "75cbdc1eb7150937890ad5465d861175c6624711"
 }
 
 Prisma.PrismaClientKnownRequestError = () => {
@@ -120,6 +120,25 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
   Serializable: 'Serializable'
 });
 
+exports.Prisma.CategoryScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  order: 'order',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.ServiceScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  categoryId: 'categoryId',
+  order: 'order',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.UserScalarFieldEnum = {
   id: 'id',
   email: 'email',
@@ -127,7 +146,6 @@ exports.Prisma.UserScalarFieldEnum = {
   emailVerified: 'emailVerified',
   image: 'image',
   role: 'role',
-  specialties: 'specialties',
   regions: 'regions',
   grade: 'grade',
   career: 'career',
@@ -155,8 +173,7 @@ exports.Prisma.EstimateScalarFieldEnum = {
   customerId: 'customerId',
   authorName: 'authorName',
   contact: 'contact',
-  category: 'category',
-  subcategories: 'subcategories',
+  categoryId: 'categoryId',
   location: 'location',
   details: 'details',
   serviceDate: 'serviceDate',
@@ -165,6 +182,7 @@ exports.Prisma.EstimateScalarFieldEnum = {
   photoUrls: 'photoUrls',
   status: 'status',
   currentStep: 'currentStep',
+  designatedExpertId: 'designatedExpertId',
   isUrgent: 'isUrgent',
   needsReestimate: 'needsReestimate',
   shareContact: 'shareContact',
@@ -280,6 +298,17 @@ exports.Prisma.FAQScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.ScheduleScalarFieldEnum = {
+  id: 'id',
+  expertId: 'expertId',
+  date: 'date',
+  title: 'title',
+  content: 'content',
+  isHoliday: 'isHoliday',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -328,6 +357,8 @@ exports.InquiryStatus = exports.$Enums.InquiryStatus = {
 };
 
 exports.Prisma.ModelName = {
+  Category: 'Category',
+  Service: 'Service',
   User: 'User',
   Profile: 'Profile',
   Estimate: 'Estimate',
@@ -341,7 +372,8 @@ exports.Prisma.ModelName = {
   Inquiry: 'Inquiry',
   Report: 'Report',
   Notice: 'Notice',
-  FAQ: 'FAQ'
+  FAQ: 'FAQ',
+  Schedule: 'Schedule'
 };
 
 /**

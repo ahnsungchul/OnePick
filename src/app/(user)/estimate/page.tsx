@@ -20,11 +20,9 @@ import { getRecommendedExpertsAction } from '@/actions/expert.action';
 import { maskName, formatCategory, calculateDDay } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 import { toggleBookmarkAction, getMyBookmarkIdsAction } from '@/actions/bookmark.action';
+import { getCategoriesAction } from '@/actions/category.action';
 
 // --- Mock Data ---
-
-
-const categoriesList = ['전체', '도배/장판', '욕실/주방', '전기/조명', '청소/이사', '가전/에어컨', '자동차 수리', '베이비/펫시터', '과외/레슨', '디자인/IT', '기타 서비스'];
 
 const regionsData: Record<string, string[]> = {
   '전국': [],
@@ -71,6 +69,7 @@ export default function EstimateListPage() {
   const [selectedCategory, setSelectedCategory] = useState('전체');
   const [selectedProvince, setSelectedProvince] = useState('전국');
   const [selectedCity, setSelectedCity] = useState('전체');
+  const [categoriesList, setCategoriesList] = useState<string[]>(['전체']);
   const [isMounted, setIsMounted] = useState(false);
   const [estimates, setEstimates] = useState<any[]>([]);
   const [topExperts, setTopExperts] = useState<any[]>([]);
@@ -97,6 +96,15 @@ export default function EstimateListPage() {
       }
     });
     
+    getCategoriesAction().then(res => {
+      if (res.success && res.data) {
+        const catNames = res.data.map(c => c.name);
+        setCategoriesList(['전체', ...catNames]);
+      } else {
+        setCategoriesList(['전체', '도배/장판', '욕실/주방', '전기/조명', '청소/이사', '가전/에어컨', '자동차 수리', '베이비/펫시터', '과외/레슨', '디자인/IT', '기타 서비스']);
+      }
+    });
+    
     // 북마크 정보 가져오기
     getMyBookmarkIdsAction().then(res => {
       if (res.success && res.data) {
@@ -108,7 +116,8 @@ export default function EstimateListPage() {
   // 필터링 적용
   const filteredExperts = useMemo(() => {
     return topExperts.filter(expert => {
-      const matchCategory = selectedCategory === '전체' || expert.category === selectedCategory;
+      const matchCategory = selectedCategory === '전체' || 
+        (expert.categories ? expert.categories.includes(selectedCategory) : expert.category === selectedCategory);
       const matchRegion = selectedProvince === '전국' || 
           expert.region.includes(selectedProvince) || 
           (selectedCity !== '전체' && expert.region.includes(selectedCity));

@@ -41,13 +41,18 @@ export async function registerUserAction({
       const initialGrade = null;
 
       console.log("Creating user with role:", normalizedRole);
-      
+      const categoryRecords = await tx.category.findMany({
+        where: { name: { in: specialties } }
+      });
+
       const newUser = await (tx.user as any).create({
         data: {
           email,
           name,
           role: normalizedRole,
-          specialties: specialties,
+          specialties: {
+            connect: categoryRecords.map(c => ({ id: c.id }))
+          },
           regions: regions,
           grade: initialGrade,
           idCardUrl,

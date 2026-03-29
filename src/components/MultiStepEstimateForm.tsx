@@ -6,7 +6,10 @@ import { ChevronRight, MapPin, X, ChevronLeft, Search, Clock } from 'lucide-reac
 import * as motion from 'motion/react-client';
 import DaumPostcode from 'react-daum-postcode';
 
-const categories = {
+import { CategoryData } from '@/actions/category.action';
+import React from 'react';
+
+const DEFAULT_CATEGORIES = {
   '도배/장판': {
     label: '도배/장판',
     subcategories: ['도배 시공', '장판 시공', '마루 시공', '타일 시공', '페인트 시공', '부분 보수'],
@@ -56,6 +59,7 @@ export default function MultiStepEstimateForm({
   initialEstimateId,
   initialStep = 1,
   isEditMode = false,
+  categoriesData,
   onClose,
   onSuccess
 }: { 
@@ -64,9 +68,24 @@ export default function MultiStepEstimateForm({
   initialEstimateId?: string,
   initialStep?: number,
   isEditMode?: boolean,
+  categoriesData?: CategoryData[],
   onClose?: () => void,
   onSuccess?: () => void
 }) {
+  const categories = React.useMemo(() => {
+    if (categoriesData && categoriesData.length > 0) {
+      const result: Record<string, { label: string, subcategories: string[] }> = {};
+      categoriesData.forEach(cat => {
+        result[cat.name] = {
+          label: cat.name,
+          subcategories: cat.subcategories.map(s => s.name)
+        };
+      });
+      return result;
+    }
+    return DEFAULT_CATEGORIES;
+  }, [categoriesData]);
+
   const [step, setStep] = useState(initialStep);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
@@ -622,7 +641,7 @@ export default function MultiStepEstimateForm({
               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
                 <h3 className="text-lg font-semibold text-slate-800 mb-3">상세 서비스를 모두 선택해주세요 <span className="text-red-500">*</span></h3>
                 <div className="flex flex-wrap gap-2">
-                  {categories[formDataState.category as keyof typeof categories].subcategories.map(sub => {
+                  {(categories as Record<string, { label: string, subcategories: string[] }>)[formDataState.category]?.subcategories.map(sub => {
                     const isSelected = formDataState.subcategories.includes(sub);
                     return (
                       <button

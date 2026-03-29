@@ -33,6 +33,7 @@ export async function getUserDashboardStatsAction(userId: number) {
           break;
         case 'PENDING':
         case 'BIDDING':
+        case 'SELECTED':
           stats.MATCHING++;
           break;
         case 'IN_PROGRESS':

@@ -2,10 +2,12 @@ import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import ExpertDashboardLayout from '@/components/layout/ExpertDashboardLayout';
 import { getExpertHomeDataAction } from '@/actions/expert.action';
+import { getCategoriesAction } from '@/actions/category.action';
 import IntroductionSection from '@/components/expert/IntroductionSection';
 import PortfolioSection from '@/components/expert/PortfolioSection';
 import ReviewSection from '@/components/expert/ReviewSection';
 import CalendarSection from '@/components/expert/CalendarSection';
+import Link from 'next/link';
 
 export const metadata = {
   title: '전문가홈 - OnePick',
@@ -19,15 +21,24 @@ export default async function ExpertDashboardPage({
 }) {
   const session = await auth();
   
-  // URL 파라미터에서 userId 가져오기, 없으면 세션의 본인 ID 사용
+  // URL 파라미터에서 userId 가져오기 필수로 변경
   const paramUserId = searchParams.userId;
-  let targetUserId = 0;
   
-  if (paramUserId) {
-    targetUserId = Number(Array.isArray(paramUserId) ? paramUserId[0] : paramUserId);
-  } else if (session?.user?.id) {
-    targetUserId = Number(session.user.id);
+  if (!paramUserId) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-6">
+        <div className="text-center space-y-2">
+          <h2 className="text-3xl font-black text-slate-800">잘못된 접근입니다</h2>
+          <p className="text-slate-500 font-medium">유효하지 않은 페이지 요청입니다.</p>
+        </div>
+        <Link href="/" className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-blue-600/20">
+          원픽 메인으로 이동
+        </Link>
+      </div>
+    );
   }
+
+  let targetUserId = Number(Array.isArray(paramUserId) ? paramUserId[0] : paramUserId);
 
   // NaN 체크 (유효하지 않은 ID인 경우 Guest 모드(0)로 처리)
   if (isNaN(targetUserId)) {
@@ -49,6 +60,9 @@ export default async function ExpertDashboardPage({
 
   const { user, profile, stats } = result.data;
   const isApproved = user.isApproved;
+
+  const categoriesRes = await getCategoriesAction();
+  const categoriesData = categoriesRes.success && categoriesRes.data ? categoriesRes.data : [];
 
   return (
     <ExpertDashboardLayout>
@@ -74,7 +88,7 @@ export default async function ExpertDashboardPage({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             {/* 전문가 프로필 섹션 */}
-            <IntroductionSection user={user} profile={profile} isOwner={isOwner} />
+            <IntroductionSection user={user} profile={profile} isOwner={isOwner} categoriesData={categoriesData} />
             
             {/* 포트폴리오 섹션 */}
             <PortfolioSection portfolioUrl={profile.portfolioUrl} isOwner={isOwner} />
@@ -85,7 +99,7 @@ export default async function ExpertDashboardPage({
 
           <div className="lg:col-span-1">
             {/* 캘린더 섹션 */}
-            <CalendarSection userId={targetUserId} />
+            <CalendarSection userId={targetUserId} specialties={user.specialties} categoriesData={categoriesData} />
           </div>
         </div>
       </div>

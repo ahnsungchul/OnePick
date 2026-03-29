@@ -48,6 +48,42 @@ enum InquiryStatus {
 // Models
 // ==========================================
 
+model Category {
+  id       Int     @id @default(autoincrement())
+  name     String  @unique
+  order    Int     @default(0)
+  isActive Boolean @default(true)
+
+  services Service[]
+
+  // Relations
+  users     User[]     @relation("UserSpecialties")
+  estimates Estimate[] // Estimate 1:N Relation
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("categories")
+}
+
+model Service {
+  id         Int      @id @default(autoincrement())
+  name       String
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  order      Int      @default(0)
+  isActive   Boolean  @default(true)
+
+  // Relations
+  estimates Estimate[] @relation("EstimateServices")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, categoryId])
+  @@map("services")
+}
+
 model User {
   id            Int          @id @default(autoincrement())
   email         String       @unique
@@ -55,7 +91,7 @@ model User {
   emailVerified DateTime?
   image         String?
   role          UserRole     @default(USER)
-  specialties   String[]     @default([]) // 전문가 전문 분야 (도배/장판 등)
+  specialties   Category[]   @relation("UserSpecialties") // 전문가 전문 분야 (DB 연동)
   regions       String[]     @default([]) // 전문가 서비스 지역
   grade         ExpertGrade? // 전문가(EXPERT)인 경우에만 사용
   career        String? // 경력 (예: '경력 5년', '신입' 등)
@@ -80,6 +116,7 @@ model User {
   bookmarks Bookmark[] @relation("UserBookmarks")
   inquiries Inquiry[]  @relation("UserInquiries")
   reports   Report[]   @relation("UserReports")
+  schedules Schedule[] @relation("ExpertSchedules")
 
   @@map("users")
 }
@@ -99,21 +136,25 @@ model Profile {
 }
 
 model Estimate {
-  id            String         @id @default(uuid())
-  requestNumber String?        @unique // 견적 요청 고유 번호 (예: AB1234)
+  id            String  @id @default(uuid())
+  requestNumber String? @unique // 견적 요청 고유 번호 (예: AB1234)
   customerId    Int
   authorName    String? // 작성자 이름
   contact       String? // 연락처 
-  category      String // 요청 카테고리
-  subcategories String[]       @default([]) // 상세 카테고리들
-  location      String // 위치 정보
-  details       String // 견적 요청 상세 내용
-  serviceDate   String? // 희망 서비스 일시 (다중 선택, 혹은 정기 기간)
-  serviceTime   String? // 희망 도착 시간 (선택)
-  selectedDate  String? // 전문가 선택 시 확정된 서비스일
-  photoUrls     String[] // 여러 장의 사진 S3 URL (LocalStack 연동, 최대 5장)
-  status        EstimateStatus @default(PENDING)
-  currentStep   Int            @default(1) // 현재 작성 중인 단계 (1~4)
+
+  categoryId Int? // Category 테이블의 ID
+  category   Category? @relation(fields: [categoryId], references: [id])
+  services   Service[] @relation("EstimateServices") // 다대다 관계로 변경
+
+  location           String // 위치 정보
+  details            String // 견적 요청 상세 내용
+  serviceDate        String? // 희망 서비스 일시 (다중 선택, 혹은 정기 기간)
+  serviceTime        String? // 희망 도착 시간 (선택)
+  selectedDate       String? // 전문가 선택 시 확정된 서비스일
+  photoUrls          String[] // 여러 장의 사진 S3 URL (LocalStack 연동, 최대 5장)
+  status             EstimateStatus @default(PENDING)
+  currentStep        Int            @default(1) // 현재 작성 중인 단계 (1~4)
+  designatedExpertId Int? // 특정 전문가에게 지정 견적 요청한 경우
 
   // Options
   isUrgent        Boolean @default(false)
@@ -294,4 +335,20 @@ model FAQ {
   updatedAt DateTime @updatedAt
 
   @@map("faqs")
+}
+
+model Schedule {
+  id        String  @id @default(uuid())
+  expertId  Int
+  date      String // "YYYY-MM-DD"
+  title     String
+  content   String?
+  isHoliday Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  expert User @relation("ExpertSchedules", fields: [expertId], references: [id], onDelete: Cascade)
+
+  @@map("schedules")
 }

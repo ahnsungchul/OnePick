@@ -4,9 +4,17 @@ import { signOut } from "next-auth/react";
 
 export default function LogoutButton() {
   const handleLogout = async () => {
-    // 전문가홈 하위 메뉴에서 로그아웃 시 전문가홈 메인('/expert')으로 이동, 그 외는 '/' 이동
-    const isExpertPage = window.location.pathname.startsWith('/expert');
-    await signOut({ callbackUrl: isExpertPage ? '/expert' : '/' });
+    const pathname = window.location.pathname;
+    const isPublicExpertPage = pathname === '/expert/dashboard' || pathname === '/expert/support';
+    const hasUserId = window.location.search.includes('userId=');
+    
+    // 공개 페이지(홈, 고객지원)이고 userId가 있으면 해당 페이지 유지, 그 외(본인 전용 메뉴 등)는 '/' 이동
+    let callbackUrl = '/';
+    if (isPublicExpertPage && hasUserId) {
+      callbackUrl = window.location.pathname + window.location.search;
+    }
+    
+    await signOut({ callbackUrl });
   };
 
   return (

@@ -87,7 +87,6 @@ export default function ExpertBidListItem({ bid, expertId, currentUserName }: { 
           <div className="col-span-1 sm:col-span-2 flex items-start gap-2 pt-2 border-t border-slate-50 mt-1">
             <Calendar className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
             <span className="leading-snug">
-              <span className="text-slate-400 mr-1">희망일:</span> 
               <span className="text-slate-700">{estimate.serviceDate} {estimate.serviceTime && `(${estimate.serviceTime})`}</span>
             </span>
           </div>
@@ -118,11 +117,15 @@ export default function ExpertBidListItem({ bid, expertId, currentUserName }: { 
 
             {/* 서비스 가능일 */}
             {bid.availableDate && (
-              <div className="flex items-start gap-2 text-xs font-bold bg-blue-50/50 p-3 rounded-xl border border-blue-100 mb-4">
-                <Calendar className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+              <div className={`flex items-start gap-2 text-xs font-bold p-3 rounded-xl border mb-4 ${bid.status === 'ACCEPTED' ? 'bg-blue-50/50 border-blue-100' : 'bg-emerald-50/50 border-emerald-100'}`}>
+                <Calendar className={`w-4 h-4 shrink-0 mt-0.5 ${bid.status === 'ACCEPTED' ? 'text-blue-500' : 'text-emerald-500'}`} />
                 <span className="leading-snug">
-                  <span className="text-blue-500/80 mr-1">방문 가능일:</span> 
-                  <span className="text-blue-700">{bid.availableDate}</span>
+                  <span className={`mr-1 ${bid.status === 'ACCEPTED' ? 'text-blue-700' : 'text-emerald-700'}`}>
+                    {bid.status === 'ACCEPTED' ? '서비스 확정일:' : '방문 가능일:'}
+                  </span> 
+                  <span className={bid.status === 'ACCEPTED' ? 'text-blue-700' : 'text-emerald-700'}>
+                    {bid.status === 'ACCEPTED' ? estimate.selectedDate : bid.availableDate}
+                  </span>
                 </span>
               </div>
             )}

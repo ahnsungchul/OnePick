@@ -98,13 +98,18 @@ export async function submitEstimateAction(formData: FormData) {
       });
     }
 
+    const categoryRecord = await prisma.category.findUnique({ where: { name: category } });
+    const serviceRecords = await prisma.service.findMany({ where: { name: { in: subcategories } } });
+
     // 3. 데이터 저장 (신규 또는 업데이트)
     const estimateData = {
       customerId,
       authorName,
       contact,
-      category,
-      subcategories,
+      categoryId: categoryRecord?.id,
+      services: {
+        connect: serviceRecords.map(s => ({ id: s.id }))
+      },
       location,
       details,
       serviceDate,
@@ -124,7 +129,13 @@ export async function submitEstimateAction(formData: FormData) {
         select: { status: true }
       });
 
-      const updateData: any = { ...estimateData };
+      const updateData: any = { 
+        ...estimateData,
+        services: {
+          set: [], // 기존 관계 끊기
+          connect: serviceRecords.map(s => ({ id: s.id }))
+        }
+      };
       if (existing?.status === "DRAFT") {
         updateData.createdAt = new Date();
       }
@@ -186,15 +197,21 @@ export async function saveEstimateDraftAction(formData: FormData) {
     const customerId = parseInt(formData.get("customerId") as string, 10);
     const currentStep = parseInt(formData.get("currentStep") as string, 10) || 1;
     
+    const subcategoriesRaw = (formData.get("subcategories") as string)?.split(",").map(s => s.trim()).filter(Boolean) || [];
+    
+    const categoryRecord = await prisma.category.findUnique({ where: { name: formData.get("category") as string } });
+    const serviceRecords = await prisma.service.findMany({ where: { name: { in: subcategoriesRaw } } });
+
     const data = {
       customerId,
       currentStep,
       status: "DRAFT" as any,
       authorName: formData.get("authorName") as string,
       contact: formData.get("contact") as string,
-      category: formData.get("category") as string,
-      // @ts-ignore
-      subcategories: (formData.get("subcategories") as string)?.split(",").map(s => s.trim()).filter(Boolean) || [],
+      categoryId: categoryRecord?.id,
+      services: {
+        connect: serviceRecords.map(s => ({ id: s.id }))
+      },
       location: formData.get("location") as string,
       details: formData.get("details") as string,
       serviceDate: formData.get("serviceDate") as string || null,
@@ -207,7 +224,13 @@ export async function saveEstimateDraftAction(formData: FormData) {
     if (estimateId && estimateId !== "undefined") {
       result = await prisma.estimate.update({
         where: { id: estimateId },
-        data,
+        data: {
+          ...data,
+          services: {
+            set: [],
+            connect: serviceRecords.map(s => ({ id: s.id }))
+          }
+        },
       });
     } else {
       const requestNumber = await generateUniqueRequestNumber();
@@ -239,9 +262,16 @@ export async function getEstimatesAction() {
         },
       },
       orderBy: { createdAt: "desc" },
-      include: { customer: true, bids: true },
+      include: { customer: true, bids: true, category: true, services: true },
     });
-    return { success: true, data: estimates };
+    
+    const parsed = (estimates as any).map((e: any) => ({
+      ...e,
+      category: e.category?.name || '',
+      subcategories: e.services?.map((s: any) => s.name) || []
+    }));
+    
+    return { success: true, data: parsed };
   } catch (error: any) {
     console.error("getEstimatesAction error:", error);
     return { success: false, error: error.message };
@@ -271,13 +301,17 @@ export async function getMyRequestsAction(userId: number) {
         chats: {
           where: { isRead: false, receiverId: userId },
           select: { id: true, senderId: true }
-        }
+        },
+        category: true,
+        services: true
       } as any,
       orderBy: { createdAt: "desc" }
     });
 
     const data = (estimates as any).map((est: any) => ({
       ...est,
+      category: est.category?.name || '',
+      subcategories: est.services?.map((s: any) => s.name) || [],
       unreadChatCount: est.chats?.length || 0,
       unreadChats: est.chats || []
     }));
@@ -309,6 +343,8 @@ export async function getEstimateByIdAction(id: string) {
           },
           orderBy: { createdAt: "desc" },
         },
+        category: true,
+        services: true
       },
     });
 
@@ -316,7 +352,13 @@ export async function getEstimateByIdAction(id: string) {
       throw new Error("존재하지 않는 견적 요청입니다.");
     }
 
-    return { success: true, data: estimate };
+    const parsed = {
+      ...estimate,
+      category: estimate.category?.name || '',
+      subcategories: estimate.services?.map((s) => s.name) || []
+    };
+
+    return { success: true, data: parsed };
   } catch (error: any) {
     console.error("getEstimateByIdAction error:", error);
     return { success: false, error: error.message };
@@ -374,7 +416,7 @@ export async function getAdjacentEstimateIdsAction(
       { status: { in: ["PENDING", "BIDDING"] } }
     ];
     if (filters?.category && filters.category !== '전체') {
-      filterAnd.push({ category: { in: getReverseCategoryMap(filters.category) } });
+      filterAnd.push({ category: { name: { in: getReverseCategoryMap(filters.category) } } });
     }
     if (filters?.province && filters.province !== '전국') {
       filterAnd.push({ location: { contains: filters.province } });
@@ -410,8 +452,8 @@ export async function getAdjacentEstimateIdsAction(
     return {
       success: true,
       data: {
-        prev: prev ? { id: prev.id, title: `${formatCategory(prev.category)} 요청` } : null,
-        next: next ? { id: next.id, title: `${formatCategory(next.category)} 요청` } : null,
+        prev: prev ? { id: prev.id, title: `${formatCategory(prev.category?.name || '')} 요청` } : null,
+        next: next ? { id: next.id, title: `${formatCategory(next.category?.name || '')} 요청` } : null,
       }
     };
   } catch (error: any) {

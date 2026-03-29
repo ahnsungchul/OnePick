@@ -6,14 +6,16 @@ import { Pencil, Check, X, MapPin, Briefcase, Star, ShieldCheck, User, Award, Ca
 import { useSession } from 'next-auth/react';
 import { updateFullExpertProfileAction } from '@/actions/expert.action';
 import { regionData } from '@/lib/regions';
+import { CategoryData } from '@/actions/category.action';
 
 interface IntroductionSectionProps {
   user: any;
   profile: any;
   isOwner: boolean;
+  categoriesData?: CategoryData[];
 }
 
-export default function IntroductionSection({ user, profile, isOwner }: IntroductionSectionProps) {
+export default function IntroductionSection({ user, profile, isOwner, categoriesData = [] }: IntroductionSectionProps) {
   const router = useRouter();
   const { update } = useSession();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -21,13 +23,16 @@ export default function IntroductionSection({ user, profile, isOwner }: Introduc
 
   // Form State
   const [editName, setEditName] = useState('');
-  const [editCareer, setEditCareer] = useState('');
+  const [editCareerYear, setEditCareerYear] = useState('');
+  const [editCareerMonth, setEditCareerMonth] = useState('');
   const [editRegions, setEditRegions] = useState<string[]>([]);
   const [editSpecialties, setEditSpecialties] = useState<string[]>([]);
   const [editIntroduction, setEditIntroduction] = useState('');
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
 
-  const categoriesList = ['도배/장판', '욕실/주방', '전기/조명', '청소/이사', '가전/에어컨', '자동차 수리', '베이비/펫시터', '과외/레슨', '디자인/IT', '기타 서비스'];
+  const categoriesList = categoriesData && categoriesData.length > 0
+    ? categoriesData.map(c => c.name)
+    : ['도배/장판', '욕실/주방', '전기/조명', '청소/이사', '가전/에어컨', '자동차 수리', '베이비/펫시터', '과외/레슨', '디자인/IT', '기타 서비스'];
 
   // Document Edit States
   const [editBusinessLicenses, setEditBusinessLicenses] = useState<{ id: number; name: string }[]>([]);
@@ -68,7 +73,23 @@ export default function IntroductionSection({ user, profile, isOwner }: Introduc
       document.body.style.overflow = 'hidden';
       // Initialize states when modal opens
       setEditName(user.name || '');
-      setEditCareer(user.career || '');
+      
+      const careerStr = user.career || '';
+      const matchYear = careerStr.match(/(\d{4})/);
+      const matchMonth = careerStr.match(/(\d{1,2})월/);
+      
+      if (matchYear) {
+        setEditCareerYear(matchYear[1]);
+      } else {
+        setEditCareerYear('');
+      }
+      
+      if (matchMonth) {
+        setEditCareerMonth(matchMonth[1]);
+      } else {
+        setEditCareerMonth('');
+      }
+
       setEditRegions(user.regions || []);
       setEditSpecialties(user.specialties || []);
       setEditIntroduction(profile?.introduction || '');
@@ -152,7 +173,7 @@ export default function IntroductionSection({ user, profile, isOwner }: Introduc
       name: editName,
       regions: editRegions,
       specialties: editSpecialties,
-      career: editCareer,
+      career: editCareerYear && editCareerMonth ? `${editCareerYear}년 ${editCareerMonth}월 시작` : '경력 미입력',
       introduction: editIntroduction,
       businessLicenseUrls: editBusinessLicenses.map(b => b.name),
       certificationUrls: editCertifications.map(c => c.name)
@@ -169,12 +190,44 @@ export default function IntroductionSection({ user, profile, isOwner }: Introduc
     }
   };
 
+  const getCareerDisplay = () => {
+    const careerStr = user.career;
+    if (!careerStr || careerStr === '경력 미입력' || careerStr === '신입') return careerStr || '경력 미입력';
+    
+    const yearMatch = careerStr.match(/(\d{4})년/);
+    const monthMatch = careerStr.match(/(\d{1,2})월/);
+    
+    if (yearMatch) {
+      const year = parseInt(yearMatch[1], 10);
+      const month = monthMatch ? parseInt(monthMatch[1], 10) : 1;
+      
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+      
+      const monthsDiff = (currentYear - year) * 12 + (currentMonth - month);
+      const yearOfExp = monthsDiff >= 0 ? Math.floor(monthsDiff / 12) + 1 : 1;
+      
+      return `${careerStr} (${yearOfExp}년차)`;
+    }
+    
+    // Fallback for just "YYYY년 시작"
+    const fallbackMatch = careerStr.match(/(\d{4})년 시작/);
+    if (fallbackMatch) {
+      const year = parseInt(fallbackMatch[1], 10);
+      const yearOfExp = new Date().getFullYear() - year + 1;
+      return `${careerStr} (${yearOfExp > 0 ? yearOfExp : 1}년차)`;
+    }
+    
+    return careerStr;
+  };
+
   return (
     <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
       <div className="flex flex-col md:flex-row gap-6 md:gap-8">
         {/* Left: Profile Image & Rating */}
         <div className="flex-shrink-0 flex flex-col items-center">
-          <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-slate-50 shadow-inner mb-4 bg-slate-100 flex items-center justify-center relative">
+          <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl overflow-hidden border-4 border-slate-50 shadow-inner mb-4 bg-slate-100 flex items-center justify-center relative">
             {user.image ? (
               <img src={user.image} alt={user.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             ) : (
@@ -203,7 +256,7 @@ export default function IntroductionSection({ user, profile, isOwner }: Introduc
               </div>
               <div className="flex flex-wrap items-center gap-y-2 gap-x-4 text-sm text-slate-500 font-medium">
                 <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-slate-400" /> {user.regions && user.regions.length > 0 ? user.regions.join(', ') : '전국, 지역협의'}</span>
-                <span className="flex items-center gap-1.5"><Briefcase className="w-4 h-4 text-slate-400" /> {user.career || '경력 미입력'}</span>
+                <span className="flex items-center gap-1.5"><Briefcase className="w-4 h-4 text-slate-400" /> {getCareerDisplay()}</span>
                 <span className="flex items-center gap-1.5"><Award className="w-4 h-4 text-slate-400" /> {user.grade === 'PRO' ? '프로 전문가' : '일반 헬퍼'}</span>
               </div>
             </div>
@@ -292,7 +345,7 @@ export default function IntroductionSection({ user, profile, isOwner }: Introduc
               {/* Image & Nickname */}
               <div className="flex flex-col sm:flex-row gap-6">
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-24 h-24 rounded-full overflow-hidden bg-slate-100 relative group border-4 border-white shadow-sm">
+                  <div className="w-28 h-28 rounded-2xl overflow-hidden bg-slate-100 relative group border-4 border-white shadow-sm">
                     {editImagePreview ? (
                       <img src={editImagePreview} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
@@ -312,25 +365,43 @@ export default function IntroductionSection({ user, profile, isOwner }: Introduc
                 </div>
 
                 <div className="flex-1 space-y-4">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">닉네임</label>
+                  <div className='flex flex-row gap-2'>
+                    <label className="inline-flex w-[60px] whitespace-nowrap items-center text-sm font-bold text-slate-700">닉네임</label>
                     <input 
                       type="text" 
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      className="text-sm flex-1 border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                       placeholder="이름이나 활동명을 입력해주세요"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">경력 사항</label>
-                    <input 
-                      type="text" 
-                      value={editCareer}
-                      onChange={(e) => setEditCareer(e.target.value)}
-                      className="w-full text-sm border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                      placeholder="예: 경력 5년, 대기업 출신 등"
-                    />
+                  <div className='flex flex-row gap-2'>
+                    <label className="inline-flex w-[60px] whitespace-nowrap items-center text-sm font-bold text-slate-700">시작 경력</label>
+                    <div className="flex-1 flex items-center gap-1.5 sm:gap-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <select
+                          value={editCareerYear}
+                          onChange={(e) => setEditCareerYear(e.target.value)}
+                          className="w-24 text-sm border border-slate-200 rounded-xl px-2 py-2.5 focus:outline-none focus:border-blue-500 bg-white"
+                        >
+                          <option value="" disabled>년도</option>
+                          {Array.from({ length: new Date().getFullYear() - 1950 + 1 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                            <option key={year} value={year.toString()}>{year}년</option>
+                          ))}
+                        </select>
+                        <select
+                          value={editCareerMonth}
+                          onChange={(e) => setEditCareerMonth(e.target.value)}
+                          className="w-20 text-sm border border-slate-200 rounded-xl px-2 py-2.5 focus:outline-none focus:border-blue-500 bg-white"
+                        >
+                          <option value="" disabled>월</option>
+                          {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                            <option key={month} value={month.toString()}>{month}월</option>
+                          ))}
+                        </select>
+                        <span className="text-sm font-base text-slate-700 whitespace-nowrap">(경력 시작년월)</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

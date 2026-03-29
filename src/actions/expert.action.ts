@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { auth } from "@/auth";
 
 /**
  * 전문가 전문 분야 및 추가 정보 업데이트 (V2)
@@ -16,12 +17,17 @@ export async function updateExpertSpecialtiesAction({
   try {
     console.log('[DEBUG] updateExpertSpecialtiesAction V2 starting for userId:', userId);
     
+    const categoryRecords = await (prisma.category as any).findMany({
+      where: { name: { in: specialties } }
+    });
+
     // 강제 타입 캐스팅으로 빌드 오류 방지 및 실시간 반영 확인
     const updatedUser = await (prisma.user as any).update({
       where: { id: userId },
       data: {
         specialties: {
-          set: specialties
+          set: [],
+          connect: categoryRecords.map((c: any) => ({ id: c.id }))
         },
       },
     });
@@ -72,6 +78,7 @@ export async function getExpertHomeDataAction(userId: number) {
       where: { id: userId },
       include: {
         profile: true,
+        specialties: true,
       },
     });
 
@@ -96,7 +103,7 @@ export async function getExpertHomeDataAction(userId: number) {
           grade: user.grade,
           isApproved: (user as any).isApproved,
           image: user.image,
-          specialties: user.specialties || [],
+          specialties: (user as any).specialties?.map((s: any) => s.name) || [],
           regions: user.regions || [],
           career: user.career,
           idCardUrl: user.idCardUrl,
@@ -149,7 +156,8 @@ export async function getRecommendedExpertsAction() {
         role: { in: ['EXPERT', 'BOTH'] }
       },
       include: {
-        profile: true
+        profile: true,
+        specialties: true
       },
       take: 20,
       orderBy: {
@@ -157,16 +165,21 @@ export async function getRecommendedExpertsAction() {
       }
     });
 
-    const formattedExperts = experts.map((expert: any) => ({
-      id: expert.id,
-      name: `${expert.name} 전문가`,
-      specialty: expert.specialties?.[0] || '전문 서비스',
-      category: expert.specialties?.[0] || '기타 서비스',
-      region: '전국, 서울, 경기, 인천, 강원, 충북, 충남, 대전, 세종, 전북, 전남, 광주, 경북, 경남, 부산, 대구, 울산, 제주', 
-      rating: expert.profile?.rating || '5.0',
-      reviews: Math.floor(Math.random() * 50) + 1,
-      image: expert.image || `https://picsum.photos/seed/${expert.name || expert.id}/200/200`
-    }));
+    const formattedExperts = experts.map((expert: any) => {
+      const allCategoryNames = expert.specialties?.map((s: any) => s.name) || [];
+      const joinedSpecialties = allCategoryNames.length > 0 ? allCategoryNames.join(', ') : '전문 서비스';
+      return {
+        id: expert.id,
+        name: `${expert.name} 전문가`,
+        specialty: joinedSpecialties,
+        category: allCategoryNames.length > 0 ? allCategoryNames[0] : '기타 서비스',
+        categories: allCategoryNames,
+        region: '전국, 서울, 경기, 인천, 강원, 충북, 충남, 대전, 세종, 전북, 전남, 광주, 경북, 경남, 부산, 대구, 울산, 제주', 
+        rating: expert.profile?.rating || '5.0',
+        reviews: Math.floor(Math.random() * 50) + 1,
+        image: expert.image || `https://picsum.photos/seed/${expert.name || expert.id}/200/200`
+      };
+    });
 
     return { success: true, data: formattedExperts };
   } catch (error: any) {
@@ -209,13 +222,18 @@ export async function updateFullExpertProfileAction({
         (businessLicenseUrls && JSON.stringify(currentUser?.businessLicenseUrls) !== JSON.stringify(businessLicenseUrls)) ||
         (certificationUrls && JSON.stringify(currentUser?.certificationUrls) !== JSON.stringify(certificationUrls));
 
+      const categoryRecords = await tx.category.findMany({ where: { name: { in: specialties } } });
+
       // 1. Update User info
       const user = await (tx.user as any).update({
         where: { id: userId },
         data: {
           name,
           regions: { set: regions },
-          specialties: { set: specialties },
+          specialties: { 
+            set: [],
+            connect: categoryRecords.map(c => ({ id: c.id }))
+          },
           career,
           ...(image !== undefined && { image }),
           ...(businessLicenseUrls !== undefined && { businessLicenseUrls: { set: businessLicenseUrls } }),
@@ -431,5 +449,85 @@ export async function requestBidModificationAction(bidId: string, customerId: nu
   } catch (error: any) {
     console.error("requestBidModificationAction error:", error);
     return { success: false, error: error.message };
+  }
+}
+
+export async function createDirectEstimateAction(data: {
+  expertId: number;
+  category: string;
+  location: string;
+  serviceDate: string;
+  details: string;
+}) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: '로그인이 필요합니다.' };
+    }
+    const customerId = Number(session.user.id);
+    const authorName = session.user.name;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const categoryRecord = await tx.category.findUnique({ where: { name: data.category } });
+
+      const estimate = await tx.estimate.create({
+        data: {
+          categoryId: categoryRecord?.id,
+          location: data.location,
+          serviceDate: data.serviceDate,
+          details: data.details,
+          customerId,
+          authorName,
+          status: 'PENDING',
+          designatedExpertId: data.expertId,
+          requestNumber: `REQ-${Date.now()}`
+        }
+      });
+
+      const bid = await tx.bid.create({
+        data: {
+          estimateId: estimate.id,
+          expertId: data.expertId,
+          price: 0,
+          status: 'PENDING',
+        }
+      });
+
+      return { estimate, bid };
+    });
+
+    revalidatePath('/expert/requests');
+    return { success: true, data: result };
+  } catch (error: any) {
+    console.error('createDirectEstimateAction error:', error);
+    return { success: false, error: '견적 요청 중 오류가 발생했습니다.' };
+  }
+}
+
+export async function getExpertReceivedRequestsAction(expertId: number) {
+  try {
+    const bids = await prisma.bid.findMany({
+      where: {
+        expertId,
+        estimate: {
+          designatedExpertId: expertId
+        }
+      },
+      include: {
+        items: true,
+        estimate: {
+          include: {
+            customer: {
+              select: { name: true, image: true }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return { success: true, data: bids };
+  } catch (error: any) {
+    console.error('getExpertReceivedRequestsAction error:', error);
+    return { success: false, error: '받은 요청 목록을 불러오는 중 오류가 발생했습니다.' };
   }
 }

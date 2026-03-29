@@ -2,12 +2,15 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2, MapPin, SearchX } from 'lucide-react';
-import { getExpertSchedulesAction } from '@/actions/expert.action';
+import { getExpertSchedulesAction } from '@/actions/schedule.action';
 import { formatCategory } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import DirectEstimateRequestModal from './DirectEstimateRequestModal';
 
-export default function CalendarSection({ userId }: { userId: number }) {
+import { CategoryData } from '@/actions/category.action';
+
+export default function CalendarSection({ userId, specialties = [], categoriesData = [] }: { userId: number; specialties?: string[]; categoriesData?: CategoryData[] }) {
   const router = useRouter();
   const { data: session } = useSession();
   const isOwner = session?.user?.id ? Number(session.user.id) === userId : false;
@@ -16,6 +19,7 @@ export default function CalendarSection({ userId }: { userId: number }) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [schedules, setSchedules] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
 
   const fetchSchedules = async () => {
     setIsLoading(true);
@@ -38,16 +42,18 @@ export default function CalendarSection({ userId }: { userId: number }) {
   const currentYear = currentDate.getFullYear();
 
   // Parse schedules into an array of { dateString, bid }
+  // Parse schedules into unified events
   const parsedEvents = useMemo(() => {
-    const events: { date: string; displayDate: string; bid: any; id: string }[] = [];
-    schedules.forEach((bid, idx) => {
-      if (bid.availableDate) {
-        const dates = bid.availableDate.split(',').map((d: string) => d.trim());
-        dates.forEach((d: string, dIdx: number) => {
-          // 정규식: 앞의 "YYYY-MM-DD" 형태만 추출 (예: '2026-11-20 (금)' -> '2026-11-20')
-          const match = d.match(/^(\d{4}-\d{2}-\d{2})/);
-          const cleanDate = match ? match[1] : d;
-          events.push({ date: cleanDate, displayDate: d, bid, id: `${bid.id}-${dIdx}` });
+    const events: { date: string; id: string; title: string; content?: string; type: string; estimateId?: string }[] = [];
+    schedules.forEach((sch) => {
+      if (sch.date) {
+        events.push({ 
+          date: sch.date, 
+          id: sch.id,
+          title: sch.title,
+          content: sch.content,
+          type: sch.type,
+          estimateId: sch.estimateId
         });
       }
     });
@@ -177,8 +183,32 @@ export default function CalendarSection({ userId }: { userId: number }) {
     calendarGrid.push(renderCalendarCell(dateStr, i, false));
   }
 
+  const isSelectedDateAvailable = selectedDate && parsedEvents.filter(e => e.date === selectedDate).length === 0;
+
   return (
-    <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm transition-all hover:shadow-md h-full flex flex-col">
+    <>
+      <div className="flex flex-col h-full space-y-4">
+        <div className="flex justify-end">
+        <button
+          disabled={!isSelectedDateAvailable}
+          onClick={() => {
+            if (!session?.user) {
+              alert('로그인이 필요한 서비스입니다.');
+              window.location.href = '/login';
+              return;
+            }
+            setIsRequestModalOpen(true);
+          }}
+          className={`px-6 py-4 font-bold rounded-2xl transition-all w-full flex justify-center items-center gap-2 text-base ${
+            isSelectedDateAvailable
+              ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20 active:scale-95'
+              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+          }`}
+        >
+          {isSelectedDateAvailable ? '📝 전문가에게 1:1 견적 요청하기' : '📅 스케줄 없는 날짜를 달력에서 선택해주세요'}
+        </button>
+      </div>
+      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm transition-all hover:shadow-md h-full flex flex-col min-h-0">
       {/* 헤더 부분 */}
       <div className="flex items-center justify-between mb-8">
         <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
@@ -242,46 +272,47 @@ export default function CalendarSection({ userId }: { userId: number }) {
         ) : (
           <div className="space-y-2.5 overflow-y-auto h-full custom-scrollbar pr-1">
             {displayedEvents.map((event) => {
-              const estimate = event.bid.estimate;
-              // Date formatted for list (e.g. 11.20)
               const [m, d] = event.date.split('-').slice(1);
+              const isAuto = event.type === 'AUTO';
+              const isHoliday = event.type === 'HOLIDAY';
               
               return (
                 <div 
                   key={event.id} 
-                  onClick={() => {
-                    if (isOwner) {
-                      router.push(`/expert/bids?bidId=${event.bid.id}`);
-                    }
-                  }}
-                  className={`flex flex-col bg-indigo-50/40 rounded-xl border border-indigo-100/60 p-3 hover:bg-indigo-50 transition-colors ${isOwner ? 'cursor-pointer' : ''}`}
+                  className={`flex flex-col rounded-xl border p-3 hover:bg-slate-50 transition-colors ${isHoliday ? 'bg-red-50/40 border-red-100/60' : 'bg-indigo-50/40 border-indigo-100/60'}`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-black text-indigo-600 bg-white px-2 py-0.5 rounded shadow-sm border border-indigo-100">
-                      {m}/{d} ({event.bid.status === 'ACCEPTED' ? '확정' : '제안중'})
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-xs font-black bg-white px-2 py-0.5 rounded shadow-sm border ${isHoliday ? 'text-red-600 border-red-100' : 'text-indigo-600 border-indigo-100'}`}>
+                      {m}/{d} ({isAuto ? '매칭' : isHoliday ? '휴일' : '개별'})
                     </span>
-                    <span className="text-[11px] font-bold text-slate-500">{formatCategory(estimate.category)}</span>
                   </div>
                   <div className="text-sm font-bold text-slate-700 mb-1 leading-tight line-clamp-1">
-                    {estimate.details}
+                    {event.title}
                   </div>
-                  <div className="flex items-center justify-between mt-auto pt-2">
-                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
-                      <MapPin className="w-3 h-3 text-slate-400" />
-                      <span className="truncate max-w-[120px]">{estimate.location}</span>
+                  {event.content && (
+                    <div className="text-xs font-semibold text-slate-500 mt-1 line-clamp-2">
+                      {event.content}
                     </div>
-                    {estimate.customer?.name && (
-                      <span className="text-[11px] font-bold text-slate-500 bg-white px-1.5 py-0.5 rounded-md border border-slate-200">
-                        {estimate.customer.name} 고객
-                      </span>
-                    )}
-                  </div>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
       </div>
+      </div>
     </div>
+
+      {isRequestModalOpen && (
+        <DirectEstimateRequestModal 
+          expertId={userId} 
+          onClose={() => setIsRequestModalOpen(false)} 
+          initialServiceDate={selectedDate || undefined}
+          unavailableDates={parsedEvents.map(e => e.date)}
+          specialties={specialties}
+          categoriesData={categoriesData}
+        />
+      )}
+    </>
   );
 }

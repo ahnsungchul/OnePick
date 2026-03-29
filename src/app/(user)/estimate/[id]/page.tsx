@@ -484,7 +484,7 @@ export default function EstimateDetailPage() {
           )}
 
           {/* 전문가용: 견적서 작성 폼 (인라인) */}
-          {isExpired && isExpert && !isAuthor && !hasParticipated && (
+          {isExpired && isExpert && !isAuthor && !hasParticipated ? (
             <div className="mt-12 p-10 bg-slate-100 rounded-3xl border border-slate-200 text-center animate-in fade-in duration-700">
               <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 text-slate-400 shadow-sm">
                 <Clock className="w-8 h-8" />
@@ -498,9 +498,7 @@ export default function EstimateDetailPage() {
                 <AlertCircle className="w-3.5 h-3.5" /> 다른 견적 요청을 확인해 보시는 건 어떨까요?
               </div>
             </div>
-          )}
-
-          {canBid ? (
+          ) : canBid ? (
             <div id="bid-form" className="mt-12 pt-12 border-t border-slate-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex items-center justify-between mb-8">
                 <div>

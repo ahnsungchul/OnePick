@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Zap, Share2, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ShareButton from '@/components/expert/ShareButton';
@@ -15,6 +15,8 @@ interface ExpertHeaderContentProps {
 export default function ExpertHeaderContent({ isOwner = true }: ExpertHeaderContentProps) {
   const { data: session } = useSession();
   const pathname = usePathname() || '';
+  const searchParams = useSearchParams();
+  const userIdParam = searchParams.get('userId');
   
   const user = session?.user as any;
   const grade = user?.grade || 'HELPER';
@@ -45,14 +47,14 @@ export default function ExpertHeaderContent({ isOwner = true }: ExpertHeaderCont
         </span>
       </div>
 
-      {/* 메뉴 영역: 본인 전문가홈에서만 노출 */}
-      {isOwner && (
+      {/* 메뉴 영역: 본인 전문가홈/방문자 메뉴 차등 노출 */}
+      {userIdParam && (
         <nav className="hidden lg:flex items-center gap-8 font-bold text-sm">
           {menuItems.map((item) => (
-            (item.showAlways || isLoggedIn) && (
+            (isOwner || item.showAlways) && (
               <Link 
                 key={item.href}
-                href={item.href} 
+                href={`${item.href}?userId=${userIdParam}`} 
                 className={cn(
                   "transition-colors",
                   pathname.startsWith(item.href) ? "text-blue-600" : "text-slate-500 hover:text-slate-900"
@@ -67,8 +69,8 @@ export default function ExpertHeaderContent({ isOwner = true }: ExpertHeaderCont
 
       {/* 우측 기능 (공유하기, 즐겨찾기) */}
       <div className="flex items-center gap-2">
-        <ShareButton />
-        {!isOwner && (
+        {userIdParam && <ShareButton />}
+        {userIdParam && !isOwner && (
           <button 
             onClick={() => {
               if (!isLoggedIn) {
