@@ -1,7 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { UserRole, ExpertGrade } from "@prisma/client";
+import { UserRole, ExpertGrade } from "@/generated/prisma";
 
 /**
  * 사용자 정보, 계정 연동, 전문 분야 등을 한 번에 등록하는 원자적 회원가입 액션
