@@ -174,6 +174,25 @@ export async function getRecommendedExpertsAction() {
     const formattedExperts = experts.map((expert: any) => {
       const allCategoryNames = expert.specialties?.map((s: any) => s.name) || [];
       const joinedSpecialties = allCategoryNames.length > 0 ? allCategoryNames.join(', ') : '전문 서비스';
+      
+      let formattedCareer = '신입';
+      if (expert.career && expert.career !== '경력 미입력' && expert.career !== '신입') {
+        const yearMatch = expert.career.match(/(\d{4})년/);
+        const monthMatch = expert.career.match(/(\d{1,2})월/);
+        if (yearMatch) {
+          const year = parseInt(yearMatch[1], 10);
+          const month = monthMatch ? parseInt(monthMatch[1], 10) : 1;
+          const now = new Date();
+          const monthsDiff = (now.getFullYear() - year) * 12 + (now.getMonth() + 1 - month);
+          const yearOfExp = monthsDiff >= 0 ? Math.floor(monthsDiff / 12) + 1 : 1;
+          formattedCareer = `경력 ${yearOfExp}년`;
+        } else {
+          formattedCareer = expert.career;
+        }
+      } else if (expert.career) {
+        formattedCareer = expert.career;
+      }
+
       return {
         id: expert.id,
         name: `${expert.name} 전문가`,
@@ -181,6 +200,7 @@ export async function getRecommendedExpertsAction() {
         category: allCategoryNames.length > 0 ? allCategoryNames[0] : '기타 서비스',
         categories: allCategoryNames,
         region: '전국, 서울, 경기, 인천, 강원, 충북, 충남, 대전, 세종, 전북, 전남, 광주, 경북, 경남, 부산, 대구, 울산, 제주', 
+        career: formattedCareer,
         rating: expert.profile?.rating || '5.0',
         reviews: Math.floor(Math.random() * 50) + 1,
         image: expert.image || `https://picsum.photos/seed/${expert.name || expert.id}/200/200`
@@ -239,8 +259,7 @@ export async function updateFullExpertProfileAction({
           name,
           regions: { set: regions },
           specialties: { 
-            set: [],
-            connect: categoryRecords.map(c => ({ id: c.id }))
+            set: categoryRecords.map(c => ({ id: c.id }))
           },
           career,
           ...(image !== undefined && { image }),

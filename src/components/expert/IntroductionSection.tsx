@@ -191,7 +191,7 @@ export default function IntroductionSection({ user, profile, isOwner, categories
       name: editName,
       regions: editRegions,
       specialties: editSpecialties,
-      career: editCareerYear && editCareerMonth ? `${editCareerYear}년 ${editCareerMonth}월 시작` : '경력 미입력',
+      career: (editCareerYear && editCareerMonth) ? `${editCareerYear}년 ${editCareerMonth}월 시작` : (editCareerYear ? `${editCareerYear}년 시작` : '경력 미입력'),
       introduction: editIntroduction,
       idCardUrl: editIdCard ? editIdCard.name : null,
       businessLicenseUrls: editBusinessLicenses.map(b => b.name),

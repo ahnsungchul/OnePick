@@ -14,7 +14,7 @@ interface ExpertHeaderContentProps {
 }
 
 export default function ExpertHeaderContent({ isOwner = true }: ExpertHeaderContentProps) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const pathname = usePathname() || '';
   const searchParams = useSearchParams();
   const userIdParam = searchParams.get('userId');
@@ -22,6 +22,23 @@ export default function ExpertHeaderContent({ isOwner = true }: ExpertHeaderCont
   const user = session?.user as any;
   const grade = user?.grade || 'HELPER';
   const isLoggedIn = !!session?.user;
+
+  // 메인 창에서 로그아웃 시 팝업(본 창)도 새로고침하여 리다이렉트되도록 하되, 무한루프 방지
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      const isReloaded = sessionStorage.getItem('loggedOutReloaded');
+      if (!isReloaded) {
+        sessionStorage.setItem('loggedOutReloaded', 'true');
+        if (pathname !== '/expert/dashboard') {
+          window.location.href = `/expert/dashboard${userIdParam ? `?userId=${userIdParam}` : ''}`;
+        } else {
+          window.location.reload();
+        }
+      }
+    } else if (status === 'authenticated') {
+      sessionStorage.removeItem('loggedOutReloaded');
+    }
+  }, [status, pathname, userIdParam]);
 
   const [unreadCount, setUnreadCount] = useState(0);
 

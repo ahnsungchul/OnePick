@@ -116,14 +116,14 @@ export default function UserRequestsPage() {
   }, [requests, activeFilter, readBids, readChatsLocally]);
 
   const filters = [
-    { label: '전체', value: 'ALL', count: counts.ALL },
-    { label: '작성중', value: 'DRAFT', count: counts.DRAFT },
-    { label: '신규견적', value: 'NEW_BIDS', count: counts.NEW_BIDS },
-    { label: '신규메시지', value: 'NEW_MESSAGE', count: counts.NEW_MESSAGE },
-    { label: '매칭중', value: 'MATCHING', count: counts.MATCHING },
-    { label: '전문가확정', value: 'FINISHED', count: counts.FINISHED },
-    { label: '서비스완료', value: 'COMPLETED', count: counts.COMPLETED },
-    { label: '취소', value: 'CANCELLED', count: counts.CANCELLED },
+    { label: '전체', value: 'ALL', count: counts.ALL, activeCls: 'text-slate-900 border-slate-800', badgeActive: 'bg-slate-800 text-white' },
+    { label: '작성중', value: 'DRAFT', count: counts.DRAFT, activeCls: 'text-amber-600 border-amber-500', badgeActive: 'bg-amber-500 text-white' },
+    { label: '신규견적', value: 'NEW_BIDS', count: counts.NEW_BIDS, activeCls: 'text-emerald-600 border-emerald-500', badgeActive: 'bg-emerald-500 text-white' },
+    { label: '신규메시지', value: 'NEW_MESSAGE', count: counts.NEW_MESSAGE, activeCls: 'text-red-500 border-red-500', badgeActive: 'bg-red-500 text-white' },
+    { label: '매칭중', value: 'MATCHING', count: counts.MATCHING, activeCls: 'text-blue-600 border-blue-500', badgeActive: 'bg-blue-500 text-white' },
+    { label: '전문가확정', value: 'FINISHED', count: counts.FINISHED, activeCls: 'text-indigo-600 border-indigo-500', badgeActive: 'bg-indigo-500 text-white' },
+    { label: '서비스완료', value: 'COMPLETED', count: counts.COMPLETED, activeCls: 'text-slate-600 border-slate-600', badgeActive: 'bg-slate-600 text-white' },
+    { label: '취소', value: 'CANCELLED', count: counts.CANCELLED, activeCls: 'text-red-600 border-red-500', badgeActive: 'bg-red-500 text-white' },
   ];
 
   if (status === 'loading' || isLoading) {
@@ -157,30 +157,32 @@ export default function UserRequestsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-2">
-        <div>
-          <h2 className="text-2xl font-black text-slate-900">내 요청 내역</h2>
-          <p className="text-slate-500 text-sm mt-1">작성하신 서비스 요청에 대한 진행 상황을 확인해보세요.</p>
-        </div>
-        <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-xl w-fit">
-          {filters.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setActiveFilter(f.value)}
-              className={`px-4 py-2 text-sm font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-                activeFilter === f.value 
-                ? 'bg-white text-blue-600 shadow-sm' 
-                : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              <span>{f.label}</span>
-              <span className={`text-[11px] px-1.5 py-0.25 rounded-full ${
-                activeFilter === f.value ? 'bg-blue-50 text-blue-600' : 'bg-slate-200 text-slate-500'
-              }`}>
-                {f.count}
-              </span>
-            </button>
-          ))}
+      <div className="mb-6">
+        <h2 className="text-2xl font-black text-slate-900">내 요청 내역</h2>
+        <p className="text-slate-500 text-sm mt-1 mb-6">작성하신 서비스 요청에 대한 진행 상황을 확인해보세요.</p>
+        
+        <div className="flex w-full overflow-x-auto hide-scrollbar border-b border-slate-200">
+          <div className="flex min-w-max w-full">
+            {filters.map((f) => {
+              const isActive = activeFilter === f.value;
+              return (
+                <button
+                  key={f.value}
+                  onClick={() => setActiveFilter(f.value)}
+                  className={`flex-1 sm:flex-none py-4 px-4 sm:px-6 border-b-2 font-bold text-[13px] sm:text-sm transition-all flex items-center justify-center gap-2
+                    ${isActive ? f.activeCls : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-50'}
+                  `}
+                >
+                  {f.label}
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-black transition-colors ${
+                    isActive ? f.badgeActive : 'bg-slate-100 text-slate-500'
+                  }`}>
+                    {f.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 

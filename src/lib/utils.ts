@@ -180,3 +180,27 @@ export const calculateDDay = (createdAt: string | Date, isClosed: boolean = fals
   if (diffDays === 0) return { label: '오늘까지', isUrgent: true, diffDays };
   return { label: '요청 마감', isUrgent: false, diffDays };
 };
+
+/**
+ * 경력 문자열 포맷팅
+ * @param career DB에 저장된 원래의 경력 문자열 (예: "2024년 5월 시작")
+ * @returns "경력 x년", "신입", "경력증명요망" 등의 정리된 문자열
+ */
+export const formatCareerString = (career?: string) => {
+  if (!career || career === '경력 미입력') return '경력증명요망';
+  if (career === '신입') return '신입';
+  
+  const yearMatch = career.match(/(\d{4})년/);
+  const monthMatch = career.match(/(\d{1,2})월/);
+  
+  if (yearMatch) {
+    const year = parseInt(yearMatch[1], 10);
+    const month = monthMatch ? parseInt(monthMatch[1], 10) : 1;
+    const now = new Date();
+    const monthsDiff = (now.getFullYear() - year) * 12 + (now.getMonth() + 1 - month);
+    const yearOfExp = monthsDiff >= 0 ? Math.floor(monthsDiff / 12) + 1 : 1;
+    return `경력 ${yearOfExp}년`;
+  }
+  
+  return career;
+};

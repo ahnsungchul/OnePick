@@ -358,6 +358,9 @@ export default function EstimateListPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {filteredExperts.slice(0, 4).map(expert => (
                 <div key={expert.id} className="relative bg-white rounded-2xl border border-slate-100 p-5 pt-7 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5 transition-all text-center group">
+                  <div className="absolute top-3 left-3 flex items-center bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 max-w-[50%]">
+                    <span className="font-bold text-[10px] text-blue-700 truncate">{expert.career || '경력 미입력'}</span>
+                  </div>
                   <div className="absolute top-3 right-3 flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100/50">
                     <Star className="w-3 h-3 text-amber-500 fill-current" />
                     <span className="font-bold text-xs text-amber-700">{expert.rating}</span>

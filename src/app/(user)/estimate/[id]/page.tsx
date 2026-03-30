@@ -28,7 +28,7 @@ import {
 } from '@/actions/estimate.action';
 import { submitBidAction } from '@/actions/bid.action';
 import { checkDateAvailabilityAction } from '@/actions/expert.action';
-import { maskName, maskContact, maskAddress, formatCategory, calculateDDay } from '@/lib/utils';
+import { maskName, maskContact, maskAddress, formatCategory, calculateDDay, formatCareerString } from '@/lib/utils';
 import Link from 'next/link';
 import BidDetailModal from '@/components/user/BidDetailModal';
 import EstimateEditModal from '@/components/user/EstimateEditModal';
@@ -1050,6 +1050,9 @@ export default function EstimateDetailPage() {
                   key={bid.id} 
                   className="relative bg-white rounded-2xl border border-slate-100 p-5 pt-7 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5 transition-all text-center group flex flex-col items-center justify-center"
                 >
+                  <div className="absolute top-3 left-3 flex items-center bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 max-w-[50%] z-10">
+                    <span className="font-bold text-[10px] text-blue-700 truncate">{formatCareerString(bid.expert.career)}</span>
+                  </div>
                   {bid.status === 'ACCEPTED' ? (
                     <div className="absolute top-0 right-0 bg-blue-600 text-white px-3 py-1 rounded-bl-2xl flex items-center gap-1 shadow-sm z-10">
                       <CheckCircle2 className="w-3.5 h-3.5" />
