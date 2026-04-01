@@ -293,7 +293,7 @@ export async function getMyRequestsAction(userId: number) {
       include: {
         bids: {
           include: {
-            expert: true,
+            expert: { include: { profile: true } },
             items: true
           },
           orderBy: { createdAt: "desc" }
@@ -338,7 +338,7 @@ export async function getEstimateByIdAction(id: string) {
         customer: true,
         bids: {
           include: {
-            expert: true,
+            expert: { include: { profile: true } },
             items: true,
           },
           orderBy: { createdAt: "desc" },

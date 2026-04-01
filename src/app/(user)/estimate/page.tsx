@@ -361,10 +361,10 @@ export default function EstimateListPage() {
                   <div className="absolute top-3 left-3 flex items-center bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 max-w-[50%]">
                     <span className="font-bold text-[10px] text-blue-700 truncate">{expert.career || '경력 미입력'}</span>
                   </div>
-                  <div className="absolute top-3 right-3 flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100/50">
-                    <Star className="w-3 h-3 text-amber-500 fill-current" />
-                    <span className="font-bold text-xs text-amber-700">{expert.rating}</span>
-                    <span className="text-amber-600/50 text-[10px]">({expert.reviews})</span>
+                  <div className="absolute top-3 right-3 flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100/50 z-10">
+                    <Star className="w-3.5 h-3.5 text-amber-500 fill-current" />
+                    <span className="font-bold text-xs text-amber-700">{Number(expert.rating || 0).toFixed(1)}</span>
+                    <span className="text-amber-600/50 text-[10px]">({expert.reviews || 0})</span>
                   </div>
                   <div className="w-16 h-16 rounded-full overflow-hidden mx-auto mb-3 border border-slate-100 group-hover:scale-105 transition-transform duration-300">
                     <img src={expert.image} alt={expert.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />

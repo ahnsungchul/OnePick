@@ -1065,10 +1065,10 @@ export default function EstimateDetailPage() {
                       <span className="text-[10px] font-black">채택됨</span>
                     </div>
                   ) : (
-                    <div className="absolute top-3 right-3 flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100/50">
-                      <Star className="w-3 h-3 text-amber-500 fill-current" />
-                      <span className="font-bold text-xs text-amber-700">5.0</span>
-                      <span className="text-amber-600/50 text-[10px]">(0)</span>
+                    <div className="absolute top-3 right-3 flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100/50 z-10">
+                      <Star className="w-3.5 h-3.5 text-amber-500 fill-current" />
+                      <span className="font-bold text-xs text-amber-700">{Number(bid.expert.profile?.rating || 0).toFixed(1)}</span>
+                      <span className="text-amber-600/50 text-[10px]">({bid.expert.profile?.reviewCount || 0})</span>
                     </div>
                   )}
                   

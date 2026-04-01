@@ -256,9 +256,10 @@ export default function IntroductionSection({ user, profile, isOwner, categories
               <User className="w-12 h-12 text-slate-300" />
             )}
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold border border-amber-100 mb-2">
-            <Star className="w-3.5 h-3.5 fill-current" />
-            <span>{profile.rating?.toFixed(1) || '5.0'}</span>
+          <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100/50 mb-2">
+            <Star className="w-3.5 h-3.5 text-amber-500 fill-current" />
+            <span className="font-bold text-xs text-amber-700">{Number(profile.rating || 0).toFixed(1)}</span>
+            <span className="text-amber-600/50 text-[10px]">({profile.reviewCount || 0})</span>
           </div>
         </div>
 

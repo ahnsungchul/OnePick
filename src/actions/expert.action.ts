@@ -66,7 +66,8 @@ export async function getExpertHomeDataAction(userId: number) {
            profile: {
              introduction: "방문자 모드로 조회 중입니다. 로그인하시면 더 많은 기능을 이용하실 수 있습니다.",
              portfolioUrl: null,
-             rating: 4.5,
+             rating: 0,
+             reviewCount: 0,
            },
            stats: {
              totalBids: 120,
@@ -120,6 +121,7 @@ export async function getExpertHomeDataAction(userId: number) {
           introduction: "",
           portfolioUrl: null,
           rating: 0,
+          reviewCount: 0,
         },
         stats
       } 
@@ -201,8 +203,8 @@ export async function getRecommendedExpertsAction() {
         categories: allCategoryNames,
         region: '전국, 서울, 경기, 인천, 강원, 충북, 충남, 대전, 세종, 전북, 전남, 광주, 경북, 경남, 부산, 대구, 울산, 제주', 
         career: formattedCareer,
-        rating: expert.profile?.rating || '5.0',
-        reviews: Math.floor(Math.random() * 50) + 1,
+        rating: expert.profile?.rating || 0.0,
+        reviews: expert.profile?.reviewCount || 0,
         image: expert.image || `https://picsum.photos/seed/${expert.name || expert.id}/200/200`
       };
     });

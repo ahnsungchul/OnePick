@@ -129,6 +129,7 @@ model Profile {
   introduction String // 전문가 상세 소개
   portfolioUrl String? // 포트폴리오(S3 URL 등)
   rating       Float   @default(0.0) // 평점
+  reviewCount  Int     @default(0)   // 후기 갯수
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
