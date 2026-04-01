@@ -126,7 +126,7 @@ export default function EstimateDetailPage() {
 
   // 배경 스크롤 방지 (팝업 오픈 시)
   useEffect(() => {
-    if (selectedImageIndex !== null || showDeleteModal || showBidModal || showBidDetailModal) {
+    if (selectedImageIndex !== null || showDeleteModal || showBidModal || showBidDetailModal || !!errorModalMessage) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -134,7 +134,7 @@ export default function EstimateDetailPage() {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [selectedImageIndex, showDeleteModal, showBidModal, showBidDetailModal]);
+  }, [selectedImageIndex, showDeleteModal, showBidModal, showBidDetailModal, errorModalMessage]);
 
   useEffect(() => {
     async function fetchData() {
@@ -204,9 +204,15 @@ export default function EstimateDetailPage() {
     if (!userId || isSubmittingBid) return;
 
     // 유효성 검사
-    const isValid = bidItems.every(item => item.name && item.amount && parseInt(item.amount) > 0);
-    if (!isValid) {
-      setErrorModalMessage("모든 항목의 명칭과 올바른 금액을 입력해 주세요.");
+    const hasEmptyName = bidItems.some(item => !item.name);
+    if (hasEmptyName) {
+      setErrorModalMessage("견적 항목의 명칭을 입력해 주세요.");
+      return;
+    }
+
+    const hasInvalidAmount = bidItems.some(item => !item.amount || parseInt(item.amount) <= 0);
+    if (hasInvalidAmount) {
+      setErrorModalMessage("항목의 예상 금액을 1만원 이상 입력해 주세요.");
       return;
     }
 

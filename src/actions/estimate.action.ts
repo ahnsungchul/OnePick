@@ -393,6 +393,35 @@ export async function deleteEstimateAction(id: string, userId: number) {
   }
 }
 
+/**
+ * 견적 취소 Server Action (상태만 CANCELLED로 변경)
+ */
+export async function cancelEstimateAction(id: string, userId: number) {
+  try {
+    const estimate = await prisma.estimate.findUnique({
+      where: { id },
+    });
+
+    if (!estimate) {
+      throw new Error("존재하지 않는 견적 요청입니다.");
+    }
+
+    if (estimate.customerId !== userId) {
+      throw new Error("취소 권한이 없습니다.");
+    }
+
+    await prisma.estimate.update({
+      where: { id },
+      data: { status: "CANCELLED" },
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("cancelEstimateAction error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 
 
 /**

@@ -21,7 +21,7 @@ import EstimateDetailModal from './EstimateDetailModal';
 import EstimateEditModal from './EstimateEditModal';
 import BidDetailModal from './BidDetailModal';
 import ChatPopupModal from '../chat/ChatPopupModal';
-import { deleteEstimateAction, closeEstimateAction, cancelCloseEstimateAction, extendEstimateDeadlineAction } from '@/actions/estimate.action';
+import { deleteEstimateAction, cancelEstimateAction, closeEstimateAction, cancelCloseEstimateAction, extendEstimateDeadlineAction } from '@/actions/estimate.action';
 import { acceptBidAction, cancelBidSelectionAction } from '@/actions/bid.action';
 import { completePaymentAction } from '@/actions/payment.action';
 import { useSession } from 'next-auth/react';
@@ -117,12 +117,13 @@ export default function MyRequestListItem({
   const [showDateAlert, setShowDateAlert] = useState(false);
   const [showCloseAlert, setShowCloseAlert] = useState(false);
   const [showActiveBidAlert, setShowActiveBidAlert] = useState(false);
+  const [showCancelAlert, setShowCancelAlert] = useState(false);
   const [isClosedLocal, setIsClosedLocal] = useState(estimate.isClosed);
   const { data: session } = useSession();
 
   // 모달 팝업 시 배경 스크롤 방지
   useEffect(() => {
-    if (pendingBidId || showDateAlert || showCloseAlert || showActiveBidAlert) {
+    if (pendingBidId || showDateAlert || showCloseAlert || showActiveBidAlert || showCancelAlert) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -130,7 +131,7 @@ export default function MyRequestListItem({
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [pendingBidId, showDateAlert, showCloseAlert, showActiveBidAlert]);
+  }, [pendingBidId, showDateAlert, showCloseAlert, showActiveBidAlert, showCancelAlert]);
   const handleCompletePayment = async (e: React.MouseEvent, bidId: string) => {
     e.stopPropagation();
     
@@ -154,7 +155,7 @@ export default function MyRequestListItem({
     }
   };
 
-  const handleAcceptBid = async (e: React.MouseEvent, bidId: string, bidAvailableDate: string | null) => {
+  const handleAcceptBid = async (e: React.MouseEvent, bidId: string, bidAvailableDate: string | undefined) => {
     e.stopPropagation();
 
     const selected = selectedDates[bidId];
@@ -172,7 +173,7 @@ export default function MyRequestListItem({
     setIsAccepting(true);
 
     const userId = parseInt(session.user.id, 10);
-    const result = await acceptBidAction(estimate.id, bidId, userId, selected || null);
+    const result = await acceptBidAction(estimate.id, bidId, userId, selected);
 
     if (result.success) {
       window.location.reload();
@@ -200,7 +201,7 @@ export default function MyRequestListItem({
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('정말 이 요청을 삭제하시겠습니까? 관련 견적 및 대화 내용도 모두 삭제됩니다.')) {
+    if (!window.confirm('작성 중인 요청을 삭제하시겠습니까?')) {
       return;
     }
 
@@ -217,6 +218,33 @@ export default function MyRequestListItem({
       window.location.reload();
     } else {
       alert(result.error || '삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleCancelEstimateClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowCancelAlert(true);
+  };
+
+  const handleConfirmCancelEstimate = async () => {
+    if (!session?.user?.id) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+
+    if (isCanceling) return;
+    setIsCanceling(true);
+
+    const userId = parseInt(session.user.id, 10);
+    const result = await cancelEstimateAction(estimate.id, userId);
+
+    if (result.success) {
+      alert('요청이 취소되었습니다.');
+      setShowCancelAlert(false);
+      window.location.reload();
+    } else {
+      alert(result.error || '취소 중 오류가 발생했습니다.');
+      setIsCanceling(false);
     }
   };
 
@@ -398,7 +426,7 @@ export default function MyRequestListItem({
                 </div>
               )}
 
-              {/* Edit and Delete Buttons */}
+              {/* Edit and Cancel Buttons */}
               {estimate.status !== 'DRAFT' && estimate.status !== 'COMPLETED' && estimate.status !== 'CANCELLED' && (
                 <div className="flex flex-row gap-2">
                   <button 
@@ -414,16 +442,16 @@ export default function MyRequestListItem({
                     수정
                   </button>
                   <button 
-                    onClick={estimate.status === 'IN_PROGRESS' ? undefined : handleDelete}
+                    onClick={estimate.status === 'IN_PROGRESS' ? undefined : handleCancelEstimateClick}
                     disabled={estimate.status === 'IN_PROGRESS'}
                     className={`w-full md:w-auto px-4 py-1 text-sm font-bold rounded-md border transition-colors ${
                       estimate.status === 'IN_PROGRESS'
                       ? 'text-slate-400 bg-slate-50 border-slate-200 cursor-not-allowed opacity-70'
                       : 'text-red-600 bg-red-50 border-red-100 hover:bg-red-100'
                     }`}
-                    title={estimate.status === 'IN_PROGRESS' ? '전문가가 확정된 요청은 삭제할 수 없습니다.' : ''}
+                    title={estimate.status === 'IN_PROGRESS' ? '전문가가 확정된 요청은 취소할 수 없습니다.' : ''}
                   >
-                    삭제
+                    취소
                   </button>
                 </div>
               )}
@@ -470,7 +498,7 @@ export default function MyRequestListItem({
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {estimate.bids.map((bid) => {
                 const isMatched = estimate.status === 'IN_PROGRESS' || estimate.status === 'COMPLETED' || estimate.status === 'SELECTED';
-                const isInactive = isMatched && bid.status !== 'ACCEPTED';
+                const isInactive = (isMatched && bid.status !== 'ACCEPTED') || estimate.status === 'CANCELLED';
 
                 const isSelectedAndAccepted = estimate.status === 'SELECTED' && bid.status === 'ACCEPTED';
                 return (
@@ -564,7 +592,10 @@ export default function MyRequestListItem({
                           alert("프로필 정보가 없습니다.");
                         }
                       }}
-                      className="flex-1 text-xs font-bold bg-slate-50 text-slate-600 py-2.5 rounded-xl hover:bg-slate-100 transition-all border border-slate-200"
+                      disabled={isInactive}
+                      className={`flex-1 text-xs font-bold py-2.5 rounded-xl transition-all border ${
+                        isInactive ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
+                      }`}
                     >
                       프로필
                     </button>
@@ -573,58 +604,63 @@ export default function MyRequestListItem({
                         e.stopPropagation();
                         setSelectedBidForModal(bid);
                       }}
-                      className="flex-1 text-xs font-bold bg-slate-50 text-slate-600 py-2.5 rounded-xl hover:bg-slate-100 transition-all border border-slate-200"
+                      disabled={isInactive}
+                      className={`flex-1 text-xs font-bold py-2.5 rounded-xl transition-all border ${
+                        isInactive ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
+                      }`}
                     >
                       견적보기
                     </button>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Open the modal and bids immediately
-                        setSelectedChatBid(bid);
-                        setIsBidsOpen(true);
-                        
-                        if (bid.expert.id && !readExpertIds.includes(bid.expert.id)) {
-                          setReadExpertIds(prev => [...prev, bid.expert.id]);
-                        }
-                        // Mark as read immediately
-                        if (onMarkChatAsRead) {
-                          onMarkChatAsRead(estimate.id);
-                        }
-                        if (onMarkBidsAsRead && estimate.bids.length > 0) {
-                          onMarkBidsAsRead(estimate.bids.map((b: any) => b.id));
-                        }
-                        
-                        // Move to native status tab immediately (synchronous to batch with other updates)
-                        if (activeFilter === 'NEW_MESSAGE' && onMoveToStatus) {
-                          let nextFilter = 'MATCHING';
-                          if (['PENDING', 'BIDDING', 'SELECTED'].includes(estimate.status)) nextFilter = 'MATCHING';
-                          else if (['IN_PROGRESS'].includes(estimate.status)) nextFilter = 'FINISHED';
-                          else if (['COMPLETED'].includes(estimate.status)) nextFilter = 'COMPLETED';
-                          else if (['DRAFT'].includes(estimate.status)) nextFilter = 'DRAFT';
-                          else nextFilter = 'ALL';
+                    {!isInactive && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Open the modal and bids immediately
+                          setSelectedChatBid(bid);
+                          setIsBidsOpen(true);
                           
-                          onMoveToStatus(nextFilter);
-                        }
-                      }}
-                      className="relative flex-1 text-xs font-bold bg-blue-50 text-blue-600 py-2.5 rounded-xl hover:bg-blue-600 hover:text-white transition-all border border-blue-100"
-                    >
-                      상담하기
-                      {(() => {
-                        const expertUnreadCount = estimate.unreadChats?.filter(chat => chat.senderId === bid.expert.id && !readExpertIds.includes(bid.expert.id)).length || 0;
-                        if (expertUnreadCount > 0) {
-                          return (
-                            <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full font-black shadow-sm z-10">
-                              {expertUnreadCount > 9 ? '9+' : expertUnreadCount}
-                            </span>
-                          );
-                        }
-                        return null;
-                      })()}
-                    </button>
+                          if (bid.expert.id && !readExpertIds.includes(bid.expert.id)) {
+                            setReadExpertIds(prev => [...prev, bid.expert.id]);
+                          }
+                          // Mark as read immediately
+                          if (onMarkChatAsRead) {
+                            onMarkChatAsRead(estimate.id);
+                          }
+                          if (onMarkBidsAsRead && estimate.bids.length > 0) {
+                            onMarkBidsAsRead(estimate.bids.map((b: any) => b.id));
+                          }
+                          
+                          // Move to native status tab immediately (synchronous to batch with other updates)
+                          if (activeFilter === 'NEW_MESSAGE' && onMoveToStatus) {
+                            let nextFilter = 'MATCHING';
+                            if (['PENDING', 'BIDDING', 'SELECTED'].includes(estimate.status)) nextFilter = 'MATCHING';
+                            else if (['IN_PROGRESS'].includes(estimate.status)) nextFilter = 'FINISHED';
+                            else if (['COMPLETED'].includes(estimate.status)) nextFilter = 'COMPLETED';
+                            else if (['DRAFT'].includes(estimate.status)) nextFilter = 'DRAFT';
+                            else nextFilter = 'ALL';
+                            
+                            onMoveToStatus(nextFilter);
+                          }
+                        }}
+                        className="relative flex-1 text-xs font-bold bg-blue-50 text-blue-600 py-2.5 rounded-xl hover:bg-blue-600 hover:text-white transition-all border border-blue-100"
+                      >
+                        상담하기
+                        {(() => {
+                          const expertUnreadCount = estimate.unreadChats?.filter(chat => chat.senderId === bid.expert.id && !readExpertIds.includes(bid.expert.id)).length || 0;
+                          if (expertUnreadCount > 0) {
+                            return (
+                              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full font-black shadow-sm z-10">
+                                {expertUnreadCount > 9 ? '9+' : expertUnreadCount}
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </button>
+                    )}
                   </div>
                   
-                  {(estimate.status === 'PENDING' || estimate.status === 'BIDDING' || (estimate.status === 'SELECTED' && bid.status === 'ACCEPTED')) && (
+                  {!isInactive && (estimate.status === 'PENDING' || estimate.status === 'BIDDING' || (estimate.status === 'SELECTED' && bid.status === 'ACCEPTED')) && (
                     activeBidId === bid.id ? (
                       <div className="flex gap-2 w-full mt-2">
                          <button 
@@ -781,7 +817,8 @@ export default function MyRequestListItem({
                 disabled={isAccepting}
                 onClick={(e) => { 
                   e.stopPropagation(); 
-                  handleAcceptBid(e, pendingBidId);
+                  const targetBid = estimate.bids.find(b => b.id === pendingBidId);
+                  if (pendingBidId) handleAcceptBid(e, pendingBidId, targetBid?.availableDate);
                   setPendingBidId(null);
                 }}
                 className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-95"
@@ -810,6 +847,43 @@ export default function MyRequestListItem({
                 className="w-full py-3.5 rounded-2xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-95"
               >
                 확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 취소 모달 */}
+      {showCancelAlert && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-[32px] w-full max-w-sm overflow-hidden shadow-xl animate-in zoom-in-95 duration-300 p-8 text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="w-16 h-16 rounded-3xl bg-red-50 flex items-center justify-center text-red-500 mx-auto mb-6">
+              <Trash2 className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-2">요청 취소 확인</h3>
+            <p className="text-sm text-slate-500 font-medium leading-relaxed mb-8">
+              정말로 이 요청을 <strong className="text-red-500">취소</strong>하시겠습니까?<br/>
+              취소 후에는 이 상태를 되돌릴 수 없으며,<br/>모든 제안이 비활성화됩니다.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setShowCancelAlert(false); }}
+                disabled={isCanceling}
+                className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-all active:scale-95 disabled:bg-slate-100 disabled:text-slate-400"
+              >
+                닫기
+              </button>
+              <button 
+                disabled={isCanceling}
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  handleConfirmCancelEstimate();
+                }}
+                className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/20 transition-all active:scale-95 disabled:bg-red-400"
+              >
+                {isCanceling ? (
+                  <div className="w-5 h-5 mx-auto border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : '취소하기'}
               </button>
             </div>
           </div>

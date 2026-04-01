@@ -77,10 +77,15 @@ export default function ExpertBidListItem({
       {/* 좌측: 요청 정보 */}
       <div className="p-5 sm:p-6 flex-1 border-b lg:border-b-0 lg:border-r border-slate-100 flex flex-col bg-slate-50/30">
         <div className="flex items-center justify-between mb-4">
-          <span className="text-xs font-bold text-slate-500 bg-white px-2.5 py-1 rounded-md border border-slate-200 shadow-sm flex items-center gap-1.5">
-            <User className="w-3.5 h-3.5" />
-            고객 요청 정보
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-500 bg-white px-2.5 py-1 rounded-md border border-slate-200 shadow-sm flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5" />
+              고객 요청 정보
+            </span>
+            <span className="text-[11px] font-bold text-slate-400 font-mono tracking-wide">
+              {estimate.requestNumber || `REQ-${String(estimate.id).substring(0, 8).toUpperCase()}`}
+            </span>
+          </div>
           <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wider ${
               calculateDDay(estimate.createdAt, estimate.isClosed).isUrgent 
               ? 'bg-red-50 text-red-600 border border-red-100' 
@@ -246,11 +251,16 @@ export default function ExpertBidListItem({
                 onMoveToStatus(category);
               }
             }}
-            className="flex-1 relative px-4 py-3 bg-blue-600 text-white font-bold text-sm rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-md shadow-blue-500/20"
+            disabled={estimate.status === 'CANCELLED'}
+            className={`flex-1 relative px-4 py-3 font-bold text-sm rounded-xl transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-md ${
+              estimate.status === 'CANCELLED'
+                ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none border border-slate-200'
+                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/20'
+            }`}
           >
             <MessageCircle className="w-4 h-4" />
             상담하기
-            {unreadCount > 0 && (
+            {unreadCount > 0 && estimate.status !== 'CANCELLED' && (
               <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] min-w-[18px] h-[18px] px-1.5 flex items-center justify-center rounded-full font-black shadow-sm border-2 border-white">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>

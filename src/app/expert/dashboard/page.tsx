@@ -1,8 +1,9 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import ExpertDashboardLayout from '@/components/layout/ExpertDashboardLayout';
-import { getExpertHomeDataAction } from '@/actions/expert.action';
+import { getExpertHomeDataAction, getExpertSentBidsAction, getExpertReceivedRequestsAction } from '@/actions/expert.action';
 import { getCategoriesAction } from '@/actions/category.action';
+import ExpertHomeStatsBadges from '@/components/expert/ExpertHomeStatsBadges';
 import IntroductionSection from '@/components/expert/IntroductionSection';
 import PortfolioSection from '@/components/expert/PortfolioSection';
 import ReviewSection from '@/components/expert/ReviewSection';
@@ -63,6 +64,18 @@ export default async function ExpertDashboardPage({
   const categoriesRes = await getCategoriesAction();
   const categoriesData = categoriesRes.success && categoriesRes.data ? categoriesRes.data : [];
 
+  let sentBids: any[] = [];
+  let directRequests: any[] = [];
+
+  if (isOwner) {
+    const [sentRes, directRes] = await Promise.all([
+      getExpertSentBidsAction(targetUserId),
+      getExpertReceivedRequestsAction(targetUserId)
+    ]);
+    if (sentRes.success && sentRes.data) sentBids = sentRes.data;
+    if (directRes.success && directRes.data) directRequests = directRes.data;
+  }
+
   return (
     <ExpertDashboardLayout>
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -81,6 +94,16 @@ export default async function ExpertDashboardPage({
             <button className="text-sm font-bold text-amber-700 underline decoration-2 underline-offset-4 pointer-events-none opacity-50">
               본인인증
             </button>
+          </div>
+        )}
+
+        {isOwner && (
+          <div className="mb-4">
+            <ExpertHomeStatsBadges 
+              userId={targetUserId}
+              directRequests={directRequests} 
+              sentBids={sentBids} 
+            />
           </div>
         )}
 

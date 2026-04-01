@@ -458,6 +458,10 @@ export async function checkDateAvailabilityAction(expertId: number, dates: strin
       where: {
         expertId,
         availableDate: { not: null },
+        status: { not: 'REJECTED' },
+        estimate: {
+          status: { not: 'CANCELLED' }
+        },
         ...(excludeBidId ? { id: { not: excludeBidId } } : {})
       }
     });

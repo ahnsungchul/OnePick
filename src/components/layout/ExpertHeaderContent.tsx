@@ -69,10 +69,10 @@ export default function ExpertHeaderContent({ isOwner = true }: ExpertHeaderCont
     <div className="flex items-center justify-between w-full">
       {/* 로고 영역 */}
       <div className="flex items-center gap-4">
-        <Link href="/" className="flex items-center gap-1 text-blue-500 hover:text-blue-600 transition-colors shrink-0">
+        <div className="flex items-center gap-1 text-blue-500 shrink-0 select-none cursor-default pointer-events-none">
           <Zap className="w-8 h-8 fill-current" />
           <span className="text-2xl font-black tracking-tighter">OnePick</span>
-        </Link>
+        </div>
         <span className={cn(
           "px-2.5 py-1 rounded-lg text-sm font-base tracking-wider shadow-sm",
           grade === 'PRO' ? "bg-blue-600 text-white" : "bg-emerald-600 text-white"
