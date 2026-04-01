@@ -565,6 +565,35 @@ export async function createDirectEstimateAction(data: {
   }
 }
 
+/**
+ * 1:1 다이렉트 견적 요청 또는 기존 제안을 거절/취소하는 Server Action
+ */
+export async function rejectBidAction(bidId: string, expertId: number) {
+  try {
+    const bid = await prisma.bid.findUnique({
+      where: { id: bidId },
+      include: { estimate: true }
+    });
+
+    if (!bid) throw new Error("해당 요청을 찾을 수 없습니다.");
+    if (bid.expertId !== expertId) throw new Error("권한이 없습니다.");
+    if (bid.status === "ACCEPTED" || bid.estimate.status === "SELECTED" || bid.estimate.status === "COMPLETED") {
+      throw new Error("이미 채택되거나 완료된 요청은 취소할 수 없습니다.");
+    }
+
+    await prisma.bid.update({
+      where: { id: bidId },
+      data: { status: "REJECTED" },
+    });
+
+    revalidatePath("/expert");
+    return { success: true };
+  } catch (error: any) {
+    console.error("rejectBidAction error:", error);
+    return { success: false, error: error.message || "요청 거절/취소 중 오류가 발생해습니다." };
+  }
+}
+
 export async function getExpertReceivedRequestsAction(expertId: number) {
   try {
     const bids = await prisma.bid.findMany({

@@ -16,6 +16,7 @@ export async function getUserPaymentsAction(userId: number) {
         }
       },
       include: {
+        category: true,
         bids: {
           where: {
             status: "ACCEPTED"
@@ -49,7 +50,7 @@ export async function getUserPaymentsAction(userId: number) {
       return {
         id: est.id, // Estimate ID
         requestNumber: est.requestNumber || est.id.substring(0, 8),
-        category: est.category,
+        category: est.category?.name || "기타",
         expertName: acceptedBid.expert?.name || '전문가',
         expertCompany: expertCompany,
         payDate,

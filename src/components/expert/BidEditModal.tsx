@@ -27,6 +27,12 @@ export default function BidEditModal({
 
   // Reset form when bid changes or modal opens
   useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
     if (isOpen && bid) {
       setMessage(bid.message || '');
       setBidItems(
@@ -47,6 +53,10 @@ export default function BidEditModal({
       }
       setError('');
     }
+    
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [isOpen, bid]);
 
   if (!isOpen || !bid) return null;
@@ -155,7 +165,7 @@ export default function BidEditModal({
         setError(result.error);
       }
     } catch (err: any) {
-      setError(err.message || '견적 수정 중 오류가 발생했습니다.');
+      setError(err.message || '견적 작성 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -170,8 +180,8 @@ export default function BidEditModal({
         {/* Header */}
         <div className="flex items-center justify-between p-6 sm:px-8 border-b border-slate-100 shrink-0 bg-white">
           <div>
-            <h3 className="text-2xl font-black text-slate-800 tracking-tight">견적 제안 수정</h3>
-            <p className="text-slate-500 text-sm mt-1">항목별로 상세한 견적 내용을 수정해 주세요.</p>
+            <h3 className="text-2xl font-black text-slate-800 tracking-tight">견적서 작성</h3>
+            <p className="text-slate-500 text-sm mt-1">항목별로 상세한 견적 내용을 작성해 주세요.</p>
           </div>
           <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors active:scale-95">
             <X className="w-6 h-6" />
@@ -185,8 +195,8 @@ export default function BidEditModal({
             <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-5 flex gap-3 text-sm">
               <AlertCircle className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
               <div className="text-blue-800">
-                <p className="font-bold mb-1">견적 수정 안내</p>
-                <p className="text-blue-600/80 leading-relaxed">고객이 다른 전문가를 채택하거나 견적이 마감되기 전까지만 수정할 수 있습니다. 이미 작성된 항목을 변경하거나 새 작업을 추가하실 수 있습니다.</p>
+                <p className="font-bold mb-1">견적 작성 안내</p>
+                <p className="text-blue-600/80 leading-relaxed">고객이 다른 전문가를 채택하거나 견적이 마감되기 전까지만 수정 및 작성이 가능합니다. 정확하고 상세한 내용을 입력해 주세요.</p>
               </div>
             </div>
 
@@ -286,7 +296,7 @@ export default function BidEditModal({
               <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-6">
                 <h4 className="text-sm font-black text-slate-900 mb-2 flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                  서비스 가능일 수정
+                  서비스 가능일
                   <span className="text-red-500">*</span>
                 </h4>
                 <p className="text-slate-500 text-xs mb-4 ml-3.5">고객님이 희망하는 서비스 일정 중, 방문 가능한 날짜를 선택해 주세요.</p>
@@ -475,7 +485,7 @@ export default function BidEditModal({
                   ) : (
                     <>
                       <CheckCircle2 className="w-5 h-5" />
-                      수정 완료
+                      작성 완료
                     </>
                   )}
                 </button>

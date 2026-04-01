@@ -580,3 +580,53 @@ export async function extendEstimateDeadlineAction(estimateId: string, userId: n
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * 사용자가 작성한 1:1 다이렉트 견적 요청 목록 조회
+ */
+export async function getMyDirectRequestsAction(userId: number) {
+  if (!userId || isNaN(userId)) {
+    return { success: false, error: "유효하지 않은 사용자 ID입니다." };
+  }
+  try {
+    const estimates = await prisma.estimate.findMany({
+      where: { 
+        customerId: userId,
+        designatedExpertId: { not: null }
+      },
+      include: {
+        bids: {
+          include: {
+            expert: { include: { profile: true } },
+            items: true
+          },
+          orderBy: { createdAt: "desc" }
+        },
+        chats: {
+          where: { isRead: false, receiverId: userId },
+          select: { id: true, senderId: true }
+        },
+        category: true,
+        services: true
+      } as any,
+      orderBy: { createdAt: "desc" }
+    });
+
+    const data = (estimates as any).map((est: any) => ({
+      ...est,
+      category: est.category?.name || '',
+      subcategories: est.services?.map((s: any) => s.name) || [],
+      unreadChatCount: est.chats?.length || 0,
+      unreadChats: est.chats || []
+    }));
+
+    return { success: true, data };
+  } catch (error: any) {
+    console.error("getMyDirectRequestsAction error:", error);
+    return { 
+      success: false, 
+      error: error.message || "데이터를 불러오는 중 오류가 발생했습니다.",
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+    };
+  }
+}

@@ -22,10 +22,14 @@ export default function ExpertHomeStatsBadges({
 
   // Compute Stats
   const requestStats = useMemo(() => {
-    let preBid = 0, sentBid = 0, accepted = 0, rejected = 0;
+    let preBid = 0, sentBid = 0, accepted = 0, rejected = 0, unread = 0;
     directRequests.forEach(bid => {
       const bidStatus = bid.status;
       const estStatus = bid.estimate?.status;
+      
+      const unreadCount = bid.estimate?.chats?.filter((c: any) => c.senderId !== userId && !c.isRead).length || 0;
+      if (unreadCount > 0) unread++;
+
       if (bidStatus === 'ACCEPTED') accepted++;
       else if (bidStatus === 'REJECTED' || estStatus === 'CANCELLED') rejected++;
       else if (bidStatus === 'PENDING') {
@@ -33,8 +37,8 @@ export default function ExpertHomeStatsBadges({
         else sentBid++;
       }
     });
-    return { all: directRequests.length, preBid, sentBid, accepted, rejected };
-  }, [directRequests]);
+    return { all: directRequests.length, preBid, sentBid, accepted, rejected, unread };
+  }, [directRequests, userId]);
 
   const bidStats = useMemo(() => {
     let pending = 0, accepted = 0, rejected = 0, unread = 0;
@@ -55,6 +59,7 @@ export default function ExpertHomeStatsBadges({
     { id: 'ALL', label: '전체 요청', count: requestStats.all },
     { id: 'PRE_BID', label: '견적전', count: requestStats.preBid },
     { id: 'SENT_BID', label: '견적보냄', count: requestStats.sentBid },
+    { id: 'UNREAD', label: '신규 메시지', count: requestStats.unread, isAlert: true },
     { id: 'ACCEPTED', label: '확정됨', count: requestStats.accepted },
     { id: 'REJECTED', label: '거절/취소', count: requestStats.rejected },
   ], [requestStats]);
@@ -134,7 +139,7 @@ export default function ExpertHomeStatsBadges({
             </h3>
           </div>
         </div>
-        <div className="grid grid-cols-5 gap-2 mt-auto">
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-auto">
           {requestTabs.map(tab => (
             <button 
               key={tab.id} 
@@ -145,7 +150,7 @@ export default function ExpertHomeStatsBadges({
                  <span className="absolute -top-1.5 -right-1.5 w-[18px] h-[18px] bg-red-500 text-white text-[9px] font-black flex items-center justify-center rounded-full shadow-md animate-bounce z-10">N</span>
                )}
                <span className="text-[11px] font-bold text-slate-500 mb-1 tracking-tight group-hover:text-slate-700 break-keep">{tab.label}</span>
-               <span className="text-lg font-black text-blue-600">{tab.count}</span>
+               <span className={`text-lg font-black ${tab.isAlert && tab.count > 0 ? 'text-rose-500' : 'text-blue-600'}`}>{tab.count}</span>
             </button>
           ))}
         </div>
@@ -165,7 +170,7 @@ export default function ExpertHomeStatsBadges({
             </h3>
           </div>
         </div>
-        <div className="grid grid-cols-5 gap-2 mt-auto">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-auto">
           {bidTabs.map(tab => (
             <button 
               key={tab.id} 

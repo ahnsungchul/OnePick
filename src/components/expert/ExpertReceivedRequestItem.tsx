@@ -17,11 +17,13 @@ import {
 import { formatCategory, calculateDDay } from '@/lib/utils';
 import BidEditModal from './BidEditModal';
 import ChatPopupModal from '../chat/ChatPopupModal';
+import { rejectBidAction } from '@/actions/expert.action';
 
 export default function ExpertReceivedRequestItem({ bid, expertId }: { bid: any, expertId: number }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [hasReadChat, setHasReadChat] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
 
   const estimate = bid.estimate;
   const isPreBid = bid.price === 0 && bid.status === 'PENDING';
@@ -35,6 +37,22 @@ export default function ExpertReceivedRequestItem({ bid, expertId }: { bid: any,
 
   const statusDisplay = getStatusDisplay();
   const unreadCount = !hasReadChat ? (estimate.chats?.filter((c: any) => c.senderId !== expertId && !c.isRead).length || 0) : 0;
+
+  const handleReject = async () => {
+    if (!window.confirm("정말로 이 요청을 취소/거절하시겠습니까?\n이후에는 다시 이 요청에 견적을 보낼 수 없게 됩니다.")) return;
+    
+    setIsRejecting(true);
+    try {
+      const result = await rejectBidAction(bid.id, expertId);
+      if (!result.success) {
+        alert(result.error);
+      }
+    } catch (err: any) {
+      alert("오류가 발생했습니다.");
+    } finally {
+      setIsRejecting(false);
+    }
+  };
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm mb-4 hover:border-blue-200 transition-all overflow-hidden flex flex-col lg:flex-row items-stretch">
@@ -116,7 +134,7 @@ export default function ExpertReceivedRequestItem({ bid, expertId }: { bid: any,
                   {bid.items.map((item: any) => (
                     <div key={item.id} className="flex justify-between items-center text-xs py-2 border-b border-slate-200/50 last:border-0">
                       <span className="font-bold text-slate-700">{item.name}</span>
-                      <span className="font-black text-slate-800 w-16 text-right">{item.amount.toLocaleString()}원</span>
+                      <span className="font-black text-slate-800 w-16 text-right break-keep">{item.amount.toLocaleString()}원</span>
                     </div>
                   ))}
                 </div>
@@ -127,21 +145,39 @@ export default function ExpertReceivedRequestItem({ bid, expertId }: { bid: any,
 
         <div className="flex gap-2 mt-auto">
           {isPreBid ? (
-            <button 
-              onClick={() => setIsEditOpen(true)}
-              className="flex-1 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md shadow-emerald-600/20 active:scale-95"
-            >
-              <Send className="w-4 h-4" />
-              견적 보내기
-            </button>
+            <>
+              <button 
+                onClick={() => setIsEditOpen(true)}
+                className="flex-1 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md shadow-emerald-600/20 active:scale-95"
+              >
+                <Send className="w-4 h-4" />
+                견적 보내기
+              </button>
+              <button 
+                onClick={handleReject}
+                disabled={isRejecting}
+                className="w-auto px-4 py-3 bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-500 font-bold text-sm rounded-xl transition-all shadow-sm active:scale-95"
+              >
+                {isRejecting ? '처리중..' : '취소'}
+              </button>
+            </>
           ) : bid.status === 'PENDING' ? (
-            <button 
-              onClick={() => setIsEditOpen(true)}
-              className="flex-1 px-4 py-3 border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-sm rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95"
-            >
-              <Edit2 className="w-4 h-4" />
-              견적 수정하기
-            </button>
+            <>
+              <button 
+                onClick={() => setIsEditOpen(true)}
+                className="flex-1 px-4 py-3 border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-sm rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95"
+              >
+                <Edit2 className="w-4 h-4" />
+                작성 내용 수정
+              </button>
+              <button 
+                onClick={handleReject}
+                disabled={isRejecting}
+                className="w-auto px-4 py-3 bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-500 font-bold text-sm rounded-xl transition-all shadow-sm active:scale-95"
+              >
+                {isRejecting ? '처리중..' : '취소'}
+              </button>
+            </>
           ) : null}
 
           {!isPreBid && (

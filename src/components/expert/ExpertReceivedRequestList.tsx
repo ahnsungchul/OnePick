@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { SearchX, Calendar } from 'lucide-react';
 import ExpertReceivedRequestItem from './ExpertReceivedRequestItem';
 
-type RequestFilterStatus = 'ALL' | 'PRE_BID' | 'SENT_BID' | 'ACCEPTED' | 'REJECTED';
+type RequestFilterStatus = 'ALL' | 'PRE_BID' | 'SENT_BID' | 'ACCEPTED' | 'REJECTED' | 'UNREAD';
 
 interface ExpertReceivedRequestListProps {
   bids: any[];
@@ -20,10 +20,14 @@ export default function ExpertReceivedRequestList({ bids, expertId }: ExpertRece
     let sentBid = 0;
     let accepted = 0;
     let rejected = 0;
+    let unread = 0;
 
     bids.forEach(bid => {
       const bidStatus = bid.status;
       const estStatus = bid.estimate?.status;
+      
+      const unreadCount = bid.estimate?.chats?.filter((c: any) => c.senderId !== expertId && !c.isRead).length || 0;
+      if (unreadCount > 0) unread++;
 
       if (bidStatus === 'ACCEPTED') {
         accepted++;
@@ -38,8 +42,8 @@ export default function ExpertReceivedRequestList({ bids, expertId }: ExpertRece
       }
     });
 
-    return { all: bids.length, preBid, sentBid, accepted, rejected };
-  }, [bids]);
+    return { all: bids.length, preBid, sentBid, accepted, rejected, unread };
+  }, [bids, expertId]);
 
   const filteredBids = useMemo(() => {
     return bids.filter(bid => {
@@ -60,6 +64,11 @@ export default function ExpertReceivedRequestList({ bids, expertId }: ExpertRece
 
       const bidStatus = bid.status;
       const estStatus = bid.estimate?.status;
+      const unreadCount = bid.estimate?.chats?.filter((c: any) => c.senderId !== expertId && !c.isRead).length || 0;
+
+      if (statusFilter === 'UNREAD') {
+        return unreadCount > 0;
+      }
 
       let category: RequestFilterStatus = 'PRE_BID';
       
@@ -88,6 +97,7 @@ export default function ExpertReceivedRequestList({ bids, expertId }: ExpertRece
             { id: 'ALL', label: '전체 요청', count: stats.all, activeCls: 'text-slate-900 border-slate-800', badgeActive: 'bg-slate-800 text-white' },
             { id: 'PRE_BID', label: '견적전 요청', count: stats.preBid, activeCls: 'text-emerald-600 border-emerald-500', badgeActive: 'bg-emerald-500 text-white' },
             { id: 'SENT_BID', label: '견적보낸 요청', count: stats.sentBid, activeCls: 'text-blue-600 border-blue-500', badgeActive: 'bg-blue-500 text-white' },
+            { id: 'UNREAD', label: '신규 메시지', count: stats.unread, activeCls: 'text-rose-500 border-rose-500', badgeActive: 'bg-rose-500 text-white', isAlert: true },
             { id: 'ACCEPTED', label: '확정 요청', count: stats.accepted, activeCls: 'text-indigo-600 border-indigo-500', badgeActive: 'bg-indigo-500 text-white' },
             { id: 'REJECTED', label: '거절/취소', count: stats.rejected, activeCls: 'text-red-500 border-red-500', badgeActive: 'bg-red-500 text-white' },
           ].map(tab => {
@@ -102,7 +112,7 @@ export default function ExpertReceivedRequestList({ bids, expertId }: ExpertRece
               >
                 {tab.label}
                 <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-black transition-colors ${
-                  isActive ? tab.badgeActive : 'bg-slate-100 text-slate-500'
+                  isActive ? tab.badgeActive : (tab.isAlert && tab.count > 0 ? 'bg-rose-100 text-rose-500' : 'bg-slate-100 text-slate-500')
                 }`}>
                   {tab.count}
                 </span>

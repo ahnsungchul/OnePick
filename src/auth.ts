@@ -6,7 +6,7 @@ import { authConfig } from "./auth.config";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
-  adapter: PrismaAdapter(db),
+  adapter: PrismaAdapter(db as any),
   providers: [
     CredentialsProvider({
       name: "Local Dev Credentials",
