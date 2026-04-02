@@ -56,7 +56,9 @@ export default function DirectEstimateRequestModal({ expertId, onClose, initialS
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [serviceDate, setServiceDate] = useState(initialServiceDate || '');
   const [details, setDetails] = useState('');
+  const [photos, setPhotos] = useState<File[]>([]);
   const [showUnavailableModal, setShowUnavailableModal] = useState(false);
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -100,17 +102,19 @@ export default function DirectEstimateRequestModal({ expertId, onClose, initialS
     }
 
     setLoading(true);
-    const res = await createDirectEstimateAction({
-      expertId,
-      category: `${category} - ${subcategory}`,
-      location: `${location} ${locationDetailText}`.trim(),
-      serviceDate,
-      details,
-    });
+
+    const formData = new FormData();
+    formData.append('expertId', expertId.toString());
+    formData.append('category', `${category} - ${subcategory}`);
+    formData.append('location', `${location} ${locationDetailText}`.trim());
+    formData.append('serviceDate', serviceDate);
+    formData.append('details', details);
+    photos.forEach(photo => formData.append('photo', photo));
+
+    const res = await createDirectEstimateAction(formData);
     setLoading(false);
 
     if (res.success) {
-      alert('견적 요청이 성공적으로 전송되었습니다.');
       onClose();
     } else {
       alert(res.error || '견적 요청 전송에 실패했습니다.');
@@ -210,10 +214,67 @@ export default function DirectEstimateRequestModal({ expertId, onClose, initialS
             <textarea 
               value={details}
               onChange={(e) => setDetails(e.target.value)}
-              placeholder="전문가가 정확한 견적을 낼 수 있도록 자세히 설명해주세요. (현장 상황, 사진 첨부 등)"
+              placeholder="전문가가 정확한 견적을 낼 수 있도록 자세히 설명해주세요. (현장 상황, 등)"
               className="w-full h-32 text-sm border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 resize-none"
               required
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1">현장 사진 첨부 (선택, 최대 5장)</label>
+            <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center bg-slate-50 hover:bg-slate-100 transition duration-200 relative mb-4">
+              <input 
+                type="file" 
+                accept="image/*" 
+                multiple
+                onChange={(e) => {
+                  if (e.target.files) {
+                    const selected = Array.from(e.target.files);
+                    if (selected.length + photos.length > 5) {
+                      setMessage('사진은 최대 5장까지만 첨부할 수 있습니다.');
+                      return;
+                    }
+                    setMessage('');
+                    setPhotos(prev => [...prev, ...selected].slice(0, 5));
+                  }
+                }}
+                className="w-full h-full absolute inset-0 opacity-0 cursor-pointer"
+              />
+              <span className="bg-white text-slate-600 border border-slate-200 px-3 py-1.5 rounded-lg font-semibold text-xs inline-block">
+                사진 파일 선택
+              </span>
+              <p className="text-xs text-slate-500 mt-2">전문가가 견적을 산출하는 데 큰 도움이 됩니다.</p>
+            </div>
+            {photos.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {photos.map((file, idx) => {
+                  const imageUrl = URL.createObjectURL(file);
+                  return (
+                    <div key={idx} className="relative group rounded-lg overflow-hidden border border-slate-200">
+                      <img 
+                        src={imageUrl} 
+                        alt={`첨부사진 ${idx + 1}`} 
+                        className="w-16 h-16 object-cover"
+                        onLoad={() => URL.revokeObjectURL(imageUrl)}
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                        <button 
+                          type="button" 
+                          onClick={() => setPhotos(prev => prev.filter((_, i) => i !== idx))}
+                          className="bg-white/90 text-red-500 hover:text-red-600 hover:bg-white p-1 rounded-full shadow-sm transition-all transform hover:scale-105"
+                          title="삭제하기"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {message && (
+              <p className="mt-2 text-xs font-medium text-red-600">{message}</p>
+            )}
           </div>
 
           <div className="flex gap-2 pt-2">

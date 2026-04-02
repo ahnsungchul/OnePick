@@ -190,7 +190,7 @@ export default function CalendarSection({ userId, specialties = [], categoriesDa
       <div className="flex flex-col h-full space-y-4">
         <div className="flex justify-end">
         <button
-          disabled={!isSelectedDateAvailable}
+          disabled={!isSelectedDateAvailable || isOwner}
           onClick={() => {
             if (!session?.user) {
               alert('로그인이 필요한 서비스입니다.');
@@ -200,12 +200,14 @@ export default function CalendarSection({ userId, specialties = [], categoriesDa
             setIsRequestModalOpen(true);
           }}
           className={`px-6 py-4 font-bold rounded-2xl transition-all w-full flex justify-center items-center gap-2 text-base ${
-            isSelectedDateAvailable
+            isSelectedDateAvailable && !isOwner
               ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20 active:scale-95'
               : 'bg-slate-200 text-slate-400 cursor-not-allowed'
           }`}
         >
-          {isSelectedDateAvailable ? '📝 전문가에게 1:1 견적 요청하기' : '📅 스케줄 없는 날짜를 달력에서 선택해주세요'}
+          {isOwner && isSelectedDateAvailable
+            ? '📝 본인에게는 견적을 요청할 수 없습니다'
+            : (isSelectedDateAvailable ? '📝 전문가에게 1:1 견적 요청하기' : '📅 스케줄 없는 날짜를 달력에서 선택해주세요')}
         </button>
       </div>
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm transition-all hover:shadow-md h-full flex flex-col min-h-0">

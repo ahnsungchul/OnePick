@@ -52,7 +52,14 @@ export default function EstimateDetailModal({ estimate, isOpen, onClose }: Estim
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-slate-50 bg-slate-50/50 shrink-0 flex justify-end">
+        <div className="p-6 border-t border-slate-50 bg-slate-50/50 shrink-0 flex justify-end gap-2">
+          {/* 수정 버튼 */}
+          <button 
+            onClick={() => alert('수정 페이지로 이동합니다.')}
+            className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all active:scale-95 shadow-sm"
+          >
+            수정
+          </button>
           <button 
             onClick={onClose}
             className="px-6 py-2.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-900/10"

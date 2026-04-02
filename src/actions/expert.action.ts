@@ -3,6 +3,9 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { s3Client } from "@/lib/aws-config";
+import { v4 as uuidv4 } from "uuid";
 
 /**
  * 전문가 전문 분야 및 추가 정보 업데이트 (V2)
@@ -338,14 +341,23 @@ export async function getExpertSentBidsAction(expertId: number) {
             },
             chats: {
               select: { id: true, senderId: true, isRead: true }
-            }
+            },
+            category: true
           }
         }
       },
       orderBy: { createdAt: 'desc' }
     });
 
-    return { success: true, data: bids };
+    const parsedBids = (bids as any).map((bid: any) => ({
+      ...bid,
+      estimate: {
+        ...bid.estimate,
+        category: bid.estimate.category?.name || '',
+      }
+    }));
+
+    return { success: true, data: parsedBids };
   } catch (error: any) {
     console.error("getExpertSentBidsAction error:", error);
     return { success: false, error: error.message || "보낸 견적 목록을 불러오는 중 오류가 발생했습니다." };
@@ -513,13 +525,7 @@ export async function requestBidModificationAction(bidId: string, customerId: nu
   }
 }
 
-export async function createDirectEstimateAction(data: {
-  expertId: number;
-  category: string;
-  location: string;
-  serviceDate: string;
-  details: string;
-}) {
+export async function createDirectEstimateAction(formData: FormData) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -528,19 +534,51 @@ export async function createDirectEstimateAction(data: {
     const customerId = Number(session.user.id);
     const authorName = session.user.name;
 
+    const expertId = parseInt(formData.get("expertId") as string, 10);
+    const category = formData.get("category") as string;
+    const location = formData.get("location") as string;
+    const serviceDate = formData.get("serviceDate") as string;
+    const details = formData.get("details") as string;
+    const photos = formData.getAll("photo") as File[];
+
+    const photoUrls: string[] = [];
+    const bucketName = process.env.AWS_S3_BUCKET || "onepick-storage";
+
+    for (const photo of photos) {
+      if (photo && photo.size > 0) {
+        try {
+          const buffer = Buffer.from(await photo.arrayBuffer());
+          const fileName = `estimates/${uuidv4()}-${photo.name}`;
+
+          const command = new PutObjectCommand({
+            Bucket: bucketName,
+            Key: fileName,
+            Body: buffer,
+            ContentType: photo.type,
+          });
+
+          await s3Client.send(command);
+          photoUrls.push(`${process.env.AWS_S3_ENDPOINT || "http://localhost:4566"}/${bucketName}/${fileName}`);
+        } catch (s3Error) {
+          console.warn("S3 Upload Failed, skipping photo:", s3Error);
+        }
+      }
+    }
+
     const result = await prisma.$transaction(async (tx) => {
-      const categoryRecord = await tx.category.findUnique({ where: { name: data.category } });
+      const categoryRecord = await tx.category.findUnique({ where: { name: category } });
 
       const estimate = await tx.estimate.create({
         data: {
           categoryId: categoryRecord?.id,
-          location: data.location,
-          serviceDate: data.serviceDate,
-          details: data.details,
+          location,
+          serviceDate,
+          details,
+          photoUrls, // 사진 URL 배열 저장
           customerId,
           authorName,
           status: 'PENDING',
-          designatedExpertId: data.expertId,
+          designatedExpertId: expertId,
           requestNumber: `REQ-${Date.now()}`
         }
       });
@@ -548,7 +586,7 @@ export async function createDirectEstimateAction(data: {
       const bid = await tx.bid.create({
         data: {
           estimateId: estimate.id,
-          expertId: data.expertId,
+          expertId,
           price: 0,
           status: 'PENDING',
         }
@@ -609,13 +647,23 @@ export async function getExpertReceivedRequestsAction(expertId: number) {
           include: {
             customer: {
               select: { name: true, image: true }
-            }
+            },
+            category: true
           }
         }
       },
       orderBy: { createdAt: 'desc' },
     });
-    return { success: true, data: bids };
+
+    const parsedBids = (bids as any).map((bid: any) => ({
+      ...bid,
+      estimate: {
+        ...bid.estimate,
+        category: bid.estimate.category?.name || '',
+      }
+    }));
+
+    return { success: true, data: parsedBids };
   } catch (error: any) {
     console.error('getExpertReceivedRequestsAction error:', error);
     return { success: false, error: '받은 요청 목록을 불러오는 중 오류가 발생했습니다.' };

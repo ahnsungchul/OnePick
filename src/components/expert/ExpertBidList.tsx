@@ -32,6 +32,10 @@ export default function ExpertBidList({ bids, expertId, currentUserName }: Exper
     if (bidIdParam) {
       setTargetBidId(bidIdParam);
     }
+    const filterParam = searchParams?.get('filter') as BidFilterStatus;
+    if (filterParam && ['ALL', 'PENDING', 'ACCEPTED', 'REJECTED', 'UNREAD'].includes(filterParam)) {
+      setStatusFilter(filterParam);
+    }
   }, [searchParams]);
 
   const handleStatusChange = (status: BidFilterStatus) => {

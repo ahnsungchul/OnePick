@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { SearchX, Calendar } from 'lucide-react';
 import ExpertReceivedRequestItem from './ExpertReceivedRequestItem';
 
@@ -12,8 +13,18 @@ interface ExpertReceivedRequestListProps {
 }
 
 export default function ExpertReceivedRequestList({ bids, expertId }: ExpertReceivedRequestListProps) {
-  const [statusFilter, setStatusFilter] = useState<RequestFilterStatus>('ALL');
+  const searchParams = useSearchParams();
+  const initialFilter = (searchParams.get('filter') as RequestFilterStatus) || 'ALL';
+  const [statusFilter, setStatusFilter] = useState<RequestFilterStatus>(initialFilter);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+
+  // URL의 filter 값이 변경될 때마다 statusFilter를 동기화
+  React.useEffect(() => {
+    const filter = searchParams.get('filter') as RequestFilterStatus;
+    if (filter) {
+      setStatusFilter(filter);
+    }
+  }, [searchParams]);
 
   const stats = useMemo(() => {
     let preBid = 0;

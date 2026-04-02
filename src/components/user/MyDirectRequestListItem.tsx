@@ -9,7 +9,8 @@ import {
   Clock,
   Trash2,
   Star,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 import { formatCategory, calculateDDay } from '@/lib/utils';
 import EstimateDetailModal from './EstimateDetailModal';
@@ -28,6 +29,7 @@ interface Bid {
     image?: string;
     specialty?: string;
     grade?: string;
+    career?: string;
     profile?: {
       rating: number;
       reviewCount: number;
@@ -75,6 +77,15 @@ export default function MyDirectRequestListItem({
   const [isAccepting, setIsAccepting] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
   const [isCanceling, setIsCanceling] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (isCancelModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+  }, [isCancelModalOpen]);
 
   const { data: session } = useSession();
 
@@ -99,8 +110,10 @@ export default function MyDirectRequestListItem({
 
   const handleCancelEstimateClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm('1:1 요청을 취소하시겠습니까?')) return;
-    
+    setIsCancelModalOpen(true);
+  };
+
+  const handleCancelConfirm = async () => {
     if (!session?.user?.id) {
       alert('로그인이 필요합니다.');
       return;
@@ -118,6 +131,7 @@ export default function MyDirectRequestListItem({
     } else {
       alert(result.error || '취소 중 오류가 발생했습니다.');
       setIsCanceling(false);
+      setIsCancelModalOpen(false);
     }
   };
 
@@ -195,8 +209,14 @@ export default function MyDirectRequestListItem({
           <statusDisplay.icon className="w-3 h-3" />
           {statusDisplay.label}
         </span>
+
+        <div className="absolute top-4 right-4 flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100/50">
+          <Star className="w-3 h-3 text-amber-500 fill-current" />
+          <span className="font-bold text-xs text-amber-700">{Number(bid.expert.profile?.rating || 0).toFixed(1)}</span>
+          <span className="text-amber-600/50 text-[10px]">({bid.expert.profile?.reviewCount || 0})</span>
+        </div>
         
-        <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white shadow-md mx-auto mt-6 mb-3">
+        <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-white shadow-md mx-auto mt-16 mb-3">
           <img 
             src={bid.expert.image || `https://picsum.photos/seed/${bid.expert.id || bid.expert.name}/150/150`} 
             alt={bid.expert.name} 
@@ -214,13 +234,31 @@ export default function MyDirectRequestListItem({
             <h4 className="font-bold text-slate-900">{bid.expert.name} 전문가</h4>
           </div>
           
-          <p className="text-slate-500 text-xs mb-2 line-clamp-1 text-center">{bid.expert.specialty || `${formatCategory(estimate.category)} 전문`}</p>
-          
-          <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100/50">
-            <Star className="w-3 h-3 text-amber-500 fill-current" />
-            <span className="font-bold text-xs text-amber-700">{Number(bid.expert.profile?.rating || 0).toFixed(1)}</span>
-            <span className="text-amber-600/50 text-[10px]">({bid.expert.profile?.reviewCount || 0})</span>
-          </div>
+          <p className="text-slate-500 text-sm line-clamp-1 text-center font-medium">
+            {bid.expert.specialty || `${formatCategory(estimate.category)} 전문`}
+            {bid.expert.career && bid.expert.career !== '경력 미입력' && (
+              <>
+                <span className="mx-1.5 inline-block w-[3px] h-[3px] rounded-full bg-slate-300 align-middle"></span>
+                <span className="text-blue-600 font-semibold">
+                  {(() => {
+                    const c = bid.expert.career;
+                    if (c === '신입') return '신입';
+                    const yearMatch = c.match(/(\d{4})년/);
+                    if (yearMatch) {
+                      const monthMatch = c.match(/(\d{1,2})월/);
+                      const year = parseInt(yearMatch[1], 10);
+                      const month = monthMatch ? parseInt(monthMatch[1], 10) : 1;
+                      const now = new Date();
+                      const monthsDiff = (now.getFullYear() - year) * 12 + (now.getMonth() + 1 - month);
+                      const yearOfExp = monthsDiff >= 0 ? Math.floor(monthsDiff / 12) + 1 : 1;
+                      return `경력 ${yearOfExp}년`;
+                    }
+                    return c;
+                  })()}
+                </span>
+              </>
+            )}
+          </p>
         </div>
 
         <button 
@@ -252,33 +290,35 @@ export default function MyDirectRequestListItem({
                 <span className="text-xs font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200">
                   {estimate.requestNumber || `REQ-${estimate.id.substring(0,6)}`}
                 </span>
-                <span className="text-slate-400 text-[11px]">
-                  {new Date(estimate.updatedAt || estimate.createdAt).toLocaleDateString()}
-                </span>
               </div>
               <h3 className="text-lg font-black text-slate-800">{formatCategory(estimate.category)} 요청</h3>
             </div>
             
-            {!isCanceledOrRejected && !isConfirmed && (
-              <button 
-                onClick={handleCancelEstimateClick}
-                disabled={isCanceling}
-                className="text-[11px] font-bold text-red-500 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-md transition-colors"
-              >
-                요청 취소
-              </button>
-            )}
+            <div className="text-right shrink-0 ml-4">
+              <span className="text-slate-400 text-[11px] font-bold">
+                {new Date(estimate.updatedAt || estimate.createdAt).toLocaleDateString()}
+              </span>
+            </div>
           </div>
 
           <div className="text-slate-600 text-sm font-medium line-clamp-2 bg-slate-50 p-3.5 rounded-xl border border-slate-100 mb-4">
             {estimate.details}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-bold mb-4">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 font-bold mb-4">
             <div className="flex items-center gap-1.5 bg-white border border-slate-100 px-2.5 py-1.5 rounded-lg shadow-sm">
               <MapPin className="w-3.5 h-3.5 text-slate-400" />
               {estimate.location}
             </div>
+            <button 
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                window.open(`https://map.naver.com/v5/search/${encodeURIComponent(estimate.location)}`, '_blank'); 
+              }}
+              className="px-2.5 py-1.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-lg hover:bg-blue-100 transition-colors shadow-sm"
+            >
+              네이버 지도 보기
+            </button>
           </div>
 
           <div className={`mt-auto p-4 rounded-xl border ${hasReceivedBid ? 'bg-blue-50/50 border-blue-100' : 'bg-slate-50 border-slate-100'}`}>
@@ -310,7 +350,7 @@ export default function MyDirectRequestListItem({
                   onClick={() => setIsDetailOpen(true)}
                   className="px-4 py-2.5 text-xs font-bold bg-white text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm"
                 >
-                  내원문 보기
+                  요청 상세보기
                 </button>
               </div>
             </div>
@@ -318,6 +358,17 @@ export default function MyDirectRequestListItem({
 
           {/* 하단 액션 버튼들 */}
           <div className="flex gap-2 mt-4">
+            {/* 취소 버튼: 상담하기 좌측, 폭 줄임 */}
+            {!isCanceledOrRejected && hasReceivedBid && !isConfirmed && (
+              <button 
+                onClick={handleCancelEstimateClick}
+                disabled={isCanceling}
+                className="w-1/4 sm:w-24 text-sm font-bold bg-slate-100 text-slate-600 py-3 rounded-xl hover:bg-slate-200 transition-all disabled:bg-slate-50"
+              >
+                {isCanceling ? '처리 중...' : '취소'}
+              </button>
+            )}
+
             {/* 상담하기 버튼: 취소/거절되지 않았으면 항상 표시 */}
             {!isCanceledOrRejected && (
               <button 
@@ -359,7 +410,7 @@ export default function MyDirectRequestListItem({
                 disabled={isAccepting}
                 className="flex-1 text-sm font-bold bg-indigo-600 text-white py-3 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-600/20 disabled:bg-slate-400 disabled:shadow-none"
               >
-                {isAccepting ? '처리 중...' : '전문가 선택하기'}
+                {isAccepting ? '처리 중...' : '확정 및 결제 하기'}
               </button>
             )}
 
@@ -396,11 +447,47 @@ export default function MyDirectRequestListItem({
       </div>
       
       {/* 각종 모달들 */}
+      {isCancelModalOpen && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 !m-0">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsCancelModalOpen(false)} />
+          <div className="relative bg-white rounded-2xl w-full max-w-sm p-6 animate-in zoom-in-95 duration-200 shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">정말 취소하시겠습니까?</h3>
+              <p className="text-sm text-slate-500">
+                1:1 요청을 취소하면 되돌릴 수 없습니다.<br/>계속 진행하시겠습니까?
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setIsCancelModalOpen(false)}
+                className="flex-1 py-3 text-sm font-bold bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors"
+                disabled={isCanceling}
+              >
+                닫기
+              </button>
+              <button 
+                onClick={handleCancelConfirm}
+                className="flex-1 py-3 text-sm font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors shadow-md shadow-red-600/20"
+                disabled={isCanceling}
+              >
+                {isCanceling ? '취소 중...' : '요청 취소'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 지도 보기 모달 제거: 새 창으로 대체 */}
+
       <BidDetailModal 
         isOpen={!!selectedBidForModal} 
         onClose={() => setSelectedBidForModal(null)} 
         bid={selectedBidForModal} 
         isClosed={estimate.isClosed}
+        isDirectRequest={true}
       />
 
       <ChatPopupModal 

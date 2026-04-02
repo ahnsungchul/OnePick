@@ -16,9 +16,10 @@ interface BidDetailModalProps {
   onClose: () => void;
   bid: any;
   isClosed?: boolean;
+  isDirectRequest?: boolean;
 }
 
-export default function BidDetailModal({ isOpen, onClose, bid, isClosed }: BidDetailModalProps) {
+export default function BidDetailModal({ isOpen, onClose, bid, isClosed, isDirectRequest }: BidDetailModalProps) {
   const { data: session } = useSession();
   const [isRequesting, setIsRequesting] = useState(false);
 
@@ -154,9 +155,9 @@ export default function BidDetailModal({ isOpen, onClose, bid, isClosed }: BidDe
           <div className="flex flex-col gap-2">
             <button
               onClick={handleModificationRequest}
-              disabled={!isClosed || bid.isEditRequested || isRequesting}
+              disabled={(!isDirectRequest && !isClosed) || bid.isEditRequested || isRequesting}
               className={`w-full py-3 rounded-xl font-bold transition-all ${
-                !isClosed || bid.isEditRequested || isRequesting
+                (!isDirectRequest && !isClosed) || bid.isEditRequested || isRequesting
                   ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                   : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98]'
               }`}
@@ -167,7 +168,7 @@ export default function BidDetailModal({ isOpen, onClose, bid, isClosed }: BidDe
                   ? '견적 수정 요청 완료' 
                   : '견적 수정 요청하기'}
             </button>
-            {!isClosed && !bid.isEditRequested && (
+            {!isDirectRequest && !isClosed && !bid.isEditRequested && (
               <p className="text-xs text-center font-medium text-slate-500">
                 요청을 마감한 후에만 견적 수정 요청이 가능합니다.
               </p>

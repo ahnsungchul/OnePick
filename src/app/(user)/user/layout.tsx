@@ -20,7 +20,7 @@ export default function UserMyPageLayout({ children }: UserMyPageLayoutProps) {
   const pathname = usePathname();
 
   const tabs = [
-    { name: '마이페이지', href: '/user/my-estimates', icon: BarChart3 },
+    { name: '홈', href: '/user/my-estimates', icon: BarChart3 },
     { name: '내요청', href: '/user/my-requests', icon: ClipboardList },
     { name: '1:1요청', href: '/user/my-direct-requests', icon: UserCircle },
     { name: '결제내역', href: '/user/payments', icon: CreditCard },

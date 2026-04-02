@@ -153,7 +153,7 @@ export default function UserDirectRequestsPage() {
   return (
     <div className="space-y-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-black text-slate-900">1:1 견적 요청 내역</h2>
+        <h2 className="text-2xl font-black text-slate-900">1:1 요청 내역</h2>
         <p className="text-slate-500 text-sm mt-1 mb-6">지정된 전문가에게 바로 요청한 다이렉트 견적 진행 상황을 확인해보세요.</p>
         
         <div className="flex w-full overflow-x-auto hide-scrollbar border-b border-slate-200">
