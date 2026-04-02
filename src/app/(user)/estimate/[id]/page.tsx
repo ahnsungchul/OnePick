@@ -408,7 +408,18 @@ export default function EstimateDetailPage() {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-slate-400 uppercase mb-0.5">지역 정보</p>
-                  <p className="text-sm font-bold text-slate-700">{maskAddress(estimate.location)}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold text-slate-700">{maskAddress(estimate.location)}</p>
+                    <a 
+                      href={`https://map.naver.com/v5/search/${encodeURIComponent(maskAddress(estimate.location))}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="px-2 py-1 bg-[#03C75A] text-white rounded text-[11px] font-bold hover:bg-[#02b350] transition-colors shadow-sm flex items-center gap-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      네이버 지도 보기
+                    </a>
+                  </div>
                 </div>
               </div>
               <div className="flex items-start gap-3">

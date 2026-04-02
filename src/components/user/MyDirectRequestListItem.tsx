@@ -16,6 +16,8 @@ import { formatCategory, calculateDDay } from '@/lib/utils';
 import EstimateDetailModal from './EstimateDetailModal';
 import BidDetailModal from './BidDetailModal';
 import ChatPopupModal from '../chat/ChatPopupModal';
+import UserInspectionModal from './UserInspectionModal';
+import UserReviewModal from './UserReviewModal';
 import { cancelEstimateAction } from '@/actions/estimate.action';
 import { acceptBidAction, cancelBidSelectionAction } from '@/actions/bid.action';
 import { completePaymentAction } from '@/actions/payment.action';
@@ -57,6 +59,7 @@ interface Estimate {
   bids: Bid[];
   isClosed?: boolean;
   selectedDate?: string;
+  completionPhotoUrls?: string[];
 }
 
 export default function MyDirectRequestListItem({ 
@@ -78,6 +81,8 @@ export default function MyDirectRequestListItem({
   const [isPaying, setIsPaying] = useState(false);
   const [isCanceling, setIsCanceling] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isInspectionModalOpen, setIsInspectionModalOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
   useEffect(() => {
     if (isCancelModalOpen) {
@@ -99,6 +104,8 @@ export default function MyDirectRequestListItem({
   
   const getStatusDisplay = () => {
     if (isCanceledOrRejected) return { label: '취소/거절됨', color: 'bg-red-100 text-red-600 border border-red-200', icon: AlertCircle };
+    if (estimate.status === 'COMPLETED') return { label: '서비스완료', color: 'bg-slate-100 text-slate-600', icon: CheckCircle2 };
+    if (estimate.status === 'INSPECTION') return { label: '검수요청', color: 'bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-200', icon: CheckCircle2 };
     if (isConfirmed) return { label: '전문가확정', color: 'bg-indigo-100 text-indigo-700 border border-indigo-200', icon: CheckCircle2 };
     if (isPreBid) return { label: '견적대기', color: 'bg-emerald-100 text-emerald-700 border border-emerald-200', icon: Clock };
     if (hasReceivedBid) return { label: '견적도착', color: 'bg-blue-100 text-blue-700 border border-blue-200', icon: MessageCircle };
@@ -387,8 +394,11 @@ export default function MyDirectRequestListItem({
                     else onMoveToStatus('PRE_BID');
                   }
                 }}
+                disabled={estimate.status === 'COMPLETED'}
                 className={`relative flex-1 text-sm font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-1.5 border ${
-                  currentUnreadCount > 0 
+                  estimate.status === 'COMPLETED'
+                  ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                  : currentUnreadCount > 0 
                   ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20' 
                   : 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100'
                 }`}
@@ -442,6 +452,16 @@ export default function MyDirectRequestListItem({
                 결제 완료
               </button>
             )}
+            
+            {/* 검수요청인 경우 */}
+            {estimate.status === 'INSPECTION' && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); setIsInspectionModalOpen(true); }}
+                className="flex-1 text-sm font-bold bg-fuchsia-600 text-white py-3 rounded-xl shadow-md shadow-fuchsia-600/20 hover:bg-fuchsia-700 transition-all"
+              >
+                검수하기
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -479,6 +499,25 @@ export default function MyDirectRequestListItem({
           </div>
         </div>
       )}
+
+      <UserInspectionModal 
+        isOpen={isInspectionModalOpen}
+        onClose={() => setIsInspectionModalOpen(false)}
+        onComplete={() => {
+          setIsInspectionModalOpen(false);
+          setIsReviewModalOpen(true);
+        }}
+        photoUrls={estimate.completionPhotoUrls || []}
+      />
+
+      <UserReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        expertName={bid.expert.name || '전문가'}
+        expertId={bid.expert.id || 0}
+        customerId={parseInt(session?.user?.id || '0', 10)}
+        estimateId={estimate.id}
+      />
 
       {/* 지도 보기 모달 제거: 새 창으로 대체 */}
 

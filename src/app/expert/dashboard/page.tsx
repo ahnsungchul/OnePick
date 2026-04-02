@@ -1,7 +1,7 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import ExpertDashboardLayout from '@/components/layout/ExpertDashboardLayout';
-import { getExpertHomeDataAction, getExpertSentBidsAction, getExpertReceivedRequestsAction } from '@/actions/expert.action';
+import { getExpertHomeDataAction, getExpertSentBidsAction, getExpertReceivedRequestsAction, getExpertPortfolioAction } from '@/actions/expert.action';
 import { getCategoriesAction } from '@/actions/category.action';
 import ExpertHomeStatsBadges from '@/components/expert/ExpertHomeStatsBadges';
 import IntroductionSection from '@/components/expert/IntroductionSection';
@@ -66,6 +66,12 @@ export default async function ExpertDashboardPage({
 
   let sentBids: any[] = [];
   let directRequests: any[] = [];
+  let portfolioItems: { url: string; category: string }[] = [];
+
+  const portfolioRes = await getExpertPortfolioAction(targetUserId);
+  if (portfolioRes.success && portfolioRes.data) {
+    portfolioItems = portfolioRes.data;
+  }
 
   if (isOwner) {
     const [sentRes, directRes] = await Promise.all([
@@ -113,7 +119,7 @@ export default async function ExpertDashboardPage({
             <IntroductionSection user={user} profile={profile} isOwner={isOwner} categoriesData={categoriesData} />
             
             {/* 포트폴리오 섹션 */}
-            <PortfolioSection portfolioUrl={profile.portfolioUrl} isOwner={isOwner} />
+            <PortfolioSection portfolioUrl={profile.portfolioUrl} isOwner={isOwner} portfolioItems={portfolioItems} />
             
             {/* 리뷰 섹션 */}
             <ReviewSection rating={profile.rating} />

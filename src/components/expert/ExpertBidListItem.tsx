@@ -17,7 +17,10 @@ import {
 import { formatCategory, calculateDDay } from '@/lib/utils';
 import BidEditModal from './BidEditModal';
 import ChatPopupModal from '../chat/ChatPopupModal';
-import { cancelExpertBidAction } from '@/actions/bid.action';
+import BidCompleteModal from './BidCompleteModal';
+import CompletionPhotosModal from './CompletionPhotosModal';
+import { cancelExpertBidAction, cancelAcceptedBidAction } from '@/actions/bid.action';
+import { Image as ImageIcon } from 'lucide-react';
 
 export default function ExpertBidListItem({ 
   bid, 
@@ -40,6 +43,9 @@ export default function ExpertBidListItem({
   const [isCanceling, setIsCanceling] = useState(false);
 
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isCancelAcceptedModalOpen, setIsCancelAcceptedModalOpen] = useState(false);
+  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+  const [isPhotosModalOpen, setIsPhotosModalOpen] = useState(false);
 
   const executeCancelBid = async () => {
     setIsCanceling(true);
@@ -54,9 +60,23 @@ export default function ExpertBidListItem({
     }
   };
 
+  const executeCancelAcceptedBid = async () => {
+    setIsCanceling(true);
+    const res = await cancelAcceptedBidAction(estimate.id, expertId);
+    if (!res.success) {
+      alert(res.error);
+      setIsCanceling(false);
+      setIsCancelAcceptedModalOpen(false);
+    } else {
+      alert('견적이 취소되었습니다.');
+      setIsCancelAcceptedModalOpen(false);
+    }
+  };
+
   const estimate = bid.estimate;
 
   const getStatusDisplay = () => {
+    if (estimate.status === 'INSPECTION') return { label: '검수중', color: 'bg-indigo-100 text-indigo-700 border border-indigo-200', icon: CheckCircle2 };
     if (bid.status === 'ACCEPTED') return { label: '채택됨', color: 'bg-blue-100 text-blue-700 border border-blue-200', icon: CheckCircle2 };
     if (bid.status === 'REJECTED') return { label: '거절됨', color: 'bg-red-100 text-red-700 border border-red-200', icon: AlertCircle };
     
@@ -224,6 +244,37 @@ export default function ExpertBidListItem({
               </button>
             </>
           )}
+
+          {bid.status === 'ACCEPTED' && !['INSPECTION', 'COMPLETED', 'CANCELLED'].includes(estimate.status) && (
+            <>
+              <button
+                onClick={() => setIsCancelAcceptedModalOpen(true)}
+                disabled={isCanceling}
+                className="px-3 py-3 border border-red-200 text-red-500 hover:bg-red-50 active:scale-95 font-bold text-sm rounded-xl flex items-center justify-center transition-all bg-white shadow-sm"
+              >
+                <Trash2 className="w-4 h-4 md:mr-1" />
+                <span className="hidden md:inline">취소</span>
+              </button>
+              <button
+                onClick={() => setIsCompleteModalOpen(true)}
+                className="flex-1 px-4 py-3 bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-500/20 active:scale-95 shadow-md font-bold text-sm rounded-xl flex items-center justify-center gap-1.5 transition-all"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                작업완료
+              </button>
+            </>
+          )}
+
+          {bid.status === 'ACCEPTED' && ['INSPECTION', 'COMPLETED'].includes(estimate.status) && estimate.completionPhotoUrls && estimate.completionPhotoUrls.length > 0 && (
+            <button
+              onClick={() => setIsPhotosModalOpen(true)}
+              className="flex-1 px-4 py-3 border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 active:scale-95 shadow-sm font-bold text-sm rounded-xl flex items-center justify-center gap-1.5 transition-all"
+            >
+              <ImageIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">포트폴리오(완료사진)</span> 보기
+            </button>
+          )}
+
           <button 
             onClick={() => {
               setIsChatOpen(true);
@@ -251,9 +302,9 @@ export default function ExpertBidListItem({
                 onMoveToStatus(category);
               }
             }}
-            disabled={estimate.status === 'CANCELLED'}
+            disabled={estimate.status === 'CANCELLED' || estimate.status === 'COMPLETED'}
             className={`flex-1 relative px-4 py-3 font-bold text-sm rounded-xl transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-md ${
-              estimate.status === 'CANCELLED'
+              estimate.status === 'CANCELLED' || estimate.status === 'COMPLETED'
                 ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none border border-slate-200'
                 : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/20'
             }`}
@@ -268,6 +319,13 @@ export default function ExpertBidListItem({
           </button>
         </div>
       </div>
+
+      <BidCompleteModal 
+        isOpen={isCompleteModalOpen} 
+        onClose={() => setIsCompleteModalOpen(false)} 
+        estimateId={estimate.id} 
+        expertId={expertId} 
+      />
 
       <BidEditModal 
         bid={bid} 
@@ -291,6 +349,12 @@ export default function ExpertBidListItem({
           image: estimate.customer?.image,
           roleLabel: '고객님'
         }}
+      />
+
+      <CompletionPhotosModal 
+        isOpen={isPhotosModalOpen}
+        onClose={() => setIsPhotosModalOpen(false)}
+        urls={estimate.completionPhotoUrls || []}
       />
 
       {isCancelModalOpen && (
@@ -318,6 +382,45 @@ export default function ExpertBidListItem({
               </button>
               <button
                 onClick={executeCancelBid}
+                disabled={isCanceling}
+                className="flex-1 py-3.5 rounded-xl font-bold text-white bg-red-500 hover:bg-red-600 transition-colors flex items-center justify-center disabled:opacity-50"
+              >
+                {isCanceling ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  '예, 취소합니다'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isCancelAcceptedModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm flex flex-col shadow-2xl p-6 relative" onClick={e => e.stopPropagation()}>
+            <div className="flex flex-col items-center justify-center text-center space-y-4 mb-6 mt-4">
+              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-2">
+                <AlertCircle className="w-8 h-8" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-800 mb-2">작업 취소</h3>
+                <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                  정말로 이 작업을 취소하시겠습니까?<br/>
+                  취소 시 상태가 변경되며 복구할 수 없습니다.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 w-full">
+              <button
+                onClick={() => setIsCancelAcceptedModalOpen(false)}
+                disabled={isCanceling}
+                className="flex-1 py-3.5 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50"
+              >
+                아니오
+              </button>
+              <button
+                onClick={executeCancelAcceptedBid}
                 disabled={isCanceling}
                 className="flex-1 py-3.5 rounded-xl font-bold text-white bg-red-500 hover:bg-red-600 transition-colors flex items-center justify-center disabled:opacity-50"
               >

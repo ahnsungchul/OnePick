@@ -92,6 +92,7 @@ export default function UserRequestsPage() {
       NEW_MESSAGE: newMessage,
       MATCHING: requests.filter(r => r.status === 'PENDING' || r.status === 'BIDDING' || r.status === 'SELECTED').length,
       FINISHED: requests.filter(r => r.status === 'IN_PROGRESS').length,
+      INSPECTION: requests.filter(r => r.status === 'INSPECTION').length,
       COMPLETED: requests.filter(r => r.status === 'COMPLETED').length,
       CANCELLED: requests.filter(r => r.status === 'CANCELLED').length,
     };
@@ -110,6 +111,7 @@ export default function UserRequestsPage() {
 
     if (activeFilter === 'MATCHING') return requests.filter(r => r.status === 'PENDING' || r.status === 'BIDDING' || r.status === 'SELECTED');
     if (activeFilter === 'FINISHED') return requests.filter(r => r.status === 'IN_PROGRESS');
+    if (activeFilter === 'INSPECTION') return requests.filter(r => r.status === 'INSPECTION');
     if (activeFilter === 'COMPLETED') return requests.filter(r => r.status === 'COMPLETED');
     if (activeFilter === 'CANCELLED') return requests.filter(r => r.status === 'CANCELLED');
     return requests;
@@ -119,11 +121,12 @@ export default function UserRequestsPage() {
     { label: '전체', value: 'ALL', count: counts.ALL, activeCls: 'text-slate-900 border-slate-800', badgeActive: 'bg-slate-800 text-white' },
     { label: '작성중', value: 'DRAFT', count: counts.DRAFT, activeCls: 'text-amber-600 border-amber-500', badgeActive: 'bg-amber-500 text-white' },
     { label: '신규견적', value: 'NEW_BIDS', count: counts.NEW_BIDS, activeCls: 'text-emerald-600 border-emerald-500', badgeActive: 'bg-emerald-500 text-white' },
-    { label: '신규메시지', value: 'NEW_MESSAGE', count: counts.NEW_MESSAGE, activeCls: 'text-red-500 border-red-500', badgeActive: 'bg-red-500 text-white' },
     { label: '매칭중', value: 'MATCHING', count: counts.MATCHING, activeCls: 'text-blue-600 border-blue-500', badgeActive: 'bg-blue-500 text-white' },
     { label: '전문가확정', value: 'FINISHED', count: counts.FINISHED, activeCls: 'text-indigo-600 border-indigo-500', badgeActive: 'bg-indigo-500 text-white' },
+    { label: '검수요청', value: 'INSPECTION', count: counts.INSPECTION, activeCls: 'text-fuchsia-600 border-fuchsia-500', badgeActive: 'bg-fuchsia-500 text-white' },
     { label: '서비스완료', value: 'COMPLETED', count: counts.COMPLETED, activeCls: 'text-slate-600 border-slate-600', badgeActive: 'bg-slate-600 text-white' },
     { label: '취소', value: 'CANCELLED', count: counts.CANCELLED, activeCls: 'text-red-600 border-red-500', badgeActive: 'bg-red-500 text-white' },
+    { label: '신규메시지', value: 'NEW_MESSAGE', count: counts.NEW_MESSAGE, activeCls: 'text-red-500 border-red-500', badgeActive: 'bg-red-500 text-white' },
   ];
 
   if (status === 'loading' || isLoading) {

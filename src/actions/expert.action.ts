@@ -701,3 +701,119 @@ export async function getExpertUnreadMessageCountAction(expertId: number) {
     return { success: false, data: 0 };
   }
 }
+
+/**
+ * 전문가의 작업 완료 사진(포트폴리오) 및 수동 등록 사진을 조회합니다.
+ */
+export async function getExpertPortfolioAction(expertId: number) {
+  try {
+    const portfolioItems: { url: string; category: string }[] = [];
+
+    // 1. 전문가 수동 등록 사진 가져오기
+    const profile = await prisma.profile.findUnique({
+      where: { expertId },
+      select: { portfolioFiles: true }
+    });
+
+    if (profile?.portfolioFiles && Array.isArray(profile.portfolioFiles)) {
+      profile.portfolioFiles.forEach((url: string) => {
+        portfolioItems.push({ url, category: '전문가 등록' });
+      });
+    }
+
+    // 2. 작업 완료 견적의 첨부 사진 가져오기
+    const closedBids = await prisma.bid.findMany({
+      where: {
+        expertId,
+        status: 'ACCEPTED',
+        estimate: {
+          status: { in: ['INSPECTION', 'COMPLETED'] },
+        }
+      },
+      include: {
+        estimate: {
+          include: { category: true }
+        }
+      }
+    });
+
+    closedBids.forEach((bid: any) => {
+       const categoryName = bid.estimate?.category?.name || '기타';
+       if (bid.estimate?.completionPhotoUrls && Array.isArray(bid.estimate.completionPhotoUrls)) {
+         bid.estimate.completionPhotoUrls.forEach((url: string) => {
+            portfolioItems.push({ url, category: categoryName });
+         });
+       }
+    });
+
+    return { success: true, data: portfolioItems };
+  } catch (error: any) {
+    console.error("getExpertPortfolioAction error:", error);
+    return { success: false, data: [] };
+  }
+}
+
+/**
+ * 전문가 포트폴리오를 수동으로 등록하는 Action (최대 5장)
+ */
+export async function uploadExpertPortfolioAction(formData: FormData) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: '로그인이 필요합니다.' };
+    }
+    const expertId = Number(session.user.id);
+
+    const photos = formData.getAll("photo") as File[];
+    const photoUrls: string[] = [];
+    const bucketName = process.env.AWS_S3_BUCKET || "onepick-storage";
+
+    for (const photo of photos) {
+      if (photo && photo.size > 0) {
+        try {
+          const buffer = Buffer.from(await photo.arrayBuffer());
+          const fileName = `portfolios/${uuidv4()}-${photo.name}`;
+
+          const command = new PutObjectCommand({
+            Bucket: bucketName,
+            Key: fileName,
+            Body: buffer,
+            ContentType: photo.type,
+          });
+
+          await s3Client.send(command);
+          photoUrls.push(`${process.env.AWS_S3_ENDPOINT || "http://localhost:4566"}/${bucketName}/${fileName}`);
+        } catch (s3Error) {
+          console.warn("S3 Upload Failed, skipping photo:", s3Error);
+        }
+      }
+    }
+
+    if (photoUrls.length === 0) {
+      return { success: false, error: '업로드된 사진이 없습니다.' };
+    }
+
+    // 프로필 업데이트 (프로필이 없으면 생성)
+    const profile = await prisma.profile.findUnique({ where: { expertId } });
+    const currentFiles = profile?.portfolioFiles || [];
+    // 최대 5장 제한
+    const newFiles = [...currentFiles, ...photoUrls].slice(0, 5);
+
+    await prisma.profile.upsert({
+      where: { expertId },
+      update: { portfolioFiles: newFiles },
+      create: {
+        expertId,
+        introduction: "",
+        portfolioFiles: newFiles
+      }
+    });
+
+    revalidatePath("/expert/dashboard");
+    return { success: true, data: newFiles };
+  } catch (error: any) {
+    console.error('uploadExpertPortfolioAction error:', error);
+    return { success: false, error: '포트폴리오 업로드 중 오류가 발생했습니다.' };
+  }
+}
+

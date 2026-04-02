@@ -61,7 +61,7 @@ export default function UserDashboardPage() {
         </Link>
       </div>
 
-      <UserDashboardStatus stats={dashboardData?.stats} />
+      <UserDashboardStatus stats={dashboardData?.stats} directStats={dashboardData?.directStats} />
       
       <div className="mt-12">
         <h3 className="text-lg font-bold text-slate-800 mb-4">내 활동 요약</h3>

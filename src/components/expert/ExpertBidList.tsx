@@ -5,7 +5,7 @@ import ExpertBidListItem from './ExpertBidListItem';
 import { Filter, Calendar, SearchX } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-type BidFilterStatus = 'ALL' | 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'UNREAD';
+type BidFilterStatus = 'ALL' | 'PENDING' | 'ACCEPTED' | 'INSPECTION' | 'COMPLETED' | 'REJECTED' | 'UNREAD';
 
 interface ExpertBidListProps {
   bids: any[];
@@ -18,7 +18,7 @@ export default function ExpertBidList({ bids, expertId, currentUserName }: Exper
   const router = useRouter();
   const initialBidId = searchParams?.get('bidId') || '';
   const initialFilterParam = searchParams?.get('filter') as string;
-  const initialFilter = ['ALL', 'PENDING', 'ACCEPTED', 'REJECTED', 'UNREAD'].includes(initialFilterParam) 
+  const initialFilter = ['ALL', 'PENDING', 'ACCEPTED', 'INSPECTION', 'COMPLETED', 'REJECTED', 'UNREAD'].includes(initialFilterParam) 
     ? (initialFilterParam as BidFilterStatus) 
     : 'ALL';
 
@@ -33,7 +33,7 @@ export default function ExpertBidList({ bids, expertId, currentUserName }: Exper
       setTargetBidId(bidIdParam);
     }
     const filterParam = searchParams?.get('filter') as BidFilterStatus;
-    if (filterParam && ['ALL', 'PENDING', 'ACCEPTED', 'REJECTED', 'UNREAD'].includes(filterParam)) {
+    if (filterParam && ['ALL', 'PENDING', 'ACCEPTED', 'INSPECTION', 'COMPLETED', 'REJECTED', 'UNREAD'].includes(filterParam)) {
       setStatusFilter(filterParam);
     }
   }, [searchParams]);
@@ -57,6 +57,8 @@ export default function ExpertBidList({ bids, expertId, currentUserName }: Exper
   const stats = useMemo(() => {
     let pending = 0;
     let accepted = 0;
+    let inspection = 0;
+    let completed = 0;
     let rejected = 0;
     let unread = 0;
 
@@ -71,14 +73,17 @@ export default function ExpertBidList({ bids, expertId, currentUserName }: Exper
         unread++;
       }
 
-      if (bidStatus === 'ACCEPTED') {
+      if (estStatus === 'COMPLETED') {
+        completed++;
+      } else if (estStatus === 'INSPECTION') {
+        inspection++;
+      } else if (bidStatus === 'ACCEPTED') {
         accepted++;
       } else if (
         bidStatus === 'REJECTED' || 
         estStatus === 'CANCELLED' || 
         estStatus === 'SELECTED' || 
-        estStatus === 'IN_PROGRESS' || 
-        estStatus === 'COMPLETED'
+        estStatus === 'IN_PROGRESS'
       ) {
         rejected++;
       } else {
@@ -86,7 +91,7 @@ export default function ExpertBidList({ bids, expertId, currentUserName }: Exper
       }
     });
 
-    return { all: bids.length, pending, accepted, rejected, unread };
+    return { all: bids.length, pending, accepted, inspection, completed, rejected, unread };
   }, [bids, expertId, readChatsLocally]);
 
   const filteredBids = useMemo(() => {
@@ -122,14 +127,17 @@ export default function ExpertBidList({ bids, expertId, currentUserName }: Exper
 
       let category: BidFilterStatus = 'PENDING';
       
-      if (bidStatus === 'ACCEPTED') {
+      if (estStatus === 'COMPLETED') {
+        category = 'COMPLETED';
+      } else if (estStatus === 'INSPECTION') {
+        category = 'INSPECTION';
+      } else if (bidStatus === 'ACCEPTED') {
         category = 'ACCEPTED';
       } else if (
         bidStatus === 'REJECTED' || 
         estStatus === 'CANCELLED' || 
         estStatus === 'SELECTED' || 
-        estStatus === 'IN_PROGRESS' || 
-        estStatus === 'COMPLETED'
+        estStatus === 'IN_PROGRESS'
       ) {
         category = 'REJECTED'; 
         // 채택 안되고 다른 고수가 채택되었거나, 요청이 취소되었거나, 명시적 거절된 경우
@@ -147,9 +155,11 @@ export default function ExpertBidList({ bids, expertId, currentUserName }: Exper
           {[
             { id: 'ALL', label: '전체 견적', count: stats.all, activeCls: 'text-slate-900 border-slate-800', badgeActive: 'bg-slate-800 text-white' },
             { id: 'PENDING', label: '매칭 대기중', count: stats.pending, activeCls: 'text-emerald-600 border-emerald-500', badgeActive: 'bg-emerald-500 text-white' },
-            { id: 'UNREAD', label: '신규 메시지', count: stats.unread, activeCls: 'text-red-500 border-red-500', badgeActive: 'bg-red-500 text-white' },
             { id: 'ACCEPTED', label: '채택된 견적', count: stats.accepted, activeCls: 'text-blue-600 border-blue-500', badgeActive: 'bg-blue-500 text-white' },
+            { id: 'INSPECTION', label: '검수중', count: stats.inspection, activeCls: 'text-indigo-600 border-indigo-500', badgeActive: 'bg-indigo-500 text-white' },
+            { id: 'COMPLETED', label: '서비스완료', count: stats.completed, activeCls: 'text-teal-600 border-teal-500', badgeActive: 'bg-teal-500 text-white' },
             { id: 'REJECTED', label: '거절/취소', count: stats.rejected, activeCls: 'text-slate-500 border-slate-500', badgeActive: 'bg-slate-500 text-white' },
+            { id: 'UNREAD', label: '신규 메시지', count: stats.unread, activeCls: 'text-red-500 border-red-500', badgeActive: 'bg-red-500 text-white' },
           ].map(tab => {
             const isActive = statusFilter === tab.id;
             return (
@@ -169,45 +179,6 @@ export default function ExpertBidList({ bids, expertId, currentUserName }: Exper
               </button>
             );
           })}
-        </div>
-      </div>
-
-      {/* 기간 필터 영역 */}
-      <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center justify-between gap-4">
-
-        {/* 기간 필터 */}
-        <div className="flex flex-wrap items-center gap-2 xl:border-l xl:border-slate-200 xl:pl-6">
-          <div className="flex items-center gap-2 mr-1 text-slate-500">
-            <Calendar className="w-4 h-4" />
-            <span className="text-sm font-bold">기간</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <input 
-              type="date" 
-              value={dateRange.start}
-              onChange={(e) => handleDateChange('start', e.target.value)}
-              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700"
-            />
-            <span className="text-slate-400 font-bold">~</span>
-            <input 
-              type="date" 
-              value={dateRange.end}
-              onChange={(e) => handleDateChange('end', e.target.value)}
-              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700"
-            />
-          </div>
-          {(dateRange.start || dateRange.end || targetBidId) && (
-            <button 
-              onClick={() => {
-                setDateRange({ start: '', end: '' });
-                setTargetBidId('');
-                router.replace('/expert/bids');
-              }}
-              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl transition-all"
-            >
-              초기화
-            </button>
-          )}
         </div>
       </div>
 

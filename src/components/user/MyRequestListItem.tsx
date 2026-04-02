@@ -21,6 +21,8 @@ import EstimateDetailModal from './EstimateDetailModal';
 import EstimateEditModal from './EstimateEditModal';
 import BidDetailModal from './BidDetailModal';
 import ChatPopupModal from '../chat/ChatPopupModal';
+import UserInspectionModal from './UserInspectionModal';
+import UserReviewModal from './UserReviewModal';
 import { deleteEstimateAction, cancelEstimateAction, closeEstimateAction, cancelCloseEstimateAction, extendEstimateDeadlineAction } from '@/actions/estimate.action';
 import { acceptBidAction, cancelBidSelectionAction } from '@/actions/bid.action';
 import { completePaymentAction } from '@/actions/payment.action';
@@ -68,6 +70,7 @@ interface Estimate {
   isClosed?: boolean;
   extendedDays?: number;
   selectedDate?: string;
+  completionPhotoUrls?: string[];
 }
 
 export default function MyRequestListItem({ 
@@ -86,6 +89,8 @@ export default function MyRequestListItem({
   const [isBidsOpen, setIsBidsOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isInspectionModalOpen, setIsInspectionModalOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [selectedBidForModal, setSelectedBidForModal] = useState<any>(null);
   const [selectedChatBid, setSelectedChatBid] = useState<any>(null);
   const [activeBidId, setActiveBidId] = useState<string | null>(null);
@@ -292,6 +297,7 @@ export default function MyRequestListItem({
     'BIDDING': { label: '견적중', color: 'bg-emerald-100 text-emerald-700', icon: MessageCircle },
     'SELECTED': { label: '전문가선택', color: 'bg-emerald-50 text-emerald-600 border border-emerald-100', icon: Clock },
     'IN_PROGRESS': { label: '전문가확정', color: 'bg-blue-100 text-blue-700', icon: CheckCircle2 },
+    'INSPECTION': { label: '검수요청', color: 'bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-200', icon: CheckCircle2 },
     'COMPLETED': { label: '서비스완료', color: 'bg-slate-100 text-slate-600', icon: CheckCircle2 },
     'CANCELLED': { label: '취소', color: 'bg-red-100 text-red-600', icon: Clock }
   };
@@ -420,6 +426,14 @@ export default function MyRequestListItem({
                         </button>
                       </>
                     )
+                  )}
+                  {estimate.status === 'INSPECTION' && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setIsInspectionModalOpen(true); }}
+                      className="w-full md:w-auto px-4 py-1 text-sm font-bold text-white bg-fuchsia-600 rounded-md shadow-md shadow-fuchsia-600/20 hover:bg-fuchsia-700 transition-colors"
+                    >
+                      검수하기
+                    </button>
                   )}
                   <button 
                     onClick={() => setIsDetailOpen(true)}
@@ -646,7 +660,12 @@ export default function MyRequestListItem({
                             onMoveToStatus(nextFilter);
                           }
                         }}
-                        className="relative flex-1 text-xs font-bold bg-blue-50 text-blue-600 py-2.5 rounded-xl hover:bg-blue-600 hover:text-white transition-all border border-blue-100"
+                        disabled={estimate.status === 'COMPLETED'}
+                        className={`relative flex-1 text-xs font-bold py-2.5 rounded-xl transition-all border ${
+                          estimate.status === 'COMPLETED'
+                          ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                          : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white border-blue-100'
+                        }`}
                       >
                         상담하기
                         {(() => {
@@ -798,6 +817,26 @@ export default function MyRequestListItem({
           }}
         />
       )}
+
+      {/* 검수 리뷰 모달 */}
+      <UserInspectionModal 
+        isOpen={isInspectionModalOpen}
+        onClose={() => setIsInspectionModalOpen(false)}
+        onComplete={() => {
+          setIsInspectionModalOpen(false);
+          setIsReviewModalOpen(true);
+        }}
+        photoUrls={estimate.completionPhotoUrls || []}
+      />
+
+      <UserReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        expertName={estimate.bids.find(b => b.status === 'ACCEPTED')?.expert.name || '전문가'}
+        expertId={estimate.bids.find(b => b.status === 'ACCEPTED')?.expert.id || 0}
+        customerId={parseInt(session?.user?.id || '0', 10)}
+        estimateId={estimate.id}
+      />
 
       {/* 결제 시간 초과 안내 모달 */}
       {pendingBidId && (

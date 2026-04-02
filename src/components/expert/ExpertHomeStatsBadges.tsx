@@ -41,18 +41,20 @@ export default function ExpertHomeStatsBadges({
   }, [directRequests, userId]);
 
   const bidStats = useMemo(() => {
-    let pending = 0, accepted = 0, rejected = 0, unread = 0;
+    let pending = 0, accepted = 0, inspection = 0, completed = 0, rejected = 0, unread = 0;
     sentBids.forEach(bid => {
       const bidStatus = bid.status;
       const estStatus = bid.estimate?.status;
       const unreadCount = bid.estimate?.chats?.filter((c: any) => c.senderId !== userId && !c.isRead).length || 0;
       if (unreadCount > 0) unread++;
       
-      if (bidStatus === 'ACCEPTED') accepted++;
-      else if (bidStatus === 'REJECTED' || estStatus === 'CANCELLED' || estStatus === 'SELECTED' || estStatus === 'IN_PROGRESS' || estStatus === 'COMPLETED') rejected++;
+      if (estStatus === 'COMPLETED') completed++;
+      else if (estStatus === 'INSPECTION') inspection++;
+      else if (bidStatus === 'ACCEPTED') accepted++;
+      else if (bidStatus === 'REJECTED' || estStatus === 'CANCELLED' || estStatus === 'SELECTED' || estStatus === 'IN_PROGRESS') rejected++;
       else pending++;
     });
-    return { all: sentBids.length, pending, accepted, rejected, unread };
+    return { all: sentBids.length, pending, accepted, inspection, completed, rejected, unread };
   }, [sentBids, userId]);
 
   const requestTabs = useMemo(() => [
@@ -67,9 +69,11 @@ export default function ExpertHomeStatsBadges({
   const bidTabs = useMemo(() => [
     { id: 'ALL', label: '전체 견적', count: bidStats.all },
     { id: 'PENDING', label: '대기중', count: bidStats.pending },
-    { id: 'UNREAD', label: '신규 메시지', count: bidStats.unread, isAlert: true },
     { id: 'ACCEPTED', label: '채택됨', count: bidStats.accepted },
+    { id: 'INSPECTION', label: '검수중', count: bidStats.inspection },
+    { id: 'COMPLETED', label: '서비스완료', count: bidStats.completed },
     { id: 'REJECTED', label: '거절/취소', count: bidStats.rejected },
+    { id: 'UNREAD', label: '신규 메시지', count: bidStats.unread, isAlert: true },
   ], [bidStats]);
 
   useEffect(() => {
@@ -170,7 +174,7 @@ export default function ExpertHomeStatsBadges({
             </h3>
           </div>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-auto">
+        <div className="grid grid-cols-3 xl:grid-cols-7 sm:grid-cols-4 gap-2 mt-auto">
           {bidTabs.map(tab => (
             <button 
               key={tab.id} 

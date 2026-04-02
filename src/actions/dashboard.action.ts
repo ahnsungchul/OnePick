@@ -13,7 +13,7 @@ export async function getUserDashboardStatsAction(userId: number) {
     // 1. 견적 목록 조회
     const estimates = await prisma.estimate.findMany({
       where: { customerId: userId },
-      select: { status: true }
+      select: { status: true, designatedExpertId: true }
     });
 
     // 2. 상태별 카운트 초기화
@@ -21,29 +21,43 @@ export async function getUserDashboardStatsAction(userId: number) {
       DRAFT: 0,      // 작성중
       MATCHING: 0,   // 매칭중 (PENDING, BIDDING)
       FINISHED: 0,   // 매칭완료 (IN_PROGRESS)
+      INSPECTION: 0, // 검수요청 (INSPECTION)
       COMPLETED: 0,  // 서비스완료 (COMPLETED)
       CANCELLED: 0,  // 취소 (CANCELLED)
+    };
+    
+    const directStats = {
+      DRAFT: 0,
+      MATCHING: 0,
+      FINISHED: 0,
+      INSPECTION: 0,
+      COMPLETED: 0,
+      CANCELLED: 0,
     };
 
     // 3. 상태 매핑 및 계산
     estimates.forEach(est => {
+      const targetStats = est.designatedExpertId ? directStats : stats;
       switch (est.status as any) {
         case 'DRAFT':
-          stats.DRAFT++;
+          targetStats.DRAFT++;
           break;
         case 'PENDING':
         case 'BIDDING':
         case 'SELECTED':
-          stats.MATCHING++;
+          targetStats.MATCHING++;
           break;
         case 'IN_PROGRESS':
-          stats.FINISHED++;
+          targetStats.FINISHED++;
+          break;
+        case 'INSPECTION':
+          targetStats.INSPECTION++;
           break;
         case 'COMPLETED':
-          stats.COMPLETED++;
+          targetStats.COMPLETED++;
           break;
         case 'CANCELLED':
-          stats.CANCELLED++;
+          targetStats.CANCELLED++;
           break;
         default:
           break;
@@ -66,7 +80,7 @@ export async function getUserDashboardStatsAction(userId: number) {
 
     return { 
       success: true, 
-      data: { stats, summary } 
+      data: { stats, directStats, summary } 
     };
   } catch (error: any) {
     console.error("getUserDashboardStatsAction error:", error);

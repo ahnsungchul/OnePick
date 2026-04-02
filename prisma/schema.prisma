@@ -29,6 +29,7 @@ enum EstimateStatus {
   BIDDING // 입찰 중 (견적 받는 중)
   SELECTED // 전문가 선택됨 (결제 대기)
   IN_PROGRESS // 진행 중 (매칭 완료)
+  INSPECTION // 검수 중 (고객 검수)
   COMPLETED // 작업 완료
   CANCELLED // 취소됨
 }
@@ -119,6 +120,8 @@ model User {
   reports   Report[]   @relation("UserReports")
   schedules Schedule[] @relation("ExpertSchedules")
   certifications Certification[] @relation("UserCertifications")
+  expertReviews Review[]       @relation("ExpertReviews")
+  customerReviews Review[]     @relation("CustomerReviews")
 
   @@map("users")
 }
@@ -127,7 +130,8 @@ model Profile {
   id           String  @id @default(uuid())
   expertId     Int     @unique
   introduction String // 전문가 상세 소개
-  portfolioUrl String? // 포트폴리오(S3 URL 등)
+  portfolioUrl String? // 기존 포트폴리오 URL
+  portfolioFiles String[] @default([]) // 전문가 수동 업로드 완료 사진 
   rating       Float   @default(0.0) // 평점
   reviewCount  Int     @default(0)   // 후기 갯수
 
@@ -155,6 +159,7 @@ model Estimate {
   serviceTime String? // 희망 도착 시간 (선택)
   selectedDate String? // 전문가 선택 시 확정된 서비스일
   photoUrls   String[] // 여러 장의 사진 S3 URL (LocalStack 연동, 최대 5장)
+  completionPhotoUrls String[] @default([]) // 작업 완료 증빙 사진 S3 URL
   status      EstimateStatus @default(PENDING)
   currentStep Int            @default(1) // 현재 작성 중인 단계 (1~4)
   designatedExpertId Int?    // 특정 전문가에게 지정 견적 요청한 경우
@@ -174,6 +179,7 @@ model Estimate {
   bids      Bid[]      @relation("EstimateBids")
   bookmarks Bookmark[] @relation("EstimateBookmarks")
   chats     Chat[]     @relation("EstimateChats")
+  review    Review?    @relation("EstimateReview")
 
   @@map("estimates")
 }
@@ -366,4 +372,23 @@ model Certification {
   user User @relation("UserCertifications", fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("certifications")
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  estimateId String   @unique
+  expertId   Int
+  customerId Int
+  rating     Float    @default(5.0)
+  content    String   // 리뷰 내용
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  estimate   Estimate @relation("EstimateReview", fields: [estimateId], references: [id], onDelete: Cascade)
+  expert     User     @relation("ExpertReviews", fields: [expertId], references: [id], onDelete: Cascade)
+  customer   User     @relation("CustomerReviews", fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("reviews")
 }

@@ -61,6 +61,8 @@ export default function UserDirectRequestsPage() {
     let receivedBid = 0;
     let newMessage = 0;
     let confirmed = 0;
+    let inspection = 0;
+    let completed = 0;
     let rejectedCancelled = 0;
 
     requests.forEach(r => {
@@ -70,12 +72,16 @@ export default function UserDirectRequestsPage() {
       
       const isPreBid = bid && bid.price === 0 && bid.status === 'PENDING';
       const hasReceivedBid = bid && bid.price > 0 && bid.status === 'PENDING';
-      const isConfirmed = bid?.status === 'ACCEPTED' || ['SELECTED', 'IN_PROGRESS', 'COMPLETED'].includes(r.status);
+      const isConfirmed = bid?.status === 'ACCEPTED' && r.status !== 'INSPECTION' && r.status !== 'COMPLETED' && r.status !== 'CANCELLED';
+      const isInspection = r.status === 'INSPECTION';
+      const isCompleted = r.status === 'COMPLETED';
       const isCanceledOrRejected = r.status === 'CANCELLED' || bid?.status === 'REJECTED';
 
       if (isPreBid) preBid++;
-      if (hasReceivedBid && !isConfirmed && !isCanceledOrRejected) receivedBid++;
+      if (hasReceivedBid && !isConfirmed && !isInspection && !isCompleted && !isCanceledOrRejected) receivedBid++;
       if (isConfirmed) confirmed++;
+      if (isInspection) inspection++;
+      if (isCompleted) completed++;
       if (isCanceledOrRejected) rejectedCancelled++;
     });
 
@@ -84,7 +90,9 @@ export default function UserDirectRequestsPage() {
       PRE_BID: preBid,
       RECEIVED_BID: receivedBid,
       NEW_MESSAGE: newMessage,
-      CONFIRMED: confirmed,
+      FINISHED: confirmed,
+      INSPECTION: inspection,
+      COMPLETED: completed,
       REJECTED_CANCELLED: rejectedCancelled,
     };
   }, [requests, readChatsLocally]);
@@ -100,12 +108,16 @@ export default function UserDirectRequestsPage() {
       const bid = r.bids?.[0];
       const isPreBid = bid && bid.price === 0 && bid.status === 'PENDING';
       const hasReceivedBid = bid && bid.price > 0 && bid.status === 'PENDING';
-      const isConfirmed = bid?.status === 'ACCEPTED' || ['SELECTED', 'IN_PROGRESS', 'COMPLETED'].includes(r.status);
+      const isConfirmed = bid?.status === 'ACCEPTED' && r.status !== 'INSPECTION' && r.status !== 'COMPLETED' && r.status !== 'CANCELLED';
+      const isInspection = r.status === 'INSPECTION';
+      const isCompleted = r.status === 'COMPLETED';
       const isCanceledOrRejected = r.status === 'CANCELLED' || bid?.status === 'REJECTED';
 
       if (activeFilter === 'PRE_BID') return isPreBid;
-      if (activeFilter === 'RECEIVED_BID') return hasReceivedBid && !isConfirmed && !isCanceledOrRejected;
-      if (activeFilter === 'CONFIRMED') return isConfirmed;
+      if (activeFilter === 'RECEIVED_BID') return hasReceivedBid && !isConfirmed && !isInspection && !isCompleted && !isCanceledOrRejected;
+      if (activeFilter === 'FINISHED') return isConfirmed;
+      if (activeFilter === 'INSPECTION') return isInspection;
+      if (activeFilter === 'COMPLETED') return isCompleted;
       if (activeFilter === 'REJECTED_CANCELLED') return isCanceledOrRejected;
       
       return true;
@@ -116,9 +128,11 @@ export default function UserDirectRequestsPage() {
     { label: '전체', value: 'ALL', count: counts.ALL, activeCls: 'text-slate-900 border-slate-800', badgeActive: 'bg-slate-800 text-white' },
     { label: '견적전', value: 'PRE_BID', count: counts.PRE_BID, activeCls: 'text-amber-600 border-amber-500', badgeActive: 'bg-amber-500 text-white' },
     { label: '받은견적', value: 'RECEIVED_BID', count: counts.RECEIVED_BID, activeCls: 'text-emerald-600 border-emerald-500', badgeActive: 'bg-emerald-500 text-white' },
-    { label: '신규메시지', value: 'NEW_MESSAGE', count: counts.NEW_MESSAGE, activeCls: 'text-red-500 border-red-500', badgeActive: 'bg-red-500 text-white' },
-    { label: '확정', value: 'CONFIRMED', count: counts.CONFIRMED, activeCls: 'text-blue-600 border-blue-500', badgeActive: 'bg-blue-500 text-white' },
+    { label: '전문가확정', value: 'FINISHED', count: counts.FINISHED, activeCls: 'text-indigo-600 border-indigo-500', badgeActive: 'bg-indigo-500 text-white' },
+    { label: '검수요청', value: 'INSPECTION', count: counts.INSPECTION, activeCls: 'text-fuchsia-600 border-fuchsia-500', badgeActive: 'bg-fuchsia-500 text-white' },
+    { label: '서비스완료', value: 'COMPLETED', count: counts.COMPLETED, activeCls: 'text-slate-600 border-slate-600', badgeActive: 'bg-slate-600 text-white' },
     { label: '거절/취소', value: 'REJECTED_CANCELLED', count: counts.REJECTED_CANCELLED, activeCls: 'text-red-600 border-red-500', badgeActive: 'bg-red-500 text-white' },
+    { label: '신규메시지', value: 'NEW_MESSAGE', count: counts.NEW_MESSAGE, activeCls: 'text-red-500 border-red-500', badgeActive: 'bg-red-500 text-white' },
   ];
 
   if (status === 'loading' || isLoading) {

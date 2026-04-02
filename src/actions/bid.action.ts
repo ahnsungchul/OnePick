@@ -231,3 +231,69 @@ export async function cancelExpertBidAction(bidId: string, expertId: number) {
     return { success: false, error: error.message || "견적 취소 중 오류가 발생했습니다." };
   }
 }
+
+/**
+ * 전문가 채택 후 '작업 완료' Server Action
+ */
+export async function completeExpertBidAction(estimateId: string, expertId: number, photoUrls: string[]) {
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const bid = await tx.bid.findFirst({
+        where: { estimateId, expertId, status: "ACCEPTED" },
+      });
+
+      if (!bid) throw new Error("채택된 견적을 찾을 수 없습니다.");
+
+      // Estimate 상태 업데이트 (INSPECTION으로 변경, 사진 추가)
+      const updatedEstimate = await tx.estimate.update({
+        where: { id: estimateId },
+        data: {
+          status: "INSPECTION",
+          completionPhotoUrls: photoUrls
+        }
+      });
+
+      return updatedEstimate;
+    });
+
+    revalidatePath("/expert/bids");
+    revalidatePath(`/estimate/${estimateId}`);
+    return { success: true, data: result };
+  } catch (error: any) {
+    console.error("completeExpertBidAction error:", error);
+    return { success: false, error: error.message || "작업 완료 처리 중 오류가 발생했습니다." };
+  }
+}
+
+/**
+ * 채택된 후 전문가가 직접 취소하는 Server Action
+ */
+export async function cancelAcceptedBidAction(estimateId: string, expertId: number) {
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const bid = await tx.bid.findFirst({
+        where: { estimateId, expertId, status: "ACCEPTED" },
+      });
+
+      if (!bid) throw new Error("채택된 견적을 찾을 수 없습니다.");
+
+      // Estimate 상태를 CANCELLED로 변경
+      const updatedEstimate = await tx.estimate.update({
+        where: { id: estimateId },
+        data: {
+          status: "CANCELLED",
+          isClosed: true
+        }
+      });
+
+      return updatedEstimate;
+    });
+
+    revalidatePath("/expert/bids");
+    revalidatePath(`/estimate/${estimateId}`);
+    return { success: true, data: result };
+  } catch (error: any) {
+    console.error("cancelAcceptedBidAction error:", error);
+    return { success: false, error: error.message || "견적 취소 중 오류가 발생했습니다." };
+  }
+}
