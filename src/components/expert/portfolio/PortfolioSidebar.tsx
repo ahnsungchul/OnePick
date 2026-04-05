@@ -122,7 +122,7 @@ export default function PortfolioSidebar({
               <button 
                 onClick={handleAddCategory}
                 disabled={isLoading}
-                className="px-3 bg-slate-200 text-slate-600 hover:bg-blue-600 hover:text-white font-bold text-sm transition-colors disabled:opacity-50"
+                className="px-3 whitespace-nowrap flex-shrink-0 bg-slate-200 text-slate-600 hover:bg-blue-600 hover:text-white font-bold text-sm transition-colors disabled:opacity-50"
               >
                 추가
               </button>

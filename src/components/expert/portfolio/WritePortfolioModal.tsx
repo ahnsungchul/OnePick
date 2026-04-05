@@ -14,11 +14,12 @@ interface WritePortfolioModalProps {
   categories: any[];
   editData?: any;
   onSuccess: () => void;
+  initialCategoryId?: number | null;
 }
 
-export default function WritePortfolioModal({ isOpen, onClose, expertId, categories, editData, onSuccess }: WritePortfolioModalProps) {
+export default function WritePortfolioModal({ isOpen, onClose, expertId, categories, editData, onSuccess, initialCategoryId = null }: WritePortfolioModalProps) {
   const [activeTab, setActiveTab] = useState<'import' | 'write'>(editData ? (editData.isImported ? 'import' : 'write') : 'import');
-  const [categoryId, setCategoryId] = useState<number | null>(editData?.categoryId || null);
+  const [categoryId, setCategoryId] = useState<number | null>(editData?.categoryId || initialCategoryId);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Import State
@@ -249,7 +250,7 @@ export default function WritePortfolioModal({ isOpen, onClose, expertId, categor
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">불러온 내용 (이미지와 텍스트)</label>
                     <SunEditor 
-                      setContents={importDescription}
+                      defaultValue={importDescription}
                       onChange={setImportDescription}
                       setOptions={{
                         buttonList: [
@@ -326,7 +327,7 @@ export default function WritePortfolioModal({ isOpen, onClose, expertId, categor
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">글 작성</label>
                 <SunEditor 
-                  setContents={content}
+                  defaultValue={content}
                   onChange={setContent}
                   setOptions={{
                     buttonList: [

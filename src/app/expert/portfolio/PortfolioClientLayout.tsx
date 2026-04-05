@@ -262,6 +262,7 @@ export default function PortfolioClientLayout({
           expertId={targetUserId}
           categories={categories}
           editData={editData}
+          initialCategoryId={selectedCategoryId}
           onSuccess={() => {
             setIsWriteModalOpen(false);
             setEditData(null);
