@@ -33,14 +33,15 @@ export const authConfig = {
       const isUserPage = nextUrl.pathname.startsWith('/user');
       const isExpertPage = nextUrl.pathname.startsWith('/expert');
       const isExpertDashboard = nextUrl.pathname === '/expert/dashboard';
+      const isExpertPortfolio = nextUrl.pathname.startsWith('/expert/portfolio');
       
       // 로그아웃 상태에서 마이페이지 관련(/user/*) 접근 시 홈으로 리다이렉트
       if (isUserPage && !isLoggedIn) {
         return Response.redirect(new URL('/', nextUrl));
       }
 
-      // 전문가 페이지 권한 체크
-      if (isExpertPage && !isExpertDashboard) {
+      // 전문가 전용 권한 체크 (대시보드와 포트폴리오는 예외로 전체 공개)
+      if (isExpertPage && !isExpertDashboard && !isExpertPortfolio) {
         if (!isLoggedIn) {
           // 비로그인 상태에서 전문가 하위 페이지 접근 시 전문가 홈으로 리다이렉트
           return Response.redirect(new URL(`/expert/dashboard${nextUrl.search}`, nextUrl));

@@ -1,0 +1,6 @@
+Group class: se-component se-image se-l-collage, imgs inside: 2
+Skipping detached element
+Skipping detached element
+
+    <table><tbody><tr><td><img src="img1"></td><td><img src="img2"></td></tr></tbody></table>
+

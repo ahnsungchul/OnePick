@@ -7,6 +7,7 @@ import { formatCategory } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import DirectEstimateRequestModal from './DirectEstimateRequestModal';
+import LoginModal from '@/components/auth/LoginModal';
 
 import { CategoryData } from '@/actions/category.action';
 
@@ -20,6 +21,7 @@ export default function CalendarSection({ userId, specialties = [], categoriesDa
   const [schedules, setSchedules] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   const fetchSchedules = async () => {
     setIsLoading(true);
@@ -193,8 +195,7 @@ export default function CalendarSection({ userId, specialties = [], categoriesDa
           disabled={!isSelectedDateAvailable || isOwner}
           onClick={() => {
             if (!session?.user) {
-              alert('로그인이 필요한 서비스입니다.');
-              window.location.href = '/login';
+              setIsLoginModalOpen(true);
               return;
             }
             setIsRequestModalOpen(true);
@@ -315,6 +316,15 @@ export default function CalendarSection({ userId, specialties = [], categoriesDa
           categoriesData={categoriesData}
         />
       )}
+
+      <LoginModal 
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onSuccess={() => {
+          setIsLoginModalOpen(false);
+          setIsRequestModalOpen(true); // 로그인 성공 시 자동으로 견적 요청 모달 띄우기
+        }}
+      />
     </>
   );
 }

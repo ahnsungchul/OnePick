@@ -88,9 +88,7 @@ export default function BidEditModal({
   };
 
   const getTotalAmount = () => {
-    const baseAmount = bidItems.reduce((sum, item) => sum + (parseInt(item.amount) || 0) * 10000, 0);
-    const vat = userGrade === 'PRO' ? Math.floor(baseAmount * 0.1) : 0;
-    return baseAmount + vat;
+    return bidItems.reduce((sum, item) => sum + (parseInt(item.amount) || 0) * 10000, 0);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -370,91 +368,30 @@ export default function BidEditModal({
               <div className="lg:col-span-2 bg-white rounded-3xl p-5 border border-slate-200 shadow-sm">
                 <h4 className="text-sm font-black text-slate-900 mb-4 flex items-center gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-blue-500" /> 예상 정산 내역 확인
+                    <CheckCircle2 className="w-4 h-4 text-blue-500" /> 작성한 견적 내용
                   </div>
-                  <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                    플랫폼 수수료는 합리적인 상한제 적용 (최대 1만원)
-                  </span>
                 </h4>
                 
-                <div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-500 font-medium">총 항목 합계</span>
-                    <span className="text-slate-900 font-black">
-                      {(bidItems.reduce((sum, item) => sum + (parseInt(item.amount) || 0) * 10000, 0)).toLocaleString()}원
-                    </span>
-                  </div>
-
-                  {userGrade === 'PRO' && (
-                    <div className="flex justify-between items-center text-sm mt-3">
-                      <span className="text-slate-500 font-medium">부가세 (10%)</span>
-                      <span className="text-blue-600 font-black">
-                        + {(Math.floor(bidItems.reduce((sum, item) => sum + (parseInt(item.amount) || 0) * 10000, 0) * 0.1)).toLocaleString()}원
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="h-px bg-slate-100 mt-3" />
-
-                  <div className="flex justify-between items-center text-sm mt-[5px]">
-                    <span className="text-slate-500 font-medium">PG 수수료 (3%)</span>
-                    <span className="text-red-500 font-bold">
-                      - {Math.floor(bidItems.reduce((sum, item) => sum + (parseInt(item.amount) || 0) * 10000, 0) * 0.03).toLocaleString()}원
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-sm mt-[5px]">
-                    <span className="text-slate-500 font-medium">플랫폼 이용료 (2%, 최대 1만)</span>
-                    <div className="flex items-center gap-2">
-                      {Math.floor(bidItems.reduce((sum, item) => sum + (parseInt(item.amount) || 0) * 10000, 0) * 0.02) > 10000 && (
-                        <span className="text-slate-400 line-through text-[11px]">
-                          - {Math.floor(bidItems.reduce((sum, item) => sum + (parseInt(item.amount) || 0) * 10000, 0) * 0.02).toLocaleString()}원
+                <div className="space-y-3">
+                  {bidItems.map((item, index) => {
+                    if (!item.name || !item.amount) return null;
+                    return (
+                      <div key={index} className="flex justify-between items-center text-sm">
+                        <span className="text-slate-500 font-medium">{item.name} <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded ml-1 text-slate-400">{item.periodValue}{item.periodUnit}</span></span>
+                        <span className="text-slate-900 font-bold">
+                          {((parseInt(item.amount) || 0) * 10000).toLocaleString()}원
                         </span>
-                      )}
-                      <span className="text-red-500 font-bold">
-                        - {Math.min(Math.floor(bidItems.reduce((sum, item) => sum + (parseInt(item.amount) || 0) * 10000, 0) * 0.02), 10000).toLocaleString()}원
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-center text-sm mt-[5px]">
-                    <span className="text-slate-500 font-medium">이용료 부가세 (10%)</span>
-                    <span className="text-red-500 font-bold">
-                      - {Math.floor((
-                        Math.floor(bidItems.reduce((sum, item) => sum + (parseInt(item.amount) || 0) * 10000, 0) * 0.03) + 
-                        Math.min(Math.floor(bidItems.reduce((sum, item) => sum + (parseInt(item.amount) || 0) * 10000, 0) * 0.02), 10000)
-                      ) * 0.1).toLocaleString()}원
-                    </span>
-                  </div>
-
-                  {userGrade === 'HELPER' && (
-                    <div className="flex justify-between items-center text-sm text-slate-400 mt-[5px]">
-                      <span className="font-medium">원천세 (3.3%)</span>
-                      <span className="font-bold">
-                        - {(Math.floor(bidItems.reduce((sum, item) => sum + (parseInt(item.amount) || 0) * 10000, 0) * 0.033)).toLocaleString()}원
-                      </span>
-                    </div>
-                  )}
+                      </div>
+                    );
+                  })}
 
                   <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-end">
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">최종 예상 입금액</p>
-                      <p className="text-[10px] text-slate-400">수수료 및 세금 공제 후</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">총 견적 합계</p>
                     </div>
                     <div className="text-right">
                       <span className="text-xl font-black text-blue-600">
-                        {(
-                          getTotalAmount() - 
-                          (
-                            Math.floor(bidItems.reduce((sum, item) => sum + (parseInt(item.amount) || 0) * 10000, 0) * 0.03) + // PG (3%)
-                            Math.min(Math.floor(bidItems.reduce((sum, item) => sum + (parseInt(item.amount) || 0) * 10000, 0) * 0.02), 10000) // Platform (2% cap 10k)
-                          ) -
-                          Math.floor((
-                            Math.floor(bidItems.reduce((sum, item) => sum + (parseInt(item.amount) || 0) * 10000, 0) * 0.03) + 
-                            Math.min(Math.floor(bidItems.reduce((sum, item) => sum + (parseInt(item.amount) || 0) * 10000, 0) * 0.02), 10000)
-                          ) * 0.1) - // Fee VAT (10%)
-                          (userGrade === 'HELPER' ? Math.floor(bidItems.reduce((sum, item) => sum + (parseInt(item.amount) || 0) * 10000, 0) * 0.033) : 0) // Tax
-                        ).toLocaleString()}
+                        {getTotalAmount().toLocaleString()}
                       </span>
                       <span className="text-xs font-bold text-slate-600 ml-0.5">원</span>
                     </div>
@@ -465,7 +402,7 @@ export default function BidEditModal({
               <div className="bg-slate-900 rounded-3xl p-5 text-white relative overflow-hidden group h-full flex flex-col min-h-[160px]">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 rounded-full blur-3xl group-hover:bg-blue-600/30 transition-all" />
                 <p className="text-white/70 text-sm font-bold mb-1 relative z-10">
-                  총 견적 금액 {userGrade === 'PRO' && <span className="text-blue-400 text-[10px] ml-1">(VAT 포함)</span>}
+                  총 견적 금액
                 </p>
                 <div className="flex-1 flex flex-col justify-center items-center relative z-10">
                   <div className="flex items-baseline gap-1">

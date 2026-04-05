@@ -8,6 +8,11 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      spacing: {
+        '38': '9.5rem',
+        '54': '13.5rem',
+        '68': '17rem',
+      },
       fontFamily: {
         sans: ["var(--font-noto-sans-kr)", "sans-serif"],
       },

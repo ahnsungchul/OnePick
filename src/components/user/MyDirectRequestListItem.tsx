@@ -19,7 +19,7 @@ import ChatPopupModal from '../chat/ChatPopupModal';
 import UserInspectionModal from './UserInspectionModal';
 import UserReviewModal from './UserReviewModal';
 import { cancelEstimateAction } from '@/actions/estimate.action';
-import { acceptBidAction, cancelBidSelectionAction } from '@/actions/bid.action';
+import { acceptBidAction } from '@/actions/bid.action';
 import { completePaymentAction } from '@/actions/payment.action';
 import { useSession } from 'next-auth/react';
 
@@ -184,26 +184,8 @@ export default function MyDirectRequestListItem({
     }
   };
 
-  const handleCancelSelection = async () => {
-    if (!window.confirm('전문가 선택을 취소하시겠습니까?')) return;
-    
-    if (!session?.user?.id) {
-      alert('로그인이 필요합니다.');
-      return;
-    }
-    
-    if (isCanceling) return;
-    setIsCanceling(true);
-
-    const userId = parseInt(session.user.id, 10);
-    const result = await cancelBidSelectionAction(estimate.id, bid.id, userId);
-
-    if (result.success) {
-      window.location.reload();
-    } else {
-      alert(result.error || '취소 중 오류가 발생했습니다.');
-      setIsCanceling(false);
-    }
+  const handleCompleteServiceAction = () => {
+    setIsReviewModalOpen(true);
   };
 
   if (!bid) return null; // 1:1 요청인데 전문가 정보가 없으면 안됨
@@ -413,32 +395,32 @@ export default function MyDirectRequestListItem({
               </button>
             )}
 
-            {/* 결제 및 확정 버튼 */}
+            {/* 서비스 요청 버튼 */}
             {!isCanceledOrRejected && hasReceivedBid && !isConfirmed && (
               <button 
                 onClick={handleAcceptBid}
                 disabled={isAccepting}
                 className="flex-1 text-sm font-bold bg-indigo-600 text-white py-3 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-600/20 disabled:bg-slate-400 disabled:shadow-none"
               >
-                {isAccepting ? '처리 중...' : '확정 및 결제 하기'}
+                {isAccepting ? '처리 중...' : '서비스 요청'}
               </button>
             )}
 
             {estimate.status === 'SELECTED' && bid.status === 'ACCEPTED' && (
               <>
                 <button 
-                  onClick={handleCancelSelection}
-                  disabled={isPaying || isCanceling}
+                  onClick={() => setIsCancelModalOpen(true)}
+                  disabled={isCanceling || isAccepting}
                   className="flex-1 text-sm font-bold bg-slate-500 text-white py-3 rounded-xl hover:bg-slate-600 transition-all disabled:bg-slate-400"
                 >
-                  {isCanceling ? '처리 중...' : '선택 취소'}
+                  {isCanceling ? '처리 중...' : '서비스 취소'}
                 </button>
                 <button 
-                  onClick={handleCompletePayment}
-                  disabled={isPaying || isCanceling}
-                  className="flex-1 text-sm font-bold bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-600/20 disabled:bg-slate-400"
+                  onClick={handleCompleteServiceAction}
+                  disabled={isCanceling || isAccepting}
+                  className="flex-1 text-sm font-bold bg-indigo-600 text-white py-3 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-600/20 disabled:bg-slate-400"
                 >
-                  {isPaying ? '처리 중...' : '결제하기'}
+                  {isAccepting ? '처리 중...' : '서비스 완료'}
                 </button>
               </>
             )}

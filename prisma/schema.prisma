@@ -7,179 +7,147 @@ datasource db {
   provider = "postgresql"
 }
 
-// ==========================================
-// Enums
-// ==========================================
-
-enum UserRole {
-  USER // 일반 사용자
-  EXPERT // 전문가
-  BOTH // 모두 (사용자 및 전문가)
-  ADMIN // 관리자
-}
-
-enum ExpertGrade {
-  PRO // 프로 (Pro)
-  HELPER // 헬퍼 (Helper)
-}
-
-enum EstimateStatus {
-  DRAFT // 작성 중 (임시 저장)
-  PENDING // 요청 대기 (전문가 탐색 중)
-  BIDDING // 입찰 중 (견적 받는 중)
-  SELECTED // 전문가 선택됨 (결제 대기)
-  IN_PROGRESS // 진행 중 (매칭 완료)
-  INSPECTION // 검수 중 (고객 검수)
-  COMPLETED // 작업 완료
-  CANCELLED // 취소됨
-}
-
-enum BidStatus {
-  PENDING // 승인 대기
-  ACCEPTED // 채택됨
-  REJECTED // 거절됨
-}
-
-enum InquiryStatus {
-  PENDING // 답변 대기
-  ANSWERED // 답변 완료
-}
-
-// ==========================================
-// Models
-// ==========================================
-
 model Category {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  order     Int       @default(0)
-  isActive  Boolean   @default(true)
-  
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  order     Int        @default(0)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  estimates Estimate[]
   services  Service[]
-  
-  // Relations
-  users     User[]    @relation("UserSpecialties")
-  estimates Estimate[] // Estimate 1:N Relation
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  users     User[]     @relation("UserSpecialties")
 
   @@map("categories")
 }
 
 model Service {
-  id          Int      @id @default(autoincrement())
-  name        String
-  categoryId  Int
-  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  order       Int      @default(0)
-  isActive    Boolean  @default(true)
-  
-  // Relations
-  estimates   Estimate[] @relation("EstimateServices")
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         Int        @id @default(autoincrement())
+  name       String
+  categoryId Int
+  order      Int        @default(0)
+  isActive   Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  category   Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  estimates  Estimate[] @relation("EstimateServices")
 
   @@unique([name, categoryId])
   @@map("services")
 }
 
 model User {
-  id            Int          @id @default(autoincrement())
-  email         String       @unique
-  name          String
-  emailVerified DateTime?
-  image         String?
-  role          UserRole     @default(USER)
-  specialties   Category[]   @relation("UserSpecialties") // 전문가 전문 분야 (DB 연동)
-  regions       String[]     @default([]) // 전문가 서비스 지역
-  grade         ExpertGrade? // 전문가(EXPERT)인 경우에만 사용
-  career        String?      // 경력 (예: '경력 5년', '신입' 등)
-  
-  // 전문가 인증 서류
-  idCardUrl               String?   // 신분증 사본 경로
-  idCardApproved          Boolean   @default(false) // 신분증 승인 여부 (견적 참여 권한의 기준)
-  businessLicenseUrls     String[]  @default([]) // 사업자등록증 경로 배열
-  businessLicenseApproved Boolean   @default(false) // 사업자등록증 승인 여부
-  isApproved              Boolean   @default(false) // 관리자 승인 여부
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  estimates Estimate[] @relation("CustomerEstimates")
-  bids      Bid[]      @relation("ExpertBids")
-  sentChats Chat[]     @relation("SentChats")
-  recvChats Chat[]     @relation("ReceivedChats")
-  profile   Profile?   @relation("ExpertProfile") // 전문가 프로필 (1:1)
-  accounts  Account[]
-  sessions  Session[]
-  bookmarks Bookmark[] @relation("UserBookmarks")
-  inquiries Inquiry[]  @relation("UserInquiries")
-  reports   Report[]   @relation("UserReports")
-  schedules Schedule[] @relation("ExpertSchedules")
-  certifications Certification[] @relation("UserCertifications")
-  expertReviews Review[]       @relation("ExpertReviews")
-  customerReviews Review[]     @relation("CustomerReviews")
+  name                    String
+  email                   String              @unique
+  businessLicenseApproved Boolean             @default(false)
+  businessLicenseUrls     String[]            @default([])
+  career                  String?
+  createdAt               DateTime            @default(now())
+  emailVerified           DateTime?
+  grade                   ExpertGrade?
+  id                      Int                 @id @default(autoincrement())
+  idCardApproved          Boolean             @default(false)
+  idCardUrl               String?
+  image                   String?
+  isApproved              Boolean             @default(false)
+  regions                 String[]            @default([])
+  role                    UserRole            @default(USER)
+  updatedAt               DateTime            @updatedAt
+  bids                    Bid[]               @relation("ExpertBids")
+  recvChats               Chat[]              @relation("ReceivedChats")
+  sentChats               Chat[]              @relation("SentChats")
+  profile                 Profile?            @relation("ExpertProfile")
+  accounts                Account[]
+  bookmarks               Bookmark[]          @relation("UserBookmarks")
+  certifications          Certification[]     @relation("UserCertifications")
+  estimates               Estimate[]          @relation("CustomerEstimates")
+  inquiries               Inquiry[]           @relation("UserInquiries")
+  portfolioCategories     PortfolioCategory[] @relation("ExpertPortfolioCategories")
+  portfolios              Portfolio[]         @relation("ExpertPortfolios")
+  reports                 Report[]            @relation("UserReports")
+  customerReviews         Review[]            @relation("CustomerReviews")
+  expertReviews           Review[]            @relation("ExpertReviews")
+  schedules               Schedule[]          @relation("ExpertSchedules")
+  sessions                Session[]
+  specialties             Category[]          @relation("UserSpecialties")
 
   @@map("users")
 }
 
 model Profile {
-  id           String  @id @default(uuid())
-  expertId     Int     @unique
-  introduction String // 전문가 상세 소개
-  portfolioUrl String? // 기존 포트폴리오 URL
-  portfolioFiles String[] @default([]) // 전문가 수동 업로드 완료 사진 
-  rating       Float   @default(0.0) // 평점
-  reviewCount  Int     @default(0)   // 후기 갯수
+  id             String   @id @default(uuid())
+  expertId       Int      @unique
+  introduction   String
+  portfolioUrl   String?
+  rating         Float    @default(0.0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  reviewCount    Int      @default(0)
+  portfolioFiles String[] @default([])
+  expert         User     @relation("ExpertProfile", fields: [expertId], references: [id], onDelete: Cascade)
+}
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model PortfolioCategory {
+  id         Int         @id @default(autoincrement())
+  expertId   Int
+  name       String
+  order      Int         @default(0)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  expert     User        @relation("ExpertPortfolioCategories", fields: [expertId], references: [id], onDelete: Cascade)
+  portfolios Portfolio[]
 
-  // Relations
-  expert User @relation("ExpertProfile", fields: [expertId], references: [id], onDelete: Cascade)
+  @@map("portfolio_categories")
+}
+
+model Portfolio {
+  id           Int                @id @default(autoincrement())
+  expertId     Int
+  categoryId   Int?
+  title        String
+  content      String
+  thumbnailUrl String?
+  blogUrl      String?
+  isImported   Boolean            @default(false)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  category     PortfolioCategory? @relation(fields: [categoryId], references: [id])
+  expert       User               @relation("ExpertPortfolios", fields: [expertId], references: [id], onDelete: Cascade)
+
+  @@map("portfolios")
 }
 
 model Estimate {
-  id         String         @id @default(uuid())
-  requestNumber String?     @unique // 견적 요청 고유 번호 (예: AB1234)
-  customerId Int
-  authorName String? // 작성자 이름
-  contact    String? // 연락처 
-  
-  categoryId Int?    // Category 테이블의 ID
-  category   Category? @relation(fields: [categoryId], references: [id])
-  services   Service[] @relation("EstimateServices") // 다대다 관계로 변경
-  
-  location    String // 위치 정보
-  details     String // 견적 요청 상세 내용
-  serviceDate String? // 희망 서비스 일시 (다중 선택, 혹은 정기 기간)
-  serviceTime String? // 희망 도착 시간 (선택)
-  selectedDate String? // 전문가 선택 시 확정된 서비스일
-  photoUrls   String[] // 여러 장의 사진 S3 URL (LocalStack 연동, 최대 5장)
-  completionPhotoUrls String[] @default([]) // 작업 완료 증빙 사진 S3 URL
-  status      EstimateStatus @default(PENDING)
-  currentStep Int            @default(1) // 현재 작성 중인 단계 (1~4)
-  designatedExpertId Int?    // 특정 전문가에게 지정 견적 요청한 경우
-  
-  // Options
-  isUrgent        Boolean @default(false)
-  needsReestimate Boolean @default(false)
-  shareContact    Boolean @default(false)
-  isClosed        Boolean @default(false) // 사용자에 의해 수동 마감되었는지 여부
-  extendedDays    Int     @default(0)     // 마감 연장된 일수 (기본 0, 마감 연장 시 증가)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  customer  User       @relation("CustomerEstimates", fields: [customerId], references: [id], onDelete: Cascade)
-  bids      Bid[]      @relation("EstimateBids")
-  bookmarks Bookmark[] @relation("EstimateBookmarks")
-  chats     Chat[]     @relation("EstimateChats")
-  review    Review?    @relation("EstimateReview")
+  details             String
+  status              EstimateStatus @default(PENDING)
+  authorName          String?
+  categoryId          Int?
+  contact             String?
+  createdAt           DateTime       @default(now())
+  currentStep         Int            @default(1)
+  customerId          Int
+  designatedExpertId  Int?
+  extendedDays        Int            @default(0)
+  id                  String         @id @default(uuid())
+  isClosed            Boolean        @default(false)
+  isUrgent            Boolean        @default(false)
+  location            String
+  needsReestimate     Boolean        @default(false)
+  photoUrls           String[]
+  requestNumber       String?        @unique
+  selectedDate        String?
+  serviceDate         String?
+  serviceTime         String?
+  shareContact        Boolean        @default(false)
+  updatedAt           DateTime       @updatedAt
+  completionPhotoUrls String[]       @default([])
+  bids                Bid[]          @relation("EstimateBids")
+  chats               Chat[]         @relation("EstimateChats")
+  bookmarks           Bookmark[]     @relation("EstimateBookmarks")
+  category            Category?      @relation(fields: [categoryId], references: [id])
+  customer            User           @relation("CustomerEstimates", fields: [customerId], references: [id], onDelete: Cascade)
+  review              Review?        @relation("EstimateReview")
+  services            Service[]      @relation("EstimateServices")
 
   @@map("estimates")
 }
@@ -189,82 +157,68 @@ model Bookmark {
   userId     Int
   estimateId String
   createdAt  DateTime @default(now())
-
-  // Relations
-  user     User     @relation("UserBookmarks", fields: [userId], references: [id], onDelete: Cascade)
-  estimate Estimate @relation("EstimateBookmarks", fields: [estimateId], references: [id], onDelete: Cascade)
+  estimate   Estimate @relation("EstimateBookmarks", fields: [estimateId], references: [id], onDelete: Cascade)
+  user       User     @relation("UserBookmarks", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, estimateId])
   @@map("bookmarks")
 }
 
 model Bid {
-  id         String    @id @default(uuid())
-  estimateId String
-  expertId   Int
-  price      Int // 전문가 제안 금액
-  message    String? // 추가 제안 메시지(코멘트)
-  availableDate String? // 전문가 서비스 가능 일 (고객의 희망일 중 선택)
-  status     BidStatus @default(PENDING)
-  isEditRequested Boolean @default(false) // 마감 후 고객이 수정을 요청했는지 여부
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  estimate Estimate  @relation("EstimateBids", fields: [estimateId], references: [id], onDelete: Cascade)
-  expert   User      @relation("ExpertBids", fields: [expertId], references: [id], onDelete: Cascade)
-  items    BidItem[] @relation("BidItems")
+  id              String    @id @default(uuid())
+  estimateId      String
+  expertId        Int
+  price           Int
+  message         String?
+  availableDate   String?
+  status          BidStatus @default(PENDING)
+  isEditRequested Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  estimate        Estimate  @relation("EstimateBids", fields: [estimateId], references: [id], onDelete: Cascade)
+  expert          User      @relation("ExpertBids", fields: [expertId], references: [id], onDelete: Cascade)
+  items           BidItem[] @relation("BidItems")
 }
 
 model BidItem {
   id      String @id @default(uuid())
   bidId   String
-  name    String // 항목명
-  content String // 내용
-  period  String // 기간
-  amount  Int    // 금액
-
-  bid Bid @relation("BidItems", fields: [bidId], references: [id], onDelete: Cascade)
+  name    String
+  content String
+  period  String
+  amount  Int
+  bid     Bid    @relation("BidItems", fields: [bidId], references: [id], onDelete: Cascade)
 
   @@map("bid_items")
 }
 
 model Chat {
-  id         String @id @default(uuid())
+  id         String    @id @default(uuid())
   senderId   Int
   receiverId Int
-  estimateId String? // 해당 견적 요청과 관련된 채팅인 경우
-  message    String // 메시지 내용
-  isRead     Boolean @default(false) // 읽음 여부
-
-  createdAt DateTime @default(now())
-
-  // Relations
-  sender   User      @relation("SentChats", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver User      @relation("ReceivedChats", fields: [receiverId], references: [id], onDelete: Cascade)
-  estimate Estimate? @relation("EstimateChats", fields: [estimateId], references: [id], onDelete: Cascade)
+  estimateId String?
+  message    String
+  isRead     Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  estimate   Estimate? @relation("EstimateChats", fields: [estimateId], references: [id], onDelete: Cascade)
+  receiver   User      @relation("ReceivedChats", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User      @relation("SentChats", fields: [senderId], references: [id], onDelete: Cascade)
 }
 
-// ==========================================
-// NextAuth Models
-// ==========================================
-
 model Account {
-  id                 String  @id @default(cuid())
-  userId             Int
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String? @db.Text
-  access_token       String? @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String? @db.Text
-  session_state      String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String  @id @default(cuid())
+  userId            Int
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
@@ -288,20 +242,18 @@ model VerificationToken {
   @@unique([identifier, token])
   @@map("verification_tokens")
 }
+
 model Inquiry {
   id        String        @id @default(uuid())
   userId    Int
-  type      String        // 문의 유형 (계정, 결제, 서비스 등)
+  type      String
   title     String
   content   String
-  answer    String?       // 관리자 답변 내용
+  answer    String?
   status    InquiryStatus @default(PENDING)
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  user User @relation("UserInquiries", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  user      User          @relation("UserInquiries", fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("inquiries")
 }
@@ -309,14 +261,11 @@ model Inquiry {
 model Report {
   id        String   @id @default(uuid())
   userId    Int
-  targetId  String?  // 신고 대상 (전문가 ID, 요청서 ID 등)
-  reason    String   // 신고 사유
-  details   String   // 상세 경위
-  
+  targetId  String?
+  reason    String
+  details   String
   createdAt DateTime @default(now())
-
-  // Relations
-  user User @relation("UserReports", fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation("UserReports", fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("reports")
 }
@@ -326,7 +275,6 @@ model Notice {
   title     String
   content   String
   important Boolean  @default(false)
-  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -335,10 +283,9 @@ model Notice {
 
 model FAQ {
   id        Int      @id @default(autoincrement())
-  category  String   // FAQ 카테고리 (결제, 계정, 서비스 등)
+  category  String
   question  String
   answer    String
-  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -346,17 +293,15 @@ model FAQ {
 }
 
 model Schedule {
-  id         String   @id @default(uuid())
-  expertId   Int
-  date       String   // "YYYY-MM-DD"
-  title      String
-  content    String?
-  isHoliday  Boolean  @default(false)
-
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  expert     User     @relation("ExpertSchedules", fields: [expertId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid())
+  expertId  Int
+  date      String
+  title     String
+  content   String?
+  isHoliday Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  expert    User     @relation("ExpertSchedules", fields: [expertId], references: [id], onDelete: Cascade)
 
   @@map("schedules")
 }
@@ -364,12 +309,11 @@ model Schedule {
 model Certification {
   id         String   @id @default(uuid())
   userId     Int
-  name       String   // 자격증명 (예: 도배기능사)
-  fileUrl    String?  // 실제 파일 URL (저장용)
+  name       String
+  fileUrl    String?
   isApproved Boolean  @default(false)
   createdAt  DateTime @default(now())
-
-  user User @relation("UserCertifications", fields: [userId], references: [id], onDelete: Cascade)
+  user       User     @relation("UserCertifications", fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("certifications")
 }
@@ -380,15 +324,46 @@ model Review {
   expertId   Int
   customerId Int
   rating     Float    @default(5.0)
-  content    String   // 리뷰 내용
-  
+  content    String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-
-  // Relations
+  customer   User     @relation("CustomerReviews", fields: [customerId], references: [id], onDelete: Cascade)
   estimate   Estimate @relation("EstimateReview", fields: [estimateId], references: [id], onDelete: Cascade)
   expert     User     @relation("ExpertReviews", fields: [expertId], references: [id], onDelete: Cascade)
-  customer   User     @relation("CustomerReviews", fields: [customerId], references: [id], onDelete: Cascade)
 
   @@map("reviews")
+}
+
+enum UserRole {
+  USER
+  EXPERT
+  BOTH
+  ADMIN
+}
+
+enum ExpertGrade {
+  PRO
+  HELPER
+}
+
+enum EstimateStatus {
+  DRAFT
+  PENDING
+  BIDDING
+  SELECTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  INSPECTION
+}
+
+enum BidStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum InquiryStatus {
+  PENDING
+  ANSWERED
 }

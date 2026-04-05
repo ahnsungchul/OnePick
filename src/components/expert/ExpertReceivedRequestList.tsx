@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { SearchX, Calendar } from 'lucide-react';
 import ExpertReceivedRequestItem from './ExpertReceivedRequestItem';
 
-type RequestFilterStatus = 'ALL' | 'PRE_BID' | 'SENT_BID' | 'ACCEPTED' | 'REJECTED' | 'UNREAD';
+type RequestFilterStatus = 'ALL' | 'PRE_BID' | 'SENT_BID' | 'ACCEPTED' | 'REJECTED' | 'UNREAD' | 'COMPLETED';
 
 interface ExpertReceivedRequestListProps {
   bids: any[];
@@ -32,6 +32,7 @@ export default function ExpertReceivedRequestList({ bids, expertId }: ExpertRece
     let accepted = 0;
     let rejected = 0;
     let unread = 0;
+    let completed = 0;
 
     bids.forEach(bid => {
       const bidStatus = bid.status;
@@ -41,7 +42,8 @@ export default function ExpertReceivedRequestList({ bids, expertId }: ExpertRece
       if (unreadCount > 0) unread++;
 
       if (bidStatus === 'ACCEPTED') {
-        accepted++;
+        if (estStatus === 'COMPLETED') completed++;
+        else accepted++;
       } else if (bidStatus === 'REJECTED' || estStatus === 'CANCELLED') {
         rejected++;
       } else if (bidStatus === 'PENDING') {
@@ -53,7 +55,7 @@ export default function ExpertReceivedRequestList({ bids, expertId }: ExpertRece
       }
     });
 
-    return { all: bids.length, preBid, sentBid, accepted, rejected, unread };
+    return { all: bids.length, preBid, sentBid, accepted, rejected, unread, completed };
   }, [bids, expertId]);
 
   const filteredBids = useMemo(() => {
@@ -84,7 +86,11 @@ export default function ExpertReceivedRequestList({ bids, expertId }: ExpertRece
       let category: RequestFilterStatus = 'PRE_BID';
       
       if (bidStatus === 'ACCEPTED') {
-        category = 'ACCEPTED';
+        if (estStatus === 'COMPLETED') {
+          category = 'COMPLETED';
+        } else {
+          category = 'ACCEPTED';
+        }
       } else if (bidStatus === 'REJECTED' || estStatus === 'CANCELLED') {
         category = 'REJECTED'; 
       } else if (bidStatus === 'PENDING') {
@@ -108,9 +114,10 @@ export default function ExpertReceivedRequestList({ bids, expertId }: ExpertRece
             { id: 'ALL', label: '전체 요청', count: stats.all, activeCls: 'text-slate-900 border-slate-800', badgeActive: 'bg-slate-800 text-white' },
             { id: 'PRE_BID', label: '견적전 요청', count: stats.preBid, activeCls: 'text-emerald-600 border-emerald-500', badgeActive: 'bg-emerald-500 text-white' },
             { id: 'SENT_BID', label: '견적보낸 요청', count: stats.sentBid, activeCls: 'text-blue-600 border-blue-500', badgeActive: 'bg-blue-500 text-white' },
-            { id: 'UNREAD', label: '신규 메시지', count: stats.unread, activeCls: 'text-rose-500 border-rose-500', badgeActive: 'bg-rose-500 text-white', isAlert: true },
-            { id: 'ACCEPTED', label: '확정 요청', count: stats.accepted, activeCls: 'text-indigo-600 border-indigo-500', badgeActive: 'bg-indigo-500 text-white' },
+            { id: 'ACCEPTED', label: '확정된 요청', count: stats.accepted, activeCls: 'text-indigo-600 border-indigo-500', badgeActive: 'bg-indigo-500 text-white' },
+            { id: 'COMPLETED', label: '서비스 완료', count: stats.completed, activeCls: 'text-purple-600 border-purple-500', badgeActive: 'bg-purple-500 text-white' },
             { id: 'REJECTED', label: '거절/취소', count: stats.rejected, activeCls: 'text-red-500 border-red-500', badgeActive: 'bg-red-500 text-white' },
+            { id: 'UNREAD', label: '신규 메시지', count: stats.unread, activeCls: 'text-rose-500 border-rose-500', badgeActive: 'bg-rose-500 text-white', isAlert: true },
           ].map(tab => {
             const isActive = statusFilter === tab.id;
             return (
@@ -130,39 +137,6 @@ export default function ExpertReceivedRequestList({ bids, expertId }: ExpertRece
               </button>
             );
           })}
-        </div>
-      </div>
-
-      {/* 기간 필터 영역 */}
-      <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-2 xl:pl-2">
-          <div className="flex items-center gap-2 mr-1 text-slate-500">
-            <Calendar className="w-4 h-4" />
-            <span className="text-sm font-bold">기간</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <input 
-              type="date" 
-              value={dateRange.start}
-              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700"
-            />
-            <span className="text-slate-400 font-bold">~</span>
-            <input 
-              type="date" 
-              value={dateRange.end}
-              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-700"
-            />
-          </div>
-          {(dateRange.start || dateRange.end) && (
-            <button 
-              onClick={() => setDateRange({ start: '', end: '' })}
-              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl transition-all"
-            >
-              초기화
-            </button>
-          )}
         </div>
       </div>
 

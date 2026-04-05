@@ -50,7 +50,7 @@ export default async function ExpertRequestsPage({
     <ExpertDashboardLayout>
       <div className="bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-slate-100 min-h-[500px]">
         <div className="mb-8">
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight">받은 요청 (지정 견적)</h2>
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">받은 요청 (1:1 견적)</h2>
           <p className="text-slate-500 mt-2 font-medium">고객님들께서 직접 요청하신 1:1 맞춤 견적 내역을 관리하세요.</p>
         </div>
 

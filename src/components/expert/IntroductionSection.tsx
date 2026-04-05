@@ -249,7 +249,7 @@ export default function IntroductionSection({ user, profile, isOwner, categories
       <div className="flex flex-col md:flex-row gap-6 md:gap-8">
         {/* Left: Profile Image & Rating */}
         <div className="flex-shrink-0 flex flex-col items-center">
-          <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl overflow-hidden border-4 border-slate-50 shadow-inner mb-4 bg-slate-100 flex items-center justify-center relative">
+          <div className="w-54 h-68 rounded-2xl overflow-hidden border-4 border-slate-50 shadow-inner mb-4 bg-slate-100 flex items-center justify-center relative">
             {user.image ? (
               <img src={user.image} alt={user.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             ) : (

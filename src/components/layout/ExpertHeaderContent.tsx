@@ -58,6 +58,7 @@ export default function ExpertHeaderContent({ isOwner = true }: ExpertHeaderCont
 
   const menuItems = [
     { name: '홈', href: '/expert/dashboard', showAlways: true },
+    { name: '포트폴리오', href: '/expert/portfolio', showAlways: true },
     { name: '통합 갤러리', href: '/expert/gallery', showAlways: false },
     { name: '1:1 견적 요청', href: '/expert/requests', showAlways: false },
     { name: '참여한 견적', href: '/expert/bids', showAlways: false },
@@ -103,20 +104,6 @@ export default function ExpertHeaderContent({ isOwner = true }: ExpertHeaderCont
 
       {/* 우측 기능 (메시지, 공유하기, 즐겨찾기) */}
       <div className="flex items-center gap-1 sm:gap-2">
-        {isOwner && userIdParam && (
-          <Link 
-            href={`/expert/bids?userId=${userIdParam}&filter=UNREAD`}
-            className="relative flex items-center justify-center w-10 h-10 rounded-full hover:bg-slate-100 transition-colors text-slate-500 hover:text-blue-500"
-            title="신규 메시지"
-          >
-            <MessageCircle className="w-5 h-5" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold tracking-tighter text-white shadow-sm border-2 border-white">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </Link>
-        )}
         {userIdParam && <ShareButton />}
         {userIdParam && !isOwner && (
           <button 

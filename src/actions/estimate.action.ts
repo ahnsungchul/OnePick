@@ -288,7 +288,8 @@ export async function getMyRequestsAction(userId: number) {
   try {
     const estimates = await prisma.estimate.findMany({
       where: { 
-        customerId: userId
+        customerId: userId,
+        designatedExpertId: null
       },
       include: {
         bids: {
@@ -628,5 +629,34 @@ export async function getMyDirectRequestsAction(userId: number) {
       error: error.message || "데이터를 불러오는 중 오류가 발생했습니다.",
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
     };
+  }
+}
+
+/**
+ * 사용자(요청자) 본인이 1:1 서비스 완료 처리를 하는 Action
+ */
+export async function completeEstimateByCustomerAction(estimateId: string, userId: number) {
+  try {
+    const estimate = await prisma.estimate.findUnique({
+      where: { id: estimateId }
+    });
+
+    if (!estimate) {
+      throw new Error("존재하지 않는 견적 요청입니다.");
+    }
+
+    if (estimate.customerId !== userId) {
+      throw new Error("권한이 없습니다.");
+    }
+
+    await prisma.estimate.update({
+      where: { id: estimateId },
+      data: { status: "COMPLETED" }
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("completeEstimateByCustomerAction error:", error);
+    return { success: false, error: error.message };
   }
 }

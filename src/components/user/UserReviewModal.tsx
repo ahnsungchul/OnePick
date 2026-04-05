@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Star, Edit3, CheckCircle2 } from 'lucide-react';
 import { submitReviewAction } from '@/actions/review.action';
+import { completeEstimateByCustomerAction } from '@/actions/estimate.action';
 
 interface UserReviewModalProps {
   isOpen: boolean;
@@ -31,6 +32,22 @@ export default function UserReviewModal({ isOpen, onClose, expertName, expertId,
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const handleWriteLater = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
+    // 후기 작성 없이 서비스만 완료 처리
+    const result = await completeEstimateByCustomerAction(estimateId, customerId);
+    
+    if (result.success) {
+      alert("서비스 완료 처리가 되었습니다.");
+      window.location.reload();
+    } else {
+      alert((result as any).error || "완료 처리 중 오류가 발생했습니다.");
+      setIsSubmitting(false);
+    }
+  };
 
   const handleSubmit = async () => {
     const finalContent = selectedOption === '직접입력' ? content : selectedOption;
@@ -94,7 +111,7 @@ export default function UserReviewModal({ isOpen, onClose, expertName, expertId,
             <div className="mb-3 p-3 bg-blue-50 rounded-xl border border-blue-100 flex gap-2 items-start">
               <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
               <p className="text-xs text-blue-600 font-medium leading-relaxed">
-                리뷰를 남겨주시면 해당 요청 건이 <strong>'서비스 완료'</strong> 상태로 최종 확정됩니다.
+                리뷰를 남겨주시면 해당 요청 건이 <strong>&apos;서비스 완료&apos;</strong> 상태로 최종 확정됩니다.
               </p>
             </div>
             <div className="mb-3">
@@ -126,16 +143,24 @@ export default function UserReviewModal({ isOpen, onClose, expertName, expertId,
         <div className="shrink-0 pt-4 mt-2 border-t border-slate-100 flex gap-2">
           <button 
             onClick={onClose}
-            className="flex-1 py-3.5 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors"
+            disabled={isSubmitting}
+            className="flex-1 py-3.5 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors disabled:opacity-50"
+          >
+            취소
+          </button>
+          <button 
+            onClick={handleWriteLater}
+            disabled={isSubmitting}
+            className="flex-1 py-3.5 bg-slate-500 text-white font-bold rounded-xl hover:bg-slate-600 transition-colors disabled:opacity-50"
           >
             다음에 쓰기
           </button>
           <button 
             onClick={handleSubmit}
             disabled={isSubmitting || (selectedOption === '직접입력' && content.trim().length === 0)}
-            className="flex-1 py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-md shadow-blue-600/20 disabled:bg-slate-300 disabled:shadow-none"
+            className="flex-[1.5] py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-md shadow-blue-600/20 disabled:bg-slate-300 disabled:shadow-none"
           >
-            {isSubmitting ? '등록 중...' : '등록하기'}
+            {isSubmitting ? '처리 중...' : '등록하기'}
           </button>
         </div>
       </div>

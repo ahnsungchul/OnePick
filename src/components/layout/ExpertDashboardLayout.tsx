@@ -16,7 +16,7 @@ export default function ExpertDashboardLayout({ children }: ExpertDashboardLayou
 
   return (
     <div className="bg-slate-50 min-h-[calc(100vh-64px)]">
-      <main className="w-full py-12 px-4 overflow-y-auto">
+      <main className="w-full py-12 px-4">
         <div className="max-w-7xl mx-auto">
           {children}
         </div>

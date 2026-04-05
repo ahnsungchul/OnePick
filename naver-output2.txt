@@ -1,0 +1,18 @@
+
+--- GROUP 0 ---
+Is sibling to Group 0? true
+Parent class: se-component-content se-component-content-extend
+Parent of Parent class: se-component se-imageGroup se-l-collage
+Num images inside: 9
+
+--- GROUP 1 ---
+Is sibling to Group 0? false
+Parent class: se-component-content se-component-content-extend
+Parent of Parent class: se-component se-imageGroup se-l-collage
+Num images inside: 6
+
+--- GROUP 2 ---
+Is sibling to Group 0? false
+Parent class: se-component-content se-component-content-extend
+Parent of Parent class: se-component se-imageGroup se-l-collage
+Num images inside: 8

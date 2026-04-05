@@ -22,7 +22,7 @@ export default function ExpertHomeStatsBadges({
 
   // Compute Stats
   const requestStats = useMemo(() => {
-    let preBid = 0, sentBid = 0, accepted = 0, rejected = 0, unread = 0;
+    let preBid = 0, sentBid = 0, accepted = 0, rejected = 0, unread = 0, completed = 0;
     directRequests.forEach(bid => {
       const bidStatus = bid.status;
       const estStatus = bid.estimate?.status;
@@ -30,14 +30,17 @@ export default function ExpertHomeStatsBadges({
       const unreadCount = bid.estimate?.chats?.filter((c: any) => c.senderId !== userId && !c.isRead).length || 0;
       if (unreadCount > 0) unread++;
 
-      if (bidStatus === 'ACCEPTED') accepted++;
+      if (bidStatus === 'ACCEPTED') {
+         if (estStatus === 'COMPLETED') completed++;
+         else accepted++;
+      }
       else if (bidStatus === 'REJECTED' || estStatus === 'CANCELLED') rejected++;
       else if (bidStatus === 'PENDING') {
         if (bid.price === 0) preBid++;
         else sentBid++;
       }
     });
-    return { all: directRequests.length, preBid, sentBid, accepted, rejected, unread };
+    return { all: directRequests.length, preBid, sentBid, accepted, rejected, unread, completed };
   }, [directRequests, userId]);
 
   const bidStats = useMemo(() => {
@@ -61,9 +64,10 @@ export default function ExpertHomeStatsBadges({
     { id: 'ALL', label: '전체 요청', count: requestStats.all },
     { id: 'PRE_BID', label: '견적전', count: requestStats.preBid },
     { id: 'SENT_BID', label: '견적보냄', count: requestStats.sentBid },
-    { id: 'UNREAD', label: '신규 메시지', count: requestStats.unread, isAlert: true },
     { id: 'ACCEPTED', label: '확정됨', count: requestStats.accepted },
+    { id: 'COMPLETED', label: '서비스 완료', count: requestStats.completed },
     { id: 'REJECTED', label: '거절/취소', count: requestStats.rejected },
+    { id: 'UNREAD', label: '신규 메시지', count: requestStats.unread, isAlert: true },
   ], [requestStats]);
 
   const bidTabs = useMemo(() => [
@@ -130,21 +134,41 @@ export default function ExpertHomeStatsBadges({
   return (
     <div className="flex flex-col xl:flex-row gap-4 w-full">
       {/* 1:1 견적요청 */}
-      <div className="flex-1 bg-white border border-blue-100 p-5 rounded-3xl shadow-sm relative overflow-hidden flex flex-col">
+      <div className="flex-1 bg-white border border-blue-100 p-5 rounded-3xl shadow-sm relative flex flex-col">
         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50/50 rounded-bl-full -z-10 transition-colors"></div>
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center shadow-sm">
-            <FileText className="w-5 h-5" />
+        <div className="flex items-center justify-between mb-5 relative z-10 w-full">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center shadow-sm">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-500 mb-0.5">고객이 보낸</p>
+              <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                1:1 견적요청
+              </h3>
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-bold text-slate-500 mb-0.5">고객이 보낸</p>
-            <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
-              1:1 견적요청
-            </h3>
-          </div>
+          {(() => {
+            const tab = requestTabs.find(t => t.id === 'ALL');
+            if (!tab) return null;
+            return (
+              <button 
+                onClick={() => handleNavRequest(tab.id)} 
+                className="group flex flex-col items-end text-right transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  <span className="text-[11px] font-bold text-slate-400 group-hover:text-slate-600">{tab.label}</span>
+                  {showReqTabN[tab.id] && (
+                    <span className="w-3 h-3 bg-red-500 text-white text-[8px] font-black flex items-center justify-center rounded-full shadow-sm animate-pulse">N</span>
+                  )}
+                </div>
+                <span className="text-xl font-black text-slate-700 group-hover:text-blue-600">{tab.count} <span className="text-sm font-bold text-slate-400 group-hover:text-blue-400">건</span></span>
+              </button>
+            )
+          })()}
         </div>
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-auto">
-          {requestTabs.map(tab => (
+          {requestTabs.filter(t => t.id !== 'ALL').map(tab => (
             <button 
               key={tab.id} 
               onClick={() => handleNavRequest(tab.id)} 
@@ -161,21 +185,41 @@ export default function ExpertHomeStatsBadges({
       </div>
 
       {/* 참여한 견적 */}
-      <div className="flex-1 bg-white border border-emerald-100 p-5 rounded-3xl shadow-sm relative overflow-hidden flex flex-col">
+      <div className="flex-1 bg-white border border-emerald-100 p-5 rounded-3xl shadow-sm relative flex flex-col">
         <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50/50 rounded-bl-full -z-10 transition-colors"></div>
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center shadow-sm">
-            <Send className="w-5 h-5" />
+        <div className="flex items-center justify-between mb-5 relative z-10 w-full">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center shadow-sm">
+              <Send className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-500 mb-0.5">내가 제안한</p>
+              <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                참여한 견적
+              </h3>
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-bold text-slate-500 mb-0.5">내가 제안한</p>
-            <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
-              참여한 견적
-            </h3>
-          </div>
+          {(() => {
+            const tab = bidTabs.find(t => t.id === 'ALL');
+            if (!tab) return null;
+            return (
+              <button 
+                onClick={() => handleNavBid(tab.id)} 
+                className="group flex flex-col items-end text-right transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  <span className="text-[11px] font-bold text-slate-400 group-hover:text-slate-600">{tab.label}</span>
+                  {showBidTabN[tab.id] && (
+                    <span className="w-3 h-3 bg-red-500 text-white text-[8px] font-black flex items-center justify-center rounded-full shadow-sm animate-pulse">N</span>
+                  )}
+                </div>
+                <span className="text-xl font-black text-slate-700 group-hover:text-emerald-600">{tab.count} <span className="text-sm font-bold text-slate-400 group-hover:text-emerald-400">건</span></span>
+              </button>
+            )
+          })()}
         </div>
-        <div className="grid grid-cols-3 xl:grid-cols-7 sm:grid-cols-4 gap-2 mt-auto">
-          {bidTabs.map(tab => (
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-auto">
+          {bidTabs.filter(t => t.id !== 'ALL').map(tab => (
             <button 
               key={tab.id} 
               onClick={() => handleNavBid(tab.id)} 
