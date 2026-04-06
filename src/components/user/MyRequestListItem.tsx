@@ -116,7 +116,7 @@ export default function MyRequestListItem({
     const result = await cancelBidSelectionAction(estimate.id, bidId, userId);
 
     if (result.success) {
-      window.location.reload();
+      window.location.href = window.location.pathname + '?status=' + (activeFilter || 'ALL');
     } else {
       alert(result.error || '취소 중 오류가 발생했습니다.');
       setIsCanceling(false);
@@ -157,7 +157,7 @@ export default function MyRequestListItem({
 
     if (result?.success) {
       alert('결제가 완료되어 전문가가 최종 확정되었습니다.');
-      window.location.reload();
+      window.location.href = window.location.pathname + '?status=' + (activeFilter || 'ALL');
     } else {
       alert(result?.error || '결제 처리 중 서버와 통신 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
       setIsPaying(false);
@@ -185,7 +185,7 @@ export default function MyRequestListItem({
     const result = await acceptBidAction(estimate.id, bidId, userId, selected);
 
     if (result.success) {
-      window.location.reload();
+      window.location.href = window.location.pathname + '?status=' + (activeFilter || 'ALL');
     } else {
       alert(result.error || '처리 중 오류가 발생했습니다.');
       setIsAccepting(false);
@@ -203,7 +203,7 @@ export default function MyRequestListItem({
 
     if (result.success) {
       alert('마감 기한이 7일 연장되었습니다.');
-      window.location.reload();
+      window.location.href = window.location.pathname + '?status=' + (activeFilter || 'ALL');
     } else {
       alert(result.error || '처리 중 오류가 발생했습니다.');
     }
@@ -224,7 +224,7 @@ export default function MyRequestListItem({
 
     if (result.success) {
       alert('요청이 삭제되었습니다.');
-      window.location.reload();
+      window.location.href = window.location.pathname + '?status=' + (activeFilter || 'ALL');
     } else {
       alert(result.error || '삭제 중 오류가 발생했습니다.');
     }
@@ -250,7 +250,7 @@ export default function MyRequestListItem({
     if (result.success) {
       alert('요청이 취소되었습니다.');
       setShowCancelAlert(false);
-      window.location.reload();
+      window.location.href = window.location.pathname + '?status=' + (activeFilter || 'ALL');
     } else {
       alert(result.error || '취소 중 오류가 발생했습니다.');
       setIsCanceling(false);
@@ -268,7 +268,7 @@ export default function MyRequestListItem({
 
     if (result.success) {
       setShowCloseAlert(false);
-      window.location.reload();
+      window.location.href = window.location.pathname + '?status=' + (activeFilter || 'ALL');
     } else {
       alert(result.error || '처리 중 오류가 발생했습니다.');
       setShowCloseAlert(false);
@@ -285,7 +285,7 @@ export default function MyRequestListItem({
     const result = await cancelCloseEstimateAction(estimate.id, userId);
 
     if (result.success) {
-      window.location.reload();
+      window.location.href = window.location.pathname + '?status=' + (activeFilter || 'ALL');
     } else {
       alert(result.error || '처리 중 오류가 발생했습니다.');
     }
@@ -813,7 +813,7 @@ export default function MyRequestListItem({
           initialStep={estimate.currentStep}
           onSuccess={() => {
             setIsEditOpen(false);
-            window.location.reload();
+            window.location.href = window.location.pathname + '?status=' + (activeFilter || 'ALL');
           }}
         />
       )}

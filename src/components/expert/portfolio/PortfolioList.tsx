@@ -15,9 +15,9 @@ export default function PortfolioList({ portfolios, onSelect }: PortfolioListPro
     return (
       <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center shadow-sm">
         <FolderOpen className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-        <h3 className="text-lg font-bold text-slate-800 mb-1">등록된 포트폴리오가 없습니다</h3>
+        <h3 className="text-lg font-bold text-slate-800 mb-1">등록된 블로그가 없습니다</h3>
         <p className="text-sm text-slate-500">
-          오른쪽 위 글쓰기 버튼을 눌러 포트폴리오를 추가해보세요.
+          오른쪽 위 글쓰기 버튼을 눌러 블로그를 추가해보세요.
         </p>
       </div>
     );

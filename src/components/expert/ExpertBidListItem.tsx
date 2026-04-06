@@ -323,6 +323,9 @@ export default function ExpertBidListItem({
       <BidCompleteModal 
         isOpen={isCompleteModalOpen} 
         onClose={() => setIsCompleteModalOpen(false)} 
+        onSuccess={() => {
+          if (onMoveToStatus) onMoveToStatus('INSPECTION');
+        }}
         estimateId={estimate.id} 
         expertId={expertId} 
       />

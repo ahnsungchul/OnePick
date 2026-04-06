@@ -399,7 +399,7 @@ export default function BidEditModal({
                 </div>
               </div>
 
-              <div className="bg-slate-900 rounded-3xl p-5 text-white relative overflow-hidden group h-full flex flex-col min-h-[160px]">
+              <div className="bg-slate-900 rounded-3xl p-5 text-white relative overflow-hidden group gap-4 h-full flex flex-col min-h-[160px]">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 rounded-full blur-3xl group-hover:bg-blue-600/30 transition-all" />
                 <p className="text-white/70 text-sm font-bold mb-1 relative z-10">
                   총 견적 금액

@@ -4,10 +4,75 @@ import ExpertDashboardLayout from '@/components/layout/ExpertDashboardLayout';
 import Link from 'next/link';
 import PortfolioClientLayout from './PortfolioClientLayout';
 
-export const metadata = {
-  title: '전문가 포트폴리오 - OnePick',
-  description: '원픽 전문가 포트폴리오입니다.',
-};
+import { prisma } from '@/lib/prisma';
+import type { Metadata, ResolvingMetadata } from 'next';
+
+export async function generateMetadata(
+  { searchParams }: { searchParams: { [key: string]: string | string[] | undefined } },
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  const paramPortfolioId = searchParams.portfolioId;
+  let portfolioId = Number(Array.isArray(paramPortfolioId) ? paramPortfolioId[0] : paramPortfolioId);
+
+  const paramUserId = searchParams.userId;
+  let targetUserId = Number(Array.isArray(paramUserId) ? paramUserId[0] : paramUserId);
+  
+  let baseTitle = '전문가 블로그 - OnePick';
+  let baseDesc = '원픽 전문가 블로그입니다.';
+  let ogImage = '/images/og-image.jpg';
+
+  if (!isNaN(targetUserId)) {
+    const user = await prisma.user.findUnique({ where: { id: targetUserId }, select: { name: true } });
+    if (user) {
+      baseTitle = `${user.name} 전문가 블로그 - OnePick`;
+      baseDesc = `${user.name} 전문가님의 작업 내역과 블로그를 확인해보세요.`;
+    }
+  }
+
+  if (!isNaN(portfolioId)) {
+    const portfolio = await prisma.portfolio.findUnique({
+      where: { id: portfolioId }
+    });
+    
+    if (portfolio) {
+      // Strip html tags for plain text description
+      const plainContent = portfolio.content
+        ? portfolio.content.replace(/<[^>]+>/g, ' ').substring(0, 160).trim()
+        : baseDesc;
+        
+      return {
+        title: `${portfolio.title} | ${baseTitle.split(' - ')[0]}`,
+        description: plainContent,
+        keywords: portfolio.seoTags ? portfolio.seoTags.split(',').map(t => t.trim()) : [],
+        openGraph: {
+          title: portfolio.title,
+          description: plainContent,
+          type: 'article',
+          images: portfolio.thumbnailUrl ? [portfolio.thumbnailUrl] : [ogImage],
+        },
+        robots: {
+          index: true,
+          follow: true,
+        }
+      };
+    }
+  }
+
+  return {
+    title: baseTitle,
+    description: baseDesc,
+    openGraph: {
+      title: baseTitle,
+      description: baseDesc,
+      type: 'website',
+      images: [ogImage],
+    },
+    robots: {
+      index: true,
+      follow: true,
+    }
+  };
+}
 
 export default async function ExpertPortfolioPage({
   searchParams,
@@ -42,7 +107,7 @@ export default async function ExpertPortfolioPage({
     <ExpertDashboardLayout>
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="mb-6">
-          <h1 className="text-2xl font-black text-slate-900">포트폴리오</h1>
+          <h1 className="text-2xl font-black text-slate-900">블로그</h1>
           <p className="text-slate-500 mt-1 font-medium">전문가의 작업 내역과 블로그를 확인해보세요.</p>
         </div>
         <PortfolioClientLayout targetUserId={targetUserId} isOwner={isOwner} />

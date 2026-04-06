@@ -96,7 +96,7 @@ export default function PortfolioDetail({
            <div className="sun-editor" style={{ border: 'none', padding: 0, backgroundColor: 'transparent' }}>
              <div 
                className="sun-editor-editable leading-relaxed text-[15px] text-slate-800 break-words"
-               dangerouslySetInnerHTML={{ __html: portfolio.content }} 
+               dangerouslySetInnerHTML={{ __html: portfolio.content.replace(/<img(?![^>]*referrerpolicy)/g, '<img referrerpolicy="no-referrer"') }} 
              />
            </div>
         ) : (

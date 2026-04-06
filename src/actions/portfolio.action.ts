@@ -142,18 +142,25 @@ export async function fetchOpenGraphDataAction(url: string) {
            }
            $img.attr('style', `width: ${targetWidth}; max-width: 100%; height: auto; border-radius: 8px;`);
            $img.removeAttr('width').removeAttr('height');
+           $img.attr('referrerpolicy', 'no-referrer');
        });
 
        // 3. Bake structural CSS classes directly into inline styling so the layout holds in SunEditor
        $root.find('.se-text-paragraph').each((_, p) => {
            const $p = $(p);
-           let pStyles = ['line-height: 1.8', 'margin-bottom: 15px', 'word-break: break-word'];
+           let pStyles = ['line-height: 1.8', 'margin: 0', 'padding-bottom: 15px', 'word-break: break-word'];
            if ($p.hasClass('se-text-paragraph-align-center')) pStyles.push('text-align: center');
            else if ($p.hasClass('se-text-paragraph-align-right')) pStyles.push('text-align: right');
            else if ($p.hasClass('se-text-paragraph-align-justify')) pStyles.push('text-align: justify');
            
            let curStyle = $p.attr('style') || '';
            if (pStyles.length > 0) $p.attr('style', (curStyle + ';' + pStyles.join(';')).replace(/;;/g, ';'));
+           
+           // Ensure empty line breaks are preserved with a visible <br>
+           const txt = $p.text().replace(/\u200B/g, '').trim();
+           if (!txt && $p.find('img, iframe').length === 0) {
+               $p.html('<br/>');
+           }
        });
 
        $root.find('span').each((_, span) => {
@@ -183,8 +190,8 @@ export async function fetchOpenGraphDataAction(url: string) {
                    return; // Skip if no structured columns exist (fallback to normal rendering)
                }
            }
-               const tdWidth = (100 / $items.length).toFixed(2);
-               let tdsHtml = '';
+               const percentWidth = (100 / $items.length).toFixed(2);
+               let inlineHtml = '';
                
                $items.each((_, item) => {
                    const $item = $(item);
@@ -192,20 +199,20 @@ export async function fetchOpenGraphDataAction(url: string) {
                    $item.find('img').each((_, img) => {
                        const src = $(img).attr('src') || '';
                        if (src) {
-                           innerImgsHtml += `<img src="${src}" style="width: 100%; height: auto; border-radius: 8px; display: block; margin-bottom: 8px;" />`;
+                           innerImgsHtml += `<img src="${src}" referrerpolicy="no-referrer" style="width: 100%; height: auto; border-radius: 8px; display: block;" />`;
                        }
                    });
                    
                    if (innerImgsHtml) {
-                       tdsHtml += `<td width="${tdWidth}%" style="width: ${tdWidth}%; padding: 4px; vertical-align: top; display: table-cell !important; word-break: break-all;">
+                       inlineHtml += `<div style="width: ${percentWidth}%; float: left; padding: 4px; box-sizing: border-box; word-break: break-all;">
                            <div style="margin: 0; padding: 0;">${innerImgsHtml}</div>
-                       </td>`;
+                       </div>`;
                    }
                });
                
-               if (tdsHtml) {
-                   const tableHtml = `<table style="width: 100%; border-collapse: collapse; border: none; margin: 16px auto; table-layout: fixed; display: table !important;"><tbody><tr style="display: table-row !important;">${tdsHtml}</tr></tbody></table>`;
-                   $group.replaceWith(tableHtml);
+               if (inlineHtml) {
+                   const wrapperHtml = `<div style="width: 100%; overflow: hidden; margin: 16px 0;">${inlineHtml}</div><div style="clear: both; font-size: 0; line-height: 0;"></div>`;
+                   $group.replaceWith(wrapperHtml);
                } else {
                    $group.remove();
                }
@@ -254,6 +261,7 @@ export async function fetchOpenGraphDataAction(url: string) {
                
                $img.attr('style', `width: ${targetWidth}; max-width: 100%; height: auto; border-radius: 8px; ${alignStyle}`);
                $img.removeAttr('width').removeAttr('height').removeAttr('data-lazy-src').removeAttr('data-original');
+               $img.attr('referrerpolicy', 'no-referrer');
            } else {
                $img.remove();
            }
@@ -413,6 +421,7 @@ export async function createPortfolioAction(data: any) {
         thumbnailUrl: newThumbnailUrl,
         blogUrl: data.blogUrl,
         isImported: data.isImported,
+        seoTags: data.seoTags || null,
       },
     });
     revalidatePath('/expert/portfolio');
@@ -435,6 +444,7 @@ export async function updatePortfolioAction(id: number, data: any) {
         content: newContent,
         thumbnailUrl: newThumbnailUrl,
         blogUrl: data.blogUrl,
+        seoTags: data.seoTags || null,
       },
     });
     revalidatePath('/expert/portfolio');

@@ -10,10 +10,59 @@ import ReviewSection from '@/components/expert/ReviewSection';
 import CalendarSection from '@/components/expert/CalendarSection';
 import Link from 'next/link';
 
-export const metadata = {
-  title: '전문가홈 - OnePick',
-  description: '원픽 전문가 전용 대시보드입니다.',
-};
+import { prisma } from '@/lib/prisma';
+import type { Metadata, ResolvingMetadata } from 'next';
+
+export async function generateMetadata(
+  { searchParams }: { searchParams: { [key: string]: string | string[] | undefined } },
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  const paramUserId = searchParams.userId;
+  let targetUserId = Number(Array.isArray(paramUserId) ? paramUserId[0] : paramUserId);
+  
+  if (isNaN(targetUserId)) {
+    return {
+      title: '전문가홈 - OnePick',
+      description: '원픽 전문가 전용 대시보드입니다.',
+    };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: targetUserId },
+    select: { name: true, image: true }
+  });
+
+  const profile = await prisma.profile.findUnique({
+    where: { expertId: targetUserId },
+    select: { introduction: true }
+  });
+
+  if (!user) {
+    return {
+      title: '전문가홈 - OnePick',
+      description: '존재하지 않는 전문가입니다.',
+    };
+  }
+
+  const name = user.name || '알 수 없음';
+  const expertTitle = profile?.introduction || `${name} 전문가님의 원픽 홈페이지입니다.`;
+
+  return {
+    title: `${name} 전문가홈 - OnePick`,
+    description: expertTitle,
+    keywords: ['원픽', '인테리어', '청소', '이사업체', '전문가', name],
+    openGraph: {
+      title: `${name} 전문가홈 - OnePick`,
+      description: expertTitle,
+      type: 'profile',
+      images: user.image ? [user.image] : [],
+    },
+    robots: {
+      index: true,
+      follow: true,
+    }
+  };
+}
 
 export default async function ExpertDashboardPage({
   searchParams,

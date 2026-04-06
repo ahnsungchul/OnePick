@@ -63,10 +63,10 @@ export default function UserReviewModal({ isOpen, onClose, expertName, expertId,
     const result = await submitReviewAction(estimateId, expertId, customerId, rating, finalContent);
     
     if (result.success) {
-      alert("리뷰가 등록되었습니다. 감사합니다!");
+      //alert("리뷰가 등록되었습니다. 감사합니다!");
       window.location.reload();
     } else {
-      alert((result as any).error || "리뷰 등록 중 오류가 발생했습니다.");
+      //alert((result as any).error || "리뷰 등록 중 오류가 발생했습니다.");
       setIsSubmitting(false);
     }
   };

@@ -294,7 +294,7 @@ export default function EstimateDetailPage() {
 
   const isAuthor = estimate && userId === estimate.customerId;
   const isExpert = userRole === 'EXPERT' || userRole === 'BOTH';
-  const isExpired = estimate && calculateDDay(estimate.createdAt, estimate.isClosed).label === '요청 마감';
+  const isExpired = estimate && calculateDDay(estimate.createdAt, estimate.isClosed, estimate.extendedDays).label === '요청 마감';
   const canBid = isExpert && userGrade && !isAuthor && !hasParticipated && (estimate?.status === 'PENDING' || estimate?.status === 'BIDDING') && !isExpired && !estimate?.isClosed;
 
   return (
@@ -391,8 +391,8 @@ export default function EstimateDetailPage() {
                  estimate.status === 'COMPLETED' ? '서비스완료' : '취소'}
               </span>
               {(estimate.status === 'PENDING' || estimate.status === 'BIDDING') && (
-                <span className={`text-xs font-bold px-3 py-1 rounded-full shadow-md ${calculateDDay(estimate.createdAt, estimate.isClosed).isUrgent ? 'bg-red-500 text-white animate-pulse' : 'bg-slate-700 text-white'}`}>
-                  {calculateDDay(estimate.createdAt, estimate.isClosed).label}
+                <span className={`text-xs font-bold px-3 py-1 rounded-full shadow-md ${calculateDDay(estimate.createdAt, estimate.isClosed, estimate.extendedDays).isUrgent ? 'bg-red-500 text-white animate-pulse' : 'bg-slate-700 text-white'}`}>
+                  {calculateDDay(estimate.createdAt, estimate.isClosed, estimate.extendedDays).label}
                 </span>
               )}
             </div>
@@ -557,19 +557,33 @@ export default function EstimateDetailPage() {
 
                       return parsedDates.map((dateStr, idx) => {
                         const isSelected = selectedAvailableDates.includes(dateStr);
+                        
+                        // 날짜가 지났는지 체크 (YYYY-MM-DD 형식 추출)
+                        const datePart = dateStr.split(' ')[0];
+                        let isPastDate = false;
+                        if (datePart && /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(datePart)) {
+                          const d = new Date(datePart);
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          isPastDate = d < today;
+                        }
+
                         return (
                           <button
                             key={idx}
                             type="button"
+                            disabled={isPastDate}
                             onClick={() => {
                               setSelectedAvailableDates(prev => 
                                 isSelected ? prev.filter(d => d !== dateStr) : [...prev, dateStr]
                               );
                             }}
                             className={`px-4 py-2.5 rounded-xl text-sm font-bold border transition-all ${
-                              isSelected 
-                                ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20' 
-                                : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'
+                              isPastDate
+                                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through'
+                                : isSelected 
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20' 
+                                  : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'
                             }`}
                           >
                             {dateStr}
@@ -704,7 +718,7 @@ export default function EstimateDetailPage() {
                   </div>
                 </div>
 
-                <div className="bg-slate-900 rounded-3xl p-5 text-white relative overflow-hidden group h-full flex flex-col min-h-[160px]">
+                <div className="bg-slate-900 rounded-3xl p-5 text-white relative overflow-hidden group gap-4 h-full flex flex-col min-h-[160px]">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 rounded-full blur-3xl group-hover:bg-blue-600/30 transition-all" />
                   <p className="text-white/70 text-sm font-bold mb-1 relative z-10">
                     총 견적 금액
@@ -1034,7 +1048,9 @@ export default function EstimateDetailPage() {
                   {/* 제안 금액 추가 */}
                   <div className="mb-4 text-center">
                     <p className="text-[10px] text-slate-400 mb-0.5">제안 금액</p>
-                    <p className="text-sm font-black text-blue-600">{bid.price?.toLocaleString()}원</p>
+                    <p className="text-sm font-black text-blue-600">
+                      {isAuthor ? `${bid.price?.toLocaleString()}원` : '비공개'}
+                    </p>
                   </div>
 
                   <div className="flex gap-2 w-full mt-auto">

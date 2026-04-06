@@ -189,7 +189,7 @@ export default function PortfolioClientLayout({
         {variant !== 'dashboard' && !isWriting && (
           <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100">
             <h2 className="font-bold text-slate-800">
-              {selectedCategoryId === null ? '전체 포트폴리오' : categories.find(c => c.id === selectedCategoryId)?.name + ' 포트폴리오'}
+              {selectedCategoryId === null ? '전체 블로그' : categories.find(c => c.id === selectedCategoryId)?.name + ' 블로그'}
               <span className="ml-2 text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full text-sm">
                 {portfolios.length}
               </span>

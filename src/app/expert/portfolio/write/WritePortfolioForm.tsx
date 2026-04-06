@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Image as ImageIcon, Link as LinkIcon, Loader2, ArrowLeft, X } from 'lucide-react';
 import { fetchOpenGraphDataAction, createPortfolioAction, uploadPortfolioImageAction, updatePortfolioAction } from '@/actions/portfolio.action';
 import dynamic from 'next/dynamic';
@@ -22,6 +22,7 @@ export default function WritePortfolioForm({ expertId, categories, editData, ini
   const [activeTab, setActiveTab] = useState<'import' | 'write'>(editData ? (editData.isImported ? 'import' : 'write') : 'import');
   const [categoryId, setCategoryId] = useState<number | null>(editData?.categoryId || initialCategoryId);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [seoTags, setSeoTags] = useState(editData?.seoTags || '');
 
   // Import State
   const [blogUrl, setBlogUrl] = useState(editData?.blogUrl || '');
@@ -36,6 +37,17 @@ export default function WritePortfolioForm({ expertId, categories, editData, ini
   const [content, setContent] = useState(editData && !editData.isImported ? editData.content : '');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(editData && !editData.isImported ? editData.thumbnailUrl : null);
+
+  useEffect(() => {
+    if (isFetchingUrl) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isFetchingUrl]);
 
   const handleFetchUrl = async () => {
     if (!blogUrl) return;
@@ -89,6 +101,7 @@ export default function WritePortfolioForm({ expertId, categories, editData, ini
           thumbnailUrl: importImage || null,
           blogUrl: blogUrl,
           isImported: true,
+          seoTags: seoTags.trim(),
         };
 
         let res;
@@ -131,6 +144,7 @@ export default function WritePortfolioForm({ expertId, categories, editData, ini
           thumbnailUrl: uploadedImageUrl !== null ? uploadedImageUrl : (imagePreview || null),
           blogUrl: null,
           isImported: false,
+          seoTags: seoTags.trim(),
         };
 
         let res;
@@ -155,14 +169,27 @@ export default function WritePortfolioForm({ expertId, categories, editData, ini
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden w-full">
-      {/* Header */}
+    <>
+      <style>{`
+        .sun-editor .se-toolbar.se-toolbar-sticky {
+          top: 64px !important;
+        }
+      `}</style>
+      {isFetchingUrl && (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <Loader2 className="w-12 h-12 text-white animate-spin mb-4" />
+          <p className="text-white font-bold text-lg">블로그 정보를 가져오는 중입니다...</p>
+          <p className="text-white/80 text-sm mt-2">잠시만 기다려주세요.</p>
+        </div>
+      )}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden w-full">
+        {/* Header */}
       <div className="flex items-center gap-4 px-8 py-6 border-b border-slate-100 bg-slate-50/50">
         <button onClick={onCancel} className="p-2 -ml-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors flex items-center justify-center">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h2 className="text-xl md:text-2xl font-black text-slate-800">
-          {editData ? '포트폴리오 수정' : '포트폴리오 작성'}
+          {editData ? '블로그 수정' : '블로그 작성'}
         </h2>
       </div>
 
@@ -210,7 +237,7 @@ export default function WritePortfolioForm({ expertId, categories, editData, ini
               <span className="font-bold text-base flex items-center gap-2">
                 💡 외부 블로그 링크를 입력해주세요.
               </span>
-              <span className="text-blue-600">입력하신 블로그의 대표 이미지와 제목, 내용을 가져와 포트폴리오로 보여줍니다.</span>
+              <span className="text-blue-600">입력하신 블로그의 대표 이미지와 제목, 내용을 가져와 블로그로 보여줍니다.</span>
             </div>
 
             <div>
@@ -317,14 +344,14 @@ export default function WritePortfolioForm({ expertId, categories, editData, ini
                   </label>
                 )}
                 <div className="text-sm text-slate-600 bg-slate-50 p-5 rounded-2xl flex-1 border border-slate-100">
-                  포트폴리오 목록에 보여질 대표 썸네일 이미지를 업로드해주세요.<br/>
+                  블로그 목록에 보여질 대표 썸네일 이미지를 업로드해주세요.<br/>
                   게시글 내부에 이미지가 많거나 다른 곳에서 작성한 블로그가 있다면 <span className="font-bold text-blue-600">외부 블로그 가져오기</span> 기능을 추천합니다.
                 </div>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">포트폴리오 제목 <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-bold text-slate-700 mb-2">블로그 제목 <span className="text-red-500">*</span></label>
               <input 
                 type="text" 
                 placeholder="예) 송파구 30평형 아파트 인테리어 시공 사례"
@@ -354,6 +381,19 @@ export default function WritePortfolioForm({ expertId, categories, editData, ini
             </div>
           </div>
         )}
+
+        <div className="w-full h-px bg-slate-100"></div>
+        <div>
+          <label className="block text-sm font-bold text-slate-700 mb-2">검색어 태그 (검색 노출용)</label>
+          <input 
+            type="text" 
+            placeholder="예) 인테리어, 송파구, 30평형 (콤마로 구분)"
+            value={seoTags}
+            onChange={(e) => setSeoTags(e.target.value)}
+            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm"
+          />
+          <p className="text-xs text-slate-500 mt-2">네이버, 구글 검색 등의 SEO 키워드로 직접 반영됩니다. 여러 개일 경우 콤마(,)로 구분해 주세요.</p>
+        </div>
       </div>
 
       {/* Footer */}
@@ -373,5 +413,6 @@ export default function WritePortfolioForm({ expertId, categories, editData, ini
         </button>
       </div>
     </div>
+    </>
   );
 }

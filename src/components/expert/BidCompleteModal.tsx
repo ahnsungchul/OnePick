@@ -7,11 +7,12 @@ import { completeExpertBidAction } from '@/actions/bid.action';
 interface BidCompleteModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
   estimateId: string;
   expertId: number;
 }
 
-export default function BidCompleteModal({ isOpen, onClose, estimateId, expertId }: BidCompleteModalProps) {
+export default function BidCompleteModal({ isOpen, onClose, onSuccess, estimateId, expertId }: BidCompleteModalProps) {
   const [photos, setPhotos] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +81,7 @@ export default function BidCompleteModal({ isOpen, onClose, estimateId, expertId
       
       if (res.success) {
         onClose();
+        if (onSuccess) onSuccess();
       } else {
         setError(res.error || "처리 중 오류가 발생했습니다.");
       }
