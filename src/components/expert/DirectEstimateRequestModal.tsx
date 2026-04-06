@@ -61,9 +61,10 @@ export default function DirectEstimateRequestModal({ expertId, onClose, initialS
   const [message, setMessage] = useState('');
 
   useEffect(() => {
+    const originalStyle = window.getComputedStyle(document.body).overflow;
     document.body.style.overflow = 'hidden';
     return () => {
-      document.body.style.overflow = 'auto';
+      document.body.style.overflow = originalStyle;
     };
   }, []);
 

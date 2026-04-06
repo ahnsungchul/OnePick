@@ -30,14 +30,19 @@ export default function HeaderAuthGroup() {
                 onClick={() => {
                   const width = 1400;
                   const height = 900;
-                  const left = (window.screen.width / 2) - (width / 2);
-                  const top = (window.screen.height / 2) - (height / 2);
+                  const left = Math.max(0, (window.screen.width / 2) - (width / 2));
+                  const top = Math.max(0, (window.screen.height / 2) - (height / 2));
                   const userId = (session?.user as any)?.id || 0;
-                  window.open(
+                  const popup = window.open(
                     `/expert/dashboard?userId=${userId}`, 
                     'ExpertDashboard', 
                     `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
                   );
+                  if (popup) {
+                    popup.focus();
+                  } else {
+                    alert('팝업 차단이 설정되어 있습니다. 브라우저 설정에서 팝업을 허용해주세요.');
+                  }
                 }}
                 className={cn(
                   "hover:text-blue-600 transition-colors font-bold", 

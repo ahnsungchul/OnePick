@@ -5,7 +5,7 @@ import { getPortfolioCategoriesAction, getPortfoliosAction, deletePortfolioActio
 import PortfolioSidebar from '@/components/expert/portfolio/PortfolioSidebar';
 import PortfolioList from '@/components/expert/portfolio/PortfolioList';
 import PortfolioDetail from '@/components/expert/portfolio/PortfolioDetail';
-import WritePortfolioModal from '@/components/expert/portfolio/WritePortfolioModal';
+import WritePortfolioForm from '@/app/expert/portfolio/write/WritePortfolioForm';
 import { Plus, Trash2 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -22,9 +22,9 @@ export default function PortfolioClientLayout({
   const [portfolios, setPortfolios] = useState<any[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isWriteModalOpen, setIsWriteModalOpen] = useState(false);
-  const [selectedPortfolio, setSelectedPortfolio] = useState<any | null>(null);
+  const [isWriting, setIsWriting] = useState(false);
   const [editData, setEditData] = useState<any | null>(null);
+  const [selectedPortfolio, setSelectedPortfolio] = useState<any | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const [totalPortfoliosCount, setTotalPortfoliosCount] = useState<number>(0);
@@ -75,13 +75,13 @@ export default function PortfolioClientLayout({
     }
   }, [portfolios, searchParams, variant]);
 
-  const handleOpenWriteModal = (portfolio?: any) => {
+  const handleOpenWriteForm = (portfolio?: any) => {
     if (portfolio) {
       setEditData(portfolio);
     } else {
       setEditData(null);
     }
-    setIsWriteModalOpen(true);
+    setIsWriting(true);
   };
 
   const handleDeletePortfolio = () => {
@@ -186,7 +186,7 @@ export default function PortfolioClientLayout({
           </div>
         )}
 
-        {variant !== 'dashboard' && (
+        {variant !== 'dashboard' && !isWriting && (
           <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100">
             <h2 className="font-bold text-slate-800">
               {selectedCategoryId === null ? '전체 포트폴리오' : categories.find(c => c.id === selectedCategoryId)?.name + ' 포트폴리오'}
@@ -197,7 +197,7 @@ export default function PortfolioClientLayout({
             
             {isOwner && !selectedPortfolio && (
               <button 
-                onClick={() => handleOpenWriteModal()}
+                onClick={() => handleOpenWriteForm()}
                 className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors shadow-sm"
               >
                 <Plus className="w-4 h-4" />
@@ -207,7 +207,24 @@ export default function PortfolioClientLayout({
           </div>
         )}
 
-        {loading ? (
+        {isWriting ? (
+          <WritePortfolioForm 
+             expertId={targetUserId}
+             categories={categories}
+             editData={editData}
+             initialCategoryId={selectedCategoryId}
+             onSuccess={() => {
+                setIsWriting(false);
+                setEditData(null);
+                fetchPortfolios();
+                fetchCategories();
+             }}
+             onCancel={() => {
+                setIsWriting(false);
+                setEditData(null);
+             }}
+          />
+        ) : loading ? (
           <div className="flex justify-center py-20 text-slate-400">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
@@ -224,7 +241,7 @@ export default function PortfolioClientLayout({
               }
             }}
             isOwner={isOwner}
-            onEdit={() => handleOpenWriteModal(selectedPortfolio)}
+            onEdit={() => handleOpenWriteForm(selectedPortfolio)}
             onDelete={handleDeletePortfolio}
             prevPost={prevPost}
             nextPost={nextPost}
@@ -251,27 +268,6 @@ export default function PortfolioClientLayout({
           />
         )}
       </div>
-
-      {isOwner && isWriteModalOpen && (
-        <WritePortfolioModal 
-          isOpen={isWriteModalOpen}
-          onClose={() => {
-            setIsWriteModalOpen(false);
-            setEditData(null);
-          }}
-          expertId={targetUserId}
-          categories={categories}
-          editData={editData}
-          initialCategoryId={selectedCategoryId}
-          onSuccess={() => {
-            setIsWriteModalOpen(false);
-            setEditData(null);
-            fetchPortfolios();
-            fetchCategories();
-            setSelectedPortfolio(null); // Return to list after save
-          }}
-        />
-      )}
 
       {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && (

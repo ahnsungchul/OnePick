@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Mail, Lock, AlertCircle, ArrowRight, X } from 'lucide-react';
+import SignupModal from './SignupModal';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -17,18 +18,16 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: LoginModalPro
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
+      const originalStyle = window.getComputedStyle(document.body).overflow;
       document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
+      return () => {
+        document.body.style.overflow = originalStyle;
+      };
     }
-
-    // Cleanup on unmount
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -159,9 +158,35 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: LoginModalPro
                 </>
               )}
             </button>
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setIsSignupModalOpen(true);
+                }}
+                className="text-sm font-bold text-slate-500 hover:text-blue-600 transition-colors"
+                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                회원가입
+              </button>
+            </div>
           </div>
         </form>
       </div>
+
+      <SignupModal 
+        isOpen={isSignupModalOpen} 
+        onClose={() => setIsSignupModalOpen(false)}
+        onSuccess={() => {
+          setIsSignupModalOpen(false);
+          if (onSuccess) {
+            onSuccess();
+          } else {
+            onClose();
+          }
+        }}
+      />
     </div>
   );
 }
