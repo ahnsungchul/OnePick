@@ -109,128 +109,94 @@ export async function fetchOpenGraphDataAction(url: string) {
     if ($('.se-main-container').length) {
        const $root = $('.se-main-container').first();
        
-       // 1. Strip trackers, scripts, and useless items safely
+       // 1. Strip trackers, scripts, and useless items safely BEFORE processing
+       // This prevents <script> payloads from being captured, which avoids XSS blocking by WAF later
        $root.find('script, iframe, style, .se-sticker, img[src*="tracker"], img[src*="ico_"], .se-oglink-info').remove();
 
-       // 2. Process all images for native fluid delivery
-       $root.find('img').each((_, img) => {
-           const $img = $(img);
-           let src = $img.attr('data-lazy-src') || $img.attr('src') || '';
-           if (!src || src.includes('sticker') || src.includes('tracker')) {
-               $img.remove();
-               return;
-           }
+        let cleanHtml = '';
 
-           // Swap lazy loader to real high-res
-           src = src.replace('w80_blur', 'w966').replace(/type=[a-zA-Z0-9_]+blur/, 'type=w966');
-           $img.attr('src', src);
-           $img.removeAttr('data-lazy-src');
+        // Iterate through all top-level components to build a completely new, clean HTML structure
+        $root.find('.se-component').each((_, comp) => {
+            const $c = $(comp);
+            
+            // Extract standard Naver module alignments
+            const cls = $c.attr('class') || '';
+            let alignStyle = 'margin-bottom: 20px;';
+            if (cls.includes('se-l-left') || cls.includes('align-left')) alignStyle += ' float: left; margin-right: 20px;';
+            else if (cls.includes('se-l-right') || cls.includes('align-right')) alignStyle += ' float: right; margin-left: 20px;';
+            else if (cls.includes('se-l-center') || cls.includes('align-center')) alignStyle += ' margin-left: auto; margin-right: auto; text-align: center; display: block;';
 
-           // Percentage ratio scaling logic based on px vs 880 metrics
-           const styleStr = $img.attr('style') || '';
-           const parentWidthStr = $img.closest('.se-module').attr('style') || '';
-           const parentWidthMatch = parentWidthStr.match(/width:\s*([0-9.]+)%/);
+            // 1. Text / Formatting Blocks
+            if ($c.hasClass('se-text') || $c.hasClass('se-title') || $c.hasClass('se-quote')) {
+                let textHtml = '';
+                $c.find('.se-text-paragraph').each((_, p) => {
+                    const $p = $(p);
+                    let pStyles = ['line-height: 1.8', 'margin: 0', 'padding-bottom: 15px', 'word-break: break-word'];
+                    if ($p.hasClass('se-text-paragraph-align-center')) pStyles.push('text-align: center');
+                    else if ($p.hasClass('se-text-paragraph-align-right')) pStyles.push('text-align: right');
+                    else if ($p.hasClass('se-text-paragraph-align-justify')) pStyles.push('text-align: justify');
 
-           let targetWidth = '100%';
-           if (parentWidthMatch) {
-               targetWidth = parentWidthMatch[1] + '%';
-           } else {
-               let pxMatch = styleStr.match(/width:\s*([0-9.]+)px/);
-               if (pxMatch && parseFloat(pxMatch[1]) > 0 && parseFloat(pxMatch[1]) < 850) {
-                   targetWidth = Math.min(100, (parseFloat(pxMatch[1]) / 880) * 100).toFixed(2) + '%';
-               }
-           }
-           $img.attr('style', `width: ${targetWidth}; max-width: 100%; height: auto; border-radius: 8px;`);
-           $img.removeAttr('width').removeAttr('height');
-           $img.attr('referrerpolicy', 'no-referrer');
-       });
+                    // Pre-process spans for colors, sizes, weights before extracting HTML to keep styles
+                    $p.find('span, em, strong, b').each((_, span) => {
+                        const $s = $(span);
+                        const sCls = $s.attr('class') || '';
+                        let sStyles = [];
+                        
+                        const fsMatch = sCls.match(/se-fs([0-9]+)/);
+                        if (fsMatch) sStyles.push(`font-size: ${fsMatch[1]}px`);
+                        const colorMatch = sCls.match(/se-c-([a-fA-F0-9]{3,6})/);
+                        if (colorMatch) sStyles.push(`color: #${colorMatch[1]}`);
+                        if (sCls.includes('se-fw-bold') || sCls.includes('se-fw-heavy') || $s.prop('tagName') === 'STRONG' || $s.prop('tagName') === 'B') sStyles.push('font-weight: bold');
+                        
+                        let curStyle = $s.attr('style') || '';
+                        if (sStyles.length > 0) $s.attr('style', (curStyle + ';' + sStyles.join(';')).replace(/;;/g, ';'));
+                    });
+                    
+                    let pInner = $p.html() || '';
+                    if (!pInner.trim() && $p.find('img, iframe').length === 0) {
+                        pInner = '<br/>';
+                    }
+                    textHtml += `<p style="${pStyles.join(';')}">${pInner}</p>`;
+                });
+                if (textHtml) cleanHtml += `<div style="${alignStyle}">${textHtml}</div>`;
+            } 
+            // 2. Image / Multi-Image Blocks
+            else if ($c.hasClass('se-image') || $c.hasClass('se-imageStrip') || $c.hasClass('se-imageGroup') || $c.find('img').length > 0) {
+                const validImgs: string[] = [];
+                $c.find('img').each((_, img) => {
+                    const $img = $(img);
+                    let src = $img.attr('data-lazy-src') || $img.attr('src') || '';
+                    if (src && !src.includes('sticker') && !src.includes('tracker') && !src.includes('ico_')) {
+                        src = src.replace('w80_blur', 'w966').replace(/type=[a-zA-Z0-9_]+blur/, 'type=w966');
+                        validImgs.push(src);
+                    }
+                });
 
-       // 3. Bake structural CSS classes directly into inline styling so the layout holds in SunEditor
-       $root.find('.se-text-paragraph').each((_, p) => {
-           const $p = $(p);
-           let pStyles = ['line-height: 1.8', 'margin: 0', 'padding-bottom: 15px', 'word-break: break-word'];
-           if ($p.hasClass('se-text-paragraph-align-center')) pStyles.push('text-align: center');
-           else if ($p.hasClass('se-text-paragraph-align-right')) pStyles.push('text-align: right');
-           else if ($p.hasClass('se-text-paragraph-align-justify')) pStyles.push('text-align: justify');
-           
-           let curStyle = $p.attr('style') || '';
-           if (pStyles.length > 0) $p.attr('style', (curStyle + ';' + pStyles.join(';')).replace(/;;/g, ';'));
-           
-           // Ensure empty line breaks are preserved with a visible <br>
-           const txt = $p.text().replace(/\u200B/g, '').trim();
-           if (!txt && $p.find('img, iframe').length === 0) {
-               $p.html('<br/>');
-           }
-       });
+                if (validImgs.length === 1) {
+                    cleanHtml += `<figure class="se-image-container" style="${alignStyle} margin: 0; padding: 0;"><img src="${validImgs[0]}" style="width: 100%; max-width: 100%; height: auto; border-radius: 8px; display: block;" referrerpolicy="no-referrer" /></figure>`;
+                } else if (validImgs.length > 1) {
+                    let flexHtml = '';
+                    validImgs.forEach(src => {
+                        flexHtml += `<figure class="se-image-container" style="flex: 1; min-width: 0; margin: 0; padding: 0;"><img src="${src}" style="width: 100%; max-width: 100%; height: auto; border-radius: 8px; display: block;" referrerpolicy="no-referrer" /></figure>`;
+                    });
+                    cleanHtml += `<div style="${alignStyle} display: flex; flex-direction: row; gap: 8px;">${flexHtml}</div>`;
+                }
+            }
+            // 3. Horizontal Lines
+            else if ($c.hasClass('se-line')) {
+                cleanHtml += `<hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;" />`;
+            }
+            // 4. Links
+            else if ($c.hasClass('se-oglink')) {
+                const href = $c.find('a').attr('href') || '#';
+                const linkText = $c.find('.se-oglink-title').text() || href;
+                cleanHtml += `<div style="${alignStyle} padding: 16px; border: 1px solid #efefef; border-radius: 8px; background: #fafafa;"><a href="${href}" target="_blank" style="color: #3b82f6; text-decoration: none; font-weight: bold; overflow-wrap: break-word;">${linkText}</a></div>`;
+            }
+        });
 
-       $root.find('span').each((_, span) => {
-           const $s = $(span);
-           const cls = $s.attr('class') || '';
-           let sStyles = [];
-           const fsMatch = cls.match(/se-fs([0-9]+)/);
-           if (fsMatch) sStyles.push(`font-size: ${fsMatch[1]}px`);
-           if (cls.includes('se-fw-bold') || cls.includes('se-fw-heavy')) sStyles.push('font-weight: bold');
-           
-           let curStyle = $s.attr('style') || '';
-           if (sStyles.length > 0) $s.attr('style', (curStyle + ';' + sStyles.join(';')).replace(/;;/g, ';'));
-       });
-
-       // 4. Translate complex flex wrap structures into immutable HTML tables for bulletproof WYSIWYG compatibility
-       // Map strictly by .se-imageGroup-item or .se-imageStrip-container to preserve structured multi-image columns
-       $root.find('.se-imageGroup, .se-l-collage, .se-imageStrip').each((_, group) => {
-           const $group = $(group);
-           
-           // Support both legacy .se-imageGroup-item and newer .se-imageStrip formats
-           let $items = $group.find('.se-imageGroup-item, .se-imageStrip-container > .se-module-image');
-           
-           if ($items.length === 0) {
-               if ($group.hasClass('se-imageGroup-item')) {
-                   $items = $group;
-               } else {
-                   return; // Skip if no structured columns exist (fallback to normal rendering)
-               }
-           }
-               const percentWidth = (100 / $items.length).toFixed(2);
-               let inlineHtml = '';
-               
-               $items.each((_, item) => {
-                   const $item = $(item);
-                   let innerImgsHtml = '';
-                   $item.find('img').each((_, img) => {
-                       const src = $(img).attr('src') || '';
-                       if (src) {
-                           innerImgsHtml += `<img src="${src}" referrerpolicy="no-referrer" style="width: 100%; height: auto; border-radius: 8px; display: block;" />`;
-                       }
-                   });
-                   
-                   if (innerImgsHtml) {
-                       inlineHtml += `<div style="width: ${percentWidth}%; float: left; padding: 4px; box-sizing: border-box; word-break: break-all;">
-                           <div style="margin: 0; padding: 0;">${innerImgsHtml}</div>
-                       </div>`;
-                   }
-               });
-               
-               if (inlineHtml) {
-                   const wrapperHtml = `<div style="width: 100%; overflow: hidden; margin: 16px 0;">${inlineHtml}</div><div style="clear: both; font-size: 0; line-height: 0;"></div>`;
-                   $group.replaceWith(wrapperHtml);
-               } else {
-                   $group.remove();
-               }
-       });
-
-       $root.find('.se-component').each((_, comp) => {
-           const $c = $(comp);
-           const cls = $c.attr('class') || '';
-           let compStyle = 'margin-bottom: 30px;'; // Enforce native Naver vertical spacing
-           if (cls.includes('se-l-left') || cls.includes('align-left')) {
-               compStyle += ' float: left; margin: 0 20px 16px 0;';
-           } else if (cls.includes('se-l-right') || cls.includes('align-right')) {
-               compStyle += ' float: right; margin: 0 0 16px 20px;';
-           }
-           $c.attr('style', ($c.attr('style') || '') + ';' + compStyle);
-       });
-
-       contentArray.push($root.html() || '');
+        // Wrap entirely in .se-component-content with 100% width
+        cleanHtml = `<div class="se-component-content" style="width: 100%;">${cleanHtml}</div>`;
+        contentArray.push(cleanHtml);
     } else if ($('.article_view, .tt_article_useless_p_margin, article').length) {
        const $root = $('.article_view, .tt_article_useless_p_margin, article').first();
        
@@ -412,16 +378,22 @@ async function syncExternalImagesToS3(content: string, thumbnailUrl: string | nu
 export async function createPortfolioAction(data: any) {
   try {
     const { newContent, newThumbnailUrl } = await syncExternalImagesToS3(data.content, data.thumbnailUrl);
+    
+    // Scraped HTML can sometimes contain \u0000 (null bytes) which causes Postgres to throw a fatal exception.
+    const safeContent = newContent ? newContent.replace(/\0/g, '') : '';
+    const safeTitle = data.title ? data.title.replace(/\0/g, '') : '';
+    const safeSeoTags = data.seoTags ? data.seoTags.replace(/\0/g, '') : null;
+
     const portfolio = await prisma.portfolio.create({
       data: {
         expertId: data.expertId,
         categoryId: data.categoryId,
-        title: data.title,
-        content: newContent,
+        title: safeTitle,
+        content: safeContent,
         thumbnailUrl: newThumbnailUrl,
         blogUrl: data.blogUrl,
         isImported: data.isImported,
-        seoTags: data.seoTags || null,
+        // seoTags: safeSeoTags, // TODO: Uncomment once Prisma Client is regenerated with seoTags
       },
     });
     revalidatePath('/expert/portfolio');
@@ -436,15 +408,20 @@ export async function updatePortfolioAction(id: number, data: any) {
   try {
     const { newContent, newThumbnailUrl } = await syncExternalImagesToS3(data.content, data.thumbnailUrl);
 
+    // Scraped HTML can sometimes contain \u0000 (null bytes) which causes Postgres to throw a fatal exception.
+    const safeContent = newContent ? newContent.replace(/\0/g, '') : '';
+    const safeTitle = data.title ? data.title.replace(/\0/g, '') : '';
+    const safeSeoTags = data.seoTags ? data.seoTags.replace(/\0/g, '') : null;
+
     const portfolio = await prisma.portfolio.update({
       where: { id },
       data: {
         categoryId: data.categoryId,
-        title: data.title,
-        content: newContent,
+        title: safeTitle,
+        content: safeContent,
         thumbnailUrl: newThumbnailUrl,
         blogUrl: data.blogUrl,
-        seoTags: data.seoTags || null,
+        // seoTags: safeSeoTags, // TODO: Uncomment once Prisma Client is regenerated with seoTags
       },
     });
     revalidatePath('/expert/portfolio');

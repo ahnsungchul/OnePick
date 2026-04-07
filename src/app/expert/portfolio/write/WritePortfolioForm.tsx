@@ -174,9 +174,15 @@ export default function WritePortfolioForm({ expertId, categories, editData, ini
         .sun-editor .se-toolbar.se-toolbar-sticky {
           top: 64px !important;
         }
+        .sun-editor-editable {
+          font-size: 16px !important;
+        }
+        .sun-editor-editable .se-component-content {
+          width: 100% !important;
+        }
       `}</style>
       {isFetchingUrl && (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 !mt-0">
           <Loader2 className="w-12 h-12 text-white animate-spin mb-4" />
           <p className="text-white font-bold text-lg">블로그 정보를 가져오는 중입니다...</p>
           <p className="text-white/80 text-sm mt-2">잠시만 기다려주세요.</p>
