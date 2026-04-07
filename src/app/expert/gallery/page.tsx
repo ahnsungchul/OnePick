@@ -6,7 +6,7 @@ import { getExpertSchedulesAction } from '@/actions/schedule.action';
 import Link from 'next/link';
 
 export const metadata = {
-  title: '통합 갤러리 - OnePick',
+  title: '통합 스케줄 - OnePick',
   description: '전문가 통합 일정 관리',
 };
 

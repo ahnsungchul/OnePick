@@ -158,9 +158,6 @@ export default function ExpertHomeStatsBadges({
               >
                 <div className="flex items-center gap-1">
                   <span className="text-[11px] font-bold text-slate-400 group-hover:text-slate-600">{tab.label}</span>
-                  {showReqTabN[tab.id] && (
-                    <span className="w-3 h-3 bg-red-500 text-white text-[8px] font-black flex items-center justify-center rounded-full shadow-sm animate-pulse">N</span>
-                  )}
                 </div>
                 <span className="text-xl font-black text-slate-700 group-hover:text-blue-600">{tab.count} <span className="text-sm font-bold text-slate-400 group-hover:text-blue-400">건</span></span>
               </button>
@@ -209,9 +206,6 @@ export default function ExpertHomeStatsBadges({
               >
                 <div className="flex items-center gap-1">
                   <span className="text-[11px] font-bold text-slate-400 group-hover:text-slate-600">{tab.label}</span>
-                  {showBidTabN[tab.id] && (
-                    <span className="w-3 h-3 bg-red-500 text-white text-[8px] font-black flex items-center justify-center rounded-full shadow-sm animate-pulse">N</span>
-                  )}
                 </div>
                 <span className="text-xl font-black text-slate-700 group-hover:text-emerald-600">{tab.count} <span className="text-sm font-bold text-slate-400 group-hover:text-emerald-400">건</span></span>
               </button>

@@ -24,7 +24,7 @@ export default function ExpertSidebar({ grade, isApproved }: ExpertSidebarProps)
   
   const menuItems = [
     { name: '홈', href: '/expert/dashboard', icon: Home, requiresApproval: false },
-    { name: '통합 갤러리', href: '/expert/gallery', icon: LayoutGrid, requiresApproval: true },
+    { name: '통합 스케줄', href: '/expert/gallery', icon: LayoutGrid, requiresApproval: true },
     { name: '받은 요청', href: '/expert/requests', icon: ClipboardList, requiresApproval: true },
     { name: '보낸 견적', href: '/expert/bids', icon: Send, requiresApproval: true },
     { name: '수익/정산', href: '/expert/earnings', icon: CreditCard, requiresApproval: true },

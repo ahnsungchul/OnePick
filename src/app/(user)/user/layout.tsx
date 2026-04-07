@@ -9,7 +9,8 @@ import {
   ClipboardList, 
   CreditCard, 
   Headset,
-  UserCircle
+  UserCircle,
+  Star
 } from 'lucide-react';
 
 interface UserMyPageLayoutProps {
@@ -23,7 +24,8 @@ export default function UserMyPageLayout({ children }: UserMyPageLayoutProps) {
     { name: '홈', href: '/user/my-estimates', icon: BarChart3 },
     { name: '내요청', href: '/user/my-requests', icon: ClipboardList },
     { name: '1:1요청', href: '/user/my-direct-requests', icon: UserCircle },
-    { name: '결제내역', href: '/user/payments', icon: CreditCard },
+    { name: '후기', href: '/user/reviews', icon: Star },
+    // { name: '결제내역', href: '/user/payments', icon: CreditCard }, // 임시 숨김 처리
     { name: '고객지원', href: '/user/support', icon: Headset },
   ];
 

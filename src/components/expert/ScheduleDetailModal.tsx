@@ -111,8 +111,14 @@ export default function ScheduleDetailModal({ estimateId, expertId, onClose }: S
                     <div className="font-black text-lg text-emerald-600">{data.bid.price.toLocaleString()}원</div>
                   </div>
                   <div className='flex-1'>
-                     <div className="text-xs text-slate-500 mb-1">시공 가능일</div>
-                     <div className="font-bold text-slate-800">{data.bid.availableDate || '-'}</div>
+                     <div className="text-xs text-slate-500 mb-1">
+                       {data.bid.status === 'ACCEPTED' ? '서비스 확정일' : '시공 가능일'}
+                     </div>
+                     <div className="font-bold text-slate-800">
+                       {data.bid.status === 'ACCEPTED' 
+                         ? (data.estimate.selectedDate || data.bid.availableDate || '-') 
+                         : (data.bid.availableDate || '-')}
+                     </div>
                   </div>
                   </div>
                   {data.bid.message && (

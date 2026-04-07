@@ -304,7 +304,8 @@ export async function getMyRequestsAction(userId: number) {
           select: { id: true, senderId: true }
         },
         category: true,
-        services: true
+        services: true,
+        review: true
       } as any,
       orderBy: { createdAt: "desc" }
     });
@@ -608,7 +609,8 @@ export async function getMyDirectRequestsAction(userId: number) {
           select: { id: true, senderId: true }
         },
         category: true,
-        services: true
+        services: true,
+        review: true
       } as any,
       orderBy: { createdAt: "desc" }
     });

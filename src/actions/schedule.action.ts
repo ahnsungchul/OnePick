@@ -84,6 +84,7 @@ export async function addCustomScheduleAction(data: {
   title: string;
   content?: string;
   isHoliday?: boolean;
+  amount?: number;
 }) {
   try {
     const newSchedule = await prisma.schedule.create({
@@ -93,6 +94,7 @@ export async function addCustomScheduleAction(data: {
         title: data.title,
         content: data.content,
         isHoliday: data.isHoliday || false,
+        amount: data.amount || 0,
       },
     });
     revalidatePath('/expert/gallery');

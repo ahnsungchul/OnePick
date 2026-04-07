@@ -14,6 +14,7 @@ interface Schedule {
   type: 'AUTO' | 'CUSTOM' | 'HOLIDAY';
   estimateId?: string;
   isConfirmed?: boolean;
+  amount?: number;
 }
 
 interface ScheduleCalendarProps {
@@ -37,6 +38,7 @@ export default function ScheduleCalendar({ expertId, initialSchedules, isOwner =
   // Add Form State
   const [addTitle, setAddTitle] = useState('');
   const [addContent, setAddContent] = useState('');
+  const [addAmount, setAddAmount] = useState('');
   const [isHoliday, setIsHoliday] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -56,6 +58,7 @@ export default function ScheduleCalendar({ expertId, initialSchedules, isOwner =
     setSelectedDateStr(dateStr);
     setAddTitle('');
     setAddContent('');
+    setAddAmount('');
     setIsHoliday(false);
     setIsAddModalOpen(true);
   };
@@ -80,7 +83,8 @@ export default function ScheduleCalendar({ expertId, initialSchedules, isOwner =
       date: selectedDateStr,
       title: addTitle,
       content: isHoliday ? '' : addContent,
-      isHoliday
+      isHoliday,
+      amount: parseInt(addAmount.replace(/,/g, '')) || 0
     });
     setIsLoading(false);
 
@@ -90,7 +94,8 @@ export default function ScheduleCalendar({ expertId, initialSchedules, isOwner =
         date: res.data.date,
         title: res.data.title,
         content: res.data.content || '',
-        type: res.data.isHoliday ? 'HOLIDAY' : 'CUSTOM'
+        type: res.data.isHoliday ? 'HOLIDAY' : 'CUSTOM',
+        amount: res.data.amount || 0
       }]);
       setIsAddModalOpen(false);
     } else {
@@ -167,7 +172,7 @@ export default function ScheduleCalendar({ expertId, initialSchedules, isOwner =
     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[calc(100vh-140px)]">
       {/* Calendar Header */}
       <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-white">
-        <h1 className="text-2xl font-bold text-slate-800">통합 갤러리 (일정 관리)</h1>
+        <h1 className="text-2xl font-bold text-slate-800">통합 스케줄 (일정 관리)</h1>
         
         <button 
           onClick={() => setIsYMModalOpen(true)}
@@ -273,7 +278,7 @@ export default function ScheduleCalendar({ expertId, initialSchedules, isOwner =
                     onClick={() => handleHolidayChange(false)}
                     className={`flex-1 py-2 text-sm font-bold rounded-xl border transition-colors ${!isHoliday ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
                   >
-                    개별 일정
+                    신규 일정
                   </button>
                   <button 
                     type="button" 
@@ -298,15 +303,37 @@ export default function ScheduleCalendar({ expertId, initialSchedules, isOwner =
               </div>
 
               {!isHoliday && (
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">상세 내용 (선택)</label>
-                  <textarea 
-                    value={addContent}
-                    onChange={e => setAddContent(e.target.value)}
-                    className="w-full h-24 text-sm border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 resize-none"
-                    placeholder="일정에 대한 간략한 메모를 남겨주세요."
-                  />
-                </div>
+                <>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">예상 금액 (선택)</label>
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        value={addAmount}
+                        onChange={e => {
+                          const numericValue = e.target.value.replace(/[^0-9]/g, '');
+                          if (numericValue) {
+                            setAddAmount(parseInt(numericValue, 10).toLocaleString());
+                          } else {
+                            setAddAmount('');
+                          }
+                        }}
+                        className="w-full text-sm border border-slate-200 rounded-xl pl-4 pr-10 py-2.5 focus:outline-none focus:border-blue-500"
+                        placeholder="예: 50,000"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400">원</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">상세 내용 (선택)</label>
+                    <textarea 
+                      value={addContent}
+                      onChange={e => setAddContent(e.target.value)}
+                      className="w-full h-24 text-sm border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 resize-none"
+                      placeholder="일정에 대한 간략한 메모를 남겨주세요."
+                    />
+                  </div>
+                </>
               )}
             </div>
             

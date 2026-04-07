@@ -17,6 +17,7 @@ export default function UserReviewModal({ isOpen, onClose, expertName, expertId,
   const [content, setContent] = useState('');
   const [selectedOption, setSelectedOption] = useState('직접입력');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [photos, setPhotos] = useState<File[]>([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -27,6 +28,7 @@ export default function UserReviewModal({ isOpen, onClose, expertName, expertId,
       setContent('');
       setSelectedOption('직접입력');
       setIsSubmitting(false);
+      setPhotos([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
@@ -60,7 +62,15 @@ export default function UserReviewModal({ isOpen, onClose, expertName, expertId,
     if (isSubmitting) return;
     setIsSubmitting(true);
 
-    const result = await submitReviewAction(estimateId, expertId, customerId, rating, finalContent);
+    const formData = new FormData();
+    formData.append('estimateId', estimateId);
+    formData.append('expertId', expertId.toString());
+    formData.append('customerId', customerId.toString());
+    formData.append('rating', rating.toString());
+    formData.append('content', finalContent);
+    photos.forEach(photo => formData.append('photo', photo));
+
+    const result = await submitReviewAction(formData);
     
     if (result.success) {
       //alert("리뷰가 등록되었습니다. 감사합니다!");
@@ -137,6 +147,24 @@ export default function UserReviewModal({ isOpen, onClose, expertName, expertId,
               onChange={(e) => setContent(e.target.value)}
               disabled={selectedOption !== '직접입력'}
             />
+
+            <div className="mt-4">
+              <label className="block text-sm font-bold text-slate-700 mb-2">사진 첨부 (선택)</label>
+              <input 
+                type="file" 
+                multiple 
+                accept="image/*"
+                onChange={(e) => {
+                  if (e.target.files) {
+                    setPhotos(Array.from(e.target.files));
+                  }
+                }}
+                className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+              {photos.length > 0 && (
+                <p className="text-xs text-slate-500 mt-2">{photos.length}장의 사진이 선택되었습니다.</p>
+              )}
+            </div>
           </div>
         </div>
 

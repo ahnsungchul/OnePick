@@ -71,6 +71,7 @@ interface Estimate {
   extendedDays?: number;
   selectedDate?: string;
   completionPhotoUrls?: string[];
+  review?: any;
 }
 
 export default function MyRequestListItem({ 
@@ -434,6 +435,24 @@ export default function MyRequestListItem({
                     >
                       검수하기
                     </button>
+                  )}
+                  {estimate.status === 'COMPLETED' && (
+                    estimate.review ? (
+                      <button 
+                        disabled
+                        className="w-full md:w-auto px-4 py-1 text-sm font-bold text-slate-400 bg-slate-100 rounded-md border border-slate-200 cursor-not-allowed"
+                      >
+                        후기 작성 완료
+                      </button>
+                    ) : (
+                      <Link 
+                        href="/user/reviews"
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full md:w-auto px-4 py-1 text-sm font-bold text-white bg-blue-600 rounded-md shadow-md shadow-blue-600/20 hover:bg-blue-700 transition-colors inline-block text-center"
+                      >
+                        후기 작성하러 가기
+                      </Link>
+                    )
                   )}
                   <button 
                     onClick={() => setIsDetailOpen(true)}
