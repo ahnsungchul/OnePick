@@ -403,7 +403,7 @@ export default function WritePortfolioForm({ expertId, categories, editData, ini
       </div>
 
       {/* Footer */}
-      <div className="p-8 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
+      <div className="bg-white p-8 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
         <button 
           onClick={onCancel}
           className="px-8 py-3.5 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-colors shadow-sm"
