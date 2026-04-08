@@ -17,7 +17,8 @@ export default function HeaderAuthGroup() {
     <div className="flex items-center gap-4 flex-1 justify-between ml-10">
       <div className="flex items-center gap-8">
         <nav className="hidden md:flex items-center gap-6 font-bold text-sm">
-          <Link href="/estimate" className={cn("hover:text-blue-500 transition-colors", pathname.startsWith('/estimate') && "text-blue-600")}>요청 찾기</Link>
+          <Link href="/estimate" className={cn("hover:text-blue-500 transition-colors", pathname.startsWith('/estimate') && !pathname.startsWith('/estimate-map') && "text-blue-600")}>요청 찾기</Link>
+          <Link href="/estimate-map" className={cn("hover:text-blue-500 transition-colors", pathname.startsWith('/estimate-map') && "text-blue-600")}>요청찾기2</Link>
           <Link href="/expert-search" className={cn("hover:text-blue-500 transition-colors", pathname === '/expert-search' && "text-blue-600")}>전문가 찾기</Link>
           <Link href="/market" className={cn("hover:text-blue-500 transition-colors", pathname === '/market' && "text-blue-600")}>원픽 마켓</Link>
           

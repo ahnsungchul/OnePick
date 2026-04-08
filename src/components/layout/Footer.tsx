@@ -10,6 +10,11 @@ export default function Footer() {
   
   // 전문가 관련 경로는 간편 푸터 적용
   const isExpertPath = pathname.startsWith('/expert');
+  const isEstimateMap = pathname.startsWith('/estimate-map');
+
+  if (isEstimateMap) {
+    return null;
+  }
 
   if (isExpertPath) {
     return <ExpertFooter />;
