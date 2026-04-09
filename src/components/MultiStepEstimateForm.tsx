@@ -441,8 +441,19 @@ export default function MultiStepEstimateForm({
         <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">✓</div>
         <h2 className="text-2xl font-bold text-slate-800 mb-2">요청이 완료되었습니다!</h2>
         <p className="text-slate-600 mb-6">{message}</p>
-        <button className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition" onClick={() => window.location.href='/'}>
-          홈으로 돌아가기
+        <button 
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition" 
+          onClick={() => {
+            if (onSuccess) {
+              onSuccess();
+            } else if (onClose) {
+              onClose();
+            } else {
+              window.location.href='/';
+            }
+          }}
+        >
+          {onSuccess || onClose ? '닫기' : '홈으로 돌아가기'}
         </button>
       </div>
     );

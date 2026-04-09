@@ -257,6 +257,7 @@ export async function getEstimatesAction() {
   try {
     const estimates = await prisma.estimate.findMany({
       where: {
+        designatedExpertId: null,
         status: {
           in: ["PENDING", "BIDDING", "IN_PROGRESS", "COMPLETED"],
         },
@@ -444,7 +445,8 @@ export async function getAdjacentEstimateIdsAction(
 
     // 공통 필터 조건 구축
     const filterAnd: any[] = [
-      { status: { in: ["PENDING", "BIDDING"] } }
+      { status: { in: ["PENDING", "BIDDING"] } },
+      { designatedExpertId: null }
     ];
     if (filters?.category && filters.category !== '전체') {
       filterAnd.push({ category: { name: { in: getReverseCategoryMap(filters.category) } } });
