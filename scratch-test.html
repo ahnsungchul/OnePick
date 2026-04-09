@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=881liwxlgv&submodules=geocoder"></script>
+</head>
+<body>
+  <script>
+    setTimeout(() => {
+      naver.maps.Service.geocode({ query: '서울 강남구 역삼동' }, function(status, response) {
+        console.log("Status:", status);
+        console.log("Response:", response);
+      });
+    }, 1000);
+  </script>
+</body>
+</html>
