@@ -130,13 +130,19 @@ export default function MapEstimateFullModal({ estimateId, isOpen, onClose }: Ma
 
   // 배경 스크롤 방지 (팝업 오픈 시)
   useEffect(() => {
-    if (isOpen || selectedImageIndex !== null || showDeleteModal || showBidModal || showBidDetailModal || !!errorModalMessage) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
+    const isAnyModalOpen = isOpen || selectedImageIndex !== null || showDeleteModal || showBidModal || showBidDetailModal || !!errorModalMessage;
+    
+    if (!isAnyModalOpen) return;
+
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
     };
   }, [isOpen, selectedImageIndex, showDeleteModal, showBidModal, showBidDetailModal, errorModalMessage]);
 

@@ -8,20 +8,22 @@ import { v4 as uuidv4 } from "uuid";
 import { formatCategory, getReverseCategoryMap } from "@/lib/utils";
 
 /**
- * 고유한 요청 번호 생성기 (영문2자리+숫자4자리, 중복 검증 포함)
+ * 고유한 요청 번호 생성기 (연도4자리+월2자리+영문2자리+숫자3자리, 중복 검증 포함)
  */
 async function generateUniqueRequestNumber(): Promise<string> {
   let isUnique = false;
   let reqNumber = '';
   
   while (!isUnique) {
-    const year = new Date().getFullYear().toString();
+    const now = new Date();
+    const year = now.getFullYear().toString();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const l1 = letters.charAt(Math.floor(Math.random() * letters.length));
     const l2 = letters.charAt(Math.floor(Math.random() * letters.length));
-    const num = Math.floor(Math.random() * 100).toString().padStart(2, '0');
+    const num = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     
-    reqNumber = `${year}${l1}${l2}${num}`;
+    reqNumber = `${year}${month}${l1}${l2}${num}`;
     
     const existing = await prisma.estimate.findUnique({
       where: { requestNumber: reqNumber }

@@ -20,23 +20,24 @@ export default function NewEstimateModal({
   const [categoriesData, setCategoriesData] = useState<any[] | undefined>(undefined);
 
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-      // Load categories data when modal is opened
-      const loadCategories = async () => {
-        try {
-          const res = await getCategoriesAction();
-          if (res.success) setCategoriesData(res.data);
-        } catch (err) {
-          console.error('Failed to load categories', err);
-        }
-      };
-      if (!categoriesData) loadCategories();
-    } else {
-      document.body.style.overflow = 'unset';
-    }
+    if (!isOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    // Load categories data when modal is opened
+    const loadCategories = async () => {
+      try {
+        const res = await getCategoriesAction();
+        if (res.success) setCategoriesData(res.data);
+      } catch (err) {
+        console.error('Failed to load categories', err);
+      }
+    };
+    if (!categoriesData) loadCategories();
+
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = originalOverflow;
     };
   }, [isOpen, categoriesData]);
 

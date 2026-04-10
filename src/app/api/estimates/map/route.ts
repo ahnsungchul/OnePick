@@ -20,7 +20,7 @@ export async function GET() {
     const estimates = await prisma.estimate.findMany({
       where: {
         designatedExpertId: null,
-        status: { not: 'COMPLETED' }
+        status: { in: ['PENDING', 'BIDDING'] }
       },
       select: {
         id: true,
@@ -57,7 +57,8 @@ export async function GET() {
     return NextResponse.json({
       estimates: mapped,
       categories: categories.map(c => c.name),
-      userRegion
+      userRegion,
+      isLoggedIn: !!session?.user?.id
     });
   } catch (error) {
     console.error("Failed to fetch map estimates:", error);

@@ -6,6 +6,7 @@ import Script from 'next/script';
 import MapEstimateFullModal from '@/components/expert/MapEstimateFullModal';
 import NewEstimateModal from '@/components/user/NewEstimateModal';
 import { MapPin, Navigation, X, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { regionData } from '@/lib/regions';
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371e3; // metres
   const φ1 = lat1 * Math.PI/180; // φ, λ in radians
@@ -32,23 +33,27 @@ function getGroupedEstimates(zoom: number, targetEstimates: any[]) {
     let key = '';
     let title = '';
 
-    if (zoom <= 7) {
-      key = parts[0];
-      title = parts[0];
-    } else if (zoom <= 9) {
-      const siPart = parts[0];
-      key = siPart;
-      title = siPart;
-    } else if (zoom <= 11) {
+    if (zoom <= 8) {
+      // 50km 이상 (zoom 8 이하)
+      key = '대한민국 전체';
+      title = '대한민국 전체';
+    } else if (zoom <= 10) {
+      // 10km ~ 50km (zoom 9 ~ 10)
+      const doPart = parts[0];
+      key = doPart;
+      title = doPart;
+    } else if (zoom <= 13) {
+      // 2km ~ 5km (zoom 11 ~ 13)
       key = parts[0] + ' ' + (parts[1] || '');
       title = parts[1] || parts[0];
     } else if (zoom <= 14) {
+      // 500m ~ 1km (zoom 14)
       key = parts[0] + ' ' + (parts[1] || '') + ' ' + (parts[2] || '');
       title = parts[2] || parts[1] || parts[0];
     }
 
     if (!groups[key]) {
-      groups[key] = { count: 0, lat: 0, lng: 0, title };
+      groups[key] = { count: 0, lat: 0, lng: 0, title, key };
     }
     groups[key].count++;
     groups[key].lat += est.lat;
@@ -62,6 +67,7 @@ function getGroupedEstimates(zoom: number, targetEstimates: any[]) {
     lat: g.lat / g.count,
     lng: g.lng / g.count,
     title: g.title,
+    key: g.key,
   }));
 }
 
@@ -76,11 +82,17 @@ export default function EstimateMapPage() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>(['전체']);
   const [isCategoryExpanded, setIsCategoryExpanded] = useState(false);
   
-  // 맵 페이지 진입 시 전역 스크롤 방지
+  // 맵 페이지 진입 시 전역 스크롤 방지 (최초 마운트 시 1회만 적용)
   useEffect(() => {
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    
     document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
     };
   }, []);
 
@@ -93,6 +105,45 @@ export default function EstimateMapPage() {
   const [modalEstimateId, setModalEstimateId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  
+  // 지역 선택 모달 상태
+  const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
+  const [selectedSido, setSelectedSido] = useState('');
+  const [selectedSigungu, setSelectedSigungu] = useState('');
+
+  const handleRegionConfirm = () => {
+    if (!selectedSido || !selectedSigungu) {
+      alert("도/시와 시/군/구를 모두 선택해주세요.");
+      return;
+    }
+    const query = selectedSido === '전국' ? '서울특별시' : `${selectedSido} ${selectedSigungu === '전체' ? '' : selectedSigungu}`.trim();
+    
+    (window as any).naver.maps.Service.geocode({ query }, (status: any, response: any) => {
+      if (status === (window as any).naver.maps.Service.Status.OK && response.v2.addresses.length > 0) {
+        const item = response.v2.addresses[0];
+        const lat = parseFloat(item.y);
+        const lng = parseFloat(item.x);
+        
+        if (mapInstanceRef.current) {
+          const currentPos = new (window as any).naver.maps.LatLng(lat, lng);
+          mapInstanceRef.current.setCenter(currentPos);
+          mapInstanceRef.current.setZoom(13); // 지역은 보통 넓게 보여줌
+          new (window as any).naver.maps.Marker({
+            position: currentPos,
+            map: mapInstanceRef.current,
+            icon: {
+              content: '<div class="w-5 h-5 bg-blue-600 border-[3px] border-white rounded-full shadow-md animate-bounce"></div>',
+              anchor: new (window as any).naver.maps.Point(10, 10),
+            }
+          });
+        }
+      } else {
+        alert("선택하신 지역의 위치를 찾을 수 없습니다.");
+      }
+    });
+
+    setIsRegionModalOpen(false);
+  };
 
   const handleEstimateClick = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
@@ -128,19 +179,30 @@ export default function EstimateMapPage() {
   const nearbyEstimates = React.useMemo(() => {
     if (!selectedMarker) return [];
     
-    // 현재 선택된 카테고리에 맞는 마커만 1차 필터링
-    const filtered = estimates.filter(e => selectedCategories.includes('전체') || selectedCategories.includes(e.category));
+    // 현재 선택된 카테고리에 맞는 마커만 1차 필터링 & '진행중' 상태 제외
+    const filtered = estimates.filter(e => 
+      (selectedCategories.includes('전체') || selectedCategories.includes(e.category)) &&
+      e.status !== '진행중'
+    );
+
+    // 그룹 마커(CLUSTER)를 클릭했을 경우, 정확히 해당 클러스터 텍스트(key)에 부합하는 요청들만 반환
+    if (selectedMarker.id === 'CLUSTER') {
+      if (selectedMarker.key === '대한민국 전체') {
+        return filtered;
+      }
+      return filtered.filter(est => est.location && est.location.startsWith(selectedMarker.key));
+    }
 
     const withDist = filtered.map(est => {
       const dist = getDistance(selectedMarker.lat, selectedMarker.lng, est.lat, est.lng);
       return { ...est, distance: dist };
     });
 
-    // 반경 내 필터링 및 거리순 정렬, 단 본인은 제외 (거리가 0인 경우)
+    // 개별 마커 (기본 반경 탐색 시)
     return withDist
       .filter(est => est.distance <= radius && est.id !== selectedMarker.id)
       .sort((a, b) => a.distance - b.distance);
-  }, [selectedMarker, estimates, radius, selectedCategories]);
+  }, [selectedMarker, estimates, radius, selectedCategories, zoom]);
 
   const initMap = useCallback(() => {
     // 네이버 지도 API가 로드되었는지 체크
@@ -163,6 +225,12 @@ export default function EstimateMapPage() {
         // Zoom 변경 이벤트 리스너 추가
         (window as any).naver.maps.Event.addListener(map, 'zoom_changed', () => {
           setZoom(map.getZoom());
+          setSidebarOpen(false);
+        });
+
+        // 지도 이동(드래그) 시작 시 사이드바 닫기
+        (window as any).naver.maps.Event.addListener(map, 'dragstart', () => {
+          setSidebarOpen(false);
         });
         
         // GPS 및 유저 위치 처리는 loadData 함수 이후로 위임
@@ -199,13 +267,6 @@ export default function EstimateMapPage() {
     if (typeof window !== 'undefined' && (window as any).naver && (window as any).naver.maps) {
       initMap();
     }
-
-    // 스크롤 방지
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
   }, [initMap]);
 
   useEffect(() => {
@@ -230,13 +291,12 @@ export default function EstimateMapPage() {
           });
         };
 
-        // 로그인 여부에 따른 초기 맵 중앙 위치 설정 로직
-        if (data.userRegion) {
-          const regionCoords = await getCoords(data.userRegion);
-          if (regionCoords && mapInstanceRef.current) {
-            const currentPos = new (window as any).naver.maps.LatLng(parseFloat(regionCoords.y), parseFloat(regionCoords.x));
-            mapInstanceRef.current.setCenter(currentPos);
-            mapInstanceRef.current.setZoom(16);
+        const moveMapTo = (lat: number, lng: number, withMarker = true) => {
+          if (!mapInstanceRef.current) return;
+          const currentPos = new (window as any).naver.maps.LatLng(lat, lng);
+          mapInstanceRef.current.setCenter(currentPos);
+          mapInstanceRef.current.setZoom(16);
+          if (withMarker) {
             new (window as any).naver.maps.Marker({
               position: currentPos,
               map: mapInstanceRef.current,
@@ -246,36 +306,56 @@ export default function EstimateMapPage() {
               }
             });
           }
-        } else {
-          // 비로그인 또는 지역 정보 없을 시 GPS 활용
-          if (navigator.geolocation && mapInstanceRef.current) {
+        };
+
+        const tryGpsLocation = (): Promise<boolean> => {
+          return new Promise((resolve) => {
+            if (!navigator.geolocation) {
+              resolve(false);
+              return;
+            }
             navigator.geolocation.getCurrentPosition(
               (position) => {
-                const lat = position.coords.latitude;
-                const lng = position.coords.longitude;
-                const currentPos = new (window as any).naver.maps.LatLng(lat, lng);
-                mapInstanceRef.current.setCenter(currentPos);
-                new (window as any).naver.maps.Marker({
-                  position: currentPos,
-                  map: mapInstanceRef.current,
-                  icon: {
-                    content: '<div class="w-5 h-5 bg-blue-600 border-[3px] border-white rounded-full shadow-md animate-bounce"></div>',
-                    anchor: new (window as any).naver.maps.Point(10, 10),
-                  }
-                });
+                moveMapTo(position.coords.latitude, position.coords.longitude);
+                resolve(true);
               },
               (error) => {
                 console.warn("GPS failed:", error);
-                const defaultPos = new (window as any).naver.maps.LatLng(37.4979, 127.0276);
-                new (window as any).naver.maps.Marker({
-                  position: defaultPos,
-                  map: mapInstanceRef.current,
-                });
+                resolve(false);
               },
               { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
             );
+          });
+        };
+
+        const initUserLocation = async () => {
+          let locationSet = false;
+
+          // 로그인 상태이고 회원정보의 주소(userRegion)가 있는 경우
+          if (data.isLoggedIn && data.userRegion) {
+            const regionCoords = await getCoords(data.userRegion);
+            if (regionCoords) {
+              moveMapTo(parseFloat(regionCoords.y), parseFloat(regionCoords.x));
+              locationSet = true;
+            }
           }
-        }
+
+          // 주소정보가 없거나 (또는 비로그인), 주소 변환에 실패했다면 GPS 시도
+          if (!locationSet) {
+            locationSet = await tryGpsLocation();
+          }
+
+          // 모든 방법(GPS, 주소)이 실패한 경우 임시 기본 위치 세팅 후 지역 선택 모달 표시
+          if (!locationSet) {
+             if (mapInstanceRef.current) {
+               const defaultPos = new (window as any).naver.maps.LatLng(37.4979, 127.0276);
+               mapInstanceRef.current.setCenter(defaultPos);
+             }
+             setIsRegionModalOpen(true);
+          }
+        };
+
+        await initUserLocation();
 
         const geocoded: any[] = [];
         const estimatesData = data.estimates || data;
@@ -347,7 +427,7 @@ export default function EstimateMapPage() {
         
         // 그룹 마커 클릭 시 줌인하지 않고, 해당 위치를 기준으로 사이드바 열림
         (window as any).naver.maps.Event.addListener(marker, 'click', () => {
-          setSelectedMarker({ lat: g.lat, lng: g.lng, id: 'CLUSTER', title: g.title });
+          setSelectedMarker({ lat: g.lat, lng: g.lng, id: 'CLUSTER', title: g.title, key: g.key });
           setSidebarOpen(true);
         });
 
@@ -373,10 +453,10 @@ export default function EstimateMapPage() {
           }
         });
 
-        // 마커 클릭 시 사이드바 열림
+        // 개별 마커 클릭 시 사이드바를 거치지 않고 즉시 요청 상세 모달 열기
         (window as any).naver.maps.Event.addListener(marker, 'click', () => {
-          setSelectedMarker(est);
-          setSidebarOpen(true);
+          setModalEstimateId(est.id);
+          setIsModalOpen(true);
         });
 
         markersRef.current.push(marker);
@@ -385,7 +465,7 @@ export default function EstimateMapPage() {
   }, [zoom, mapLoaded, estimates, selectedCategories]);
 
   return (
-    <div className="w-full h-[calc(100vh-64px)] relative bg-slate-100 flex flex-col overflow-hidden">
+    <div className="w-full h-[calc(100dvh-64px)] relative bg-slate-100 flex flex-col overflow-hidden overscroll-none">
       <Script 
         strategy="afterInteractive" 
         src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.NEXT_PUBLIC_NAVER_CLIENT_ID || '881liwxlgv'}&submodules=geocoder,visualization`}
@@ -539,6 +619,57 @@ export default function EstimateMapPage() {
           // TODO: 필요시 데이터 새로고침
         }}
       />
+
+      {/* 수동 지역 선택 모달 */}
+      {isRegionModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white py-8 px-6 shadow-2xl rounded-3xl w-full max-w-sm border border-slate-100 flex flex-col relative" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-6 text-center shrink-0">
+              <h2 className="text-xl font-black text-slate-900 tracking-tight">위치 확인 불가</h2>
+              <p className="text-[13px] text-slate-500 mt-2 font-medium">현재 위치를 확인할 수 없습니다.<br/>지도를 이동할 지역을 선택해주세요.</p>
+            </div>
+            
+            <div className="flex flex-col space-y-3 mb-6">
+              <label className="font-bold text-slate-900 block text-sm">지역 선택</label>
+              <div className="flex gap-2">
+                <select 
+                  value={selectedSido} 
+                  onChange={(e) => { setSelectedSido(e.target.value); setSelectedSigungu(''); }} 
+                  className="flex-1 border border-slate-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="" disabled>시/도</option>
+                  {Object.keys(regionData).map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <select 
+                  value={selectedSigungu} 
+                  onChange={e => setSelectedSigungu(e.target.value)} 
+                  disabled={!selectedSido} 
+                  className="flex-1 border border-slate-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50"
+                >
+                  <option value="" disabled>시/군/구</option>
+                  {selectedSido && regionData[selectedSido].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 flex gap-3 shrink-0">
+              <button 
+                onClick={() => setIsRegionModalOpen(false)} 
+                className="flex-1 font-bold py-3.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                닫기
+              </button>
+              <button 
+                onClick={handleRegionConfirm} 
+                disabled={!selectedSido || !selectedSigungu}
+                className="flex-1 bg-blue-600 text-white font-bold py-3.5 rounded-xl disabled:bg-slate-300 transition-colors"
+              >
+                이동하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
