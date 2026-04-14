@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { HelpCircle, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { getFaqsAction } from '@/actions/support.action';
 
-export default function FaqTab() {
+interface FaqTabProps {
+  isExpert?: boolean;
+}
+
+export default function FaqTab({ isExpert = false }: FaqTabProps) {
   const [openId, setOpenId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [faqs, setFaqs] = useState<any[]>([]);
@@ -14,7 +18,8 @@ export default function FaqTab() {
     async function fetchFaqs() {
       setLoading(true);
       try {
-        const result = await getFaqsAction();
+        const target = isExpert ? "EXPERT" : "USER";
+        const result = await getFaqsAction(target);
         if (result.success && Array.isArray(result.data)) {
           setFaqs(result.data);
         } else if (!result.success) {
@@ -27,7 +32,7 @@ export default function FaqTab() {
       }
     }
     fetchFaqs();
-  }, []);
+  }, [isExpert]);
 
   const filteredFaqs = faqs.filter(faq => 
     faq.question.includes(searchTerm) || faq.answer.includes(searchTerm)

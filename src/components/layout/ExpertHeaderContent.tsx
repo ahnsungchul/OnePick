@@ -8,6 +8,8 @@ import { Zap, Share2, Star, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ShareButton from '@/components/expert/ShareButton';
 import { getExpertUnreadMessageCountAction } from '@/actions/expert.action';
+import { checkIsFavoriteExpertAction, toggleFavoriteExpertAction } from '@/actions/favoriteExpert.action';
+import LoginModal from '@/components/auth/LoginModal';
 
 interface ExpertHeaderContentProps {
   isOwner?: boolean;
@@ -41,11 +43,22 @@ export default function ExpertHeaderContent({ isOwner = true }: ExpertHeaderCont
   }, [status, pathname, userIdParam]);
 
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [isToggleLoading, setIsToggleLoading] = useState(false);
 
   useEffect(() => {
     if (userIdParam && isOwner) {
       getExpertUnreadMessageCountAction(Number(userIdParam)).then(res => {
         if (res.success && typeof res.data === 'number') setUnreadCount(res.data);
+      });
+    }
+
+    if (userIdParam && isLoggedIn) {
+      checkIsFavoriteExpertAction(Number(userIdParam)).then(res => {
+        if (res.success) {
+          setIsFavorited(res.isFavorited);
+        }
       });
     }
 
@@ -62,7 +75,7 @@ export default function ExpertHeaderContent({ isOwner = true }: ExpertHeaderCont
     { name: '통합 스케줄', href: '/expert/gallery', showAlways: false },
     { name: '1:1 견적 요청', href: '/expert/requests', showAlways: false },
     { name: '참여한 견적', href: '/expert/bids', showAlways: false },
-    { name: '수익/정산', href: '/expert/earnings', showAlways: false },
+    { name: '구독관리', href: '/expert/subscription', showAlways: false },
     { name: '고객지원', href: '/expert/support', showAlways: true },
   ];
 
@@ -104,24 +117,58 @@ export default function ExpertHeaderContent({ isOwner = true }: ExpertHeaderCont
 
       {/* 우측 기능 (메시지, 공유하기, 즐겨찾기) */}
       <div className="flex items-center gap-1 sm:gap-2">
+        {/* 1. 공유하기 */}
         {userIdParam && <ShareButton />}
-        {userIdParam && !isOwner && (
+        
+        {/* 2. 즐겨찾기 (로그인 유저에게만 노출) */}
+        {userIdParam && isLoggedIn && (
           <button 
-            onClick={() => {
+            disabled={isToggleLoading}
+            onClick={async () => {
               if (!isLoggedIn) {
                 alert("로그인이 필요한 서비스입니다.");
-                window.location.href = '/login';
+                setIsLoginModalOpen(true);
                 return;
               }
-              alert("즐겨찾기 기능은 준비 중입니다.");
+              if (Number(session?.user?.id) === Number(userIdParam)) {
+                alert("본인은 즐겨찾기에 등록할 수 없습니다.");
+                return;
+              }
+              setIsToggleLoading(true);
+              const res = await toggleFavoriteExpertAction(Number(userIdParam));
+              if (res.success && typeof res.isFavorited === 'boolean') {
+                setIsFavorited(res.isFavorited);
+              } else {
+                alert(res.error || "처리 중 오류가 발생했습니다.");
+              }
+              setIsToggleLoading(false);
             }}
-            className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-slate-100 transition-colors text-slate-500 hover:text-amber-500"
+            className={cn(
+              "flex items-center justify-center w-10 h-10 rounded-full hover:bg-slate-100 transition-colors disabled:opacity-50",
+              isFavorited ? "text-amber-500 bg-amber-50" : "text-slate-500"
+            )}
             title="전문가 즐겨찾기"
           >
-            <Star className="w-5 h-5" />
+            <Star className={cn("w-5 h-5", isFavorited && "fill-current text-amber-500")} />
+          </button>
+        )}
+
+        {/* 3. 로그인 (비로그인 시에만 노출) */}
+        {!isLoggedIn && (
+          <button 
+            onClick={() => setIsLoginModalOpen(true)}
+            className="text-sm font-bold px-4 py-2 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-all shrink-0 active:scale-95"
+          >
+            로그인
           </button>
         )}
       </div>
+
+      <LoginModal 
+        isOpen={isLoginModalOpen} 
+        onClose={() => setIsLoginModalOpen(false)} 
+        redirectUrl={`${pathname}${userIdParam ? `?userId=${userIdParam}` : ''}`}
+      />
     </div>
   );
 }

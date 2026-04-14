@@ -331,7 +331,12 @@ export async function updateFullExpertProfileAction({
 export async function getExpertSentBidsAction(expertId: number) {
   try {
     const bids = await prisma.bid.findMany({
-      where: { expertId },
+      where: { 
+        expertId,
+        estimate: {
+          designatedExpertId: null
+        }
+      },
       include: {
         items: true,
         estimate: {
@@ -477,19 +482,41 @@ export async function checkDateAvailabilityAction(expertId: number, dates: strin
           status: { not: 'CANCELLED' }
         },
         ...(excludeBidId ? { id: { not: excludeBidId } } : {})
+      },
+      include: {
+        estimate: true
       }
     });
 
-    const existingDates = new Set<string>();
+    const conflictingEvents: any[] = [];
+    const conflicts = new Set<string>();
+
     bids.forEach((bid: any) => {
-      if (bid.availableDate) {
-        bid.availableDate.split(',').forEach((d: string) => existingDates.add(d.trim()));
+      if (!bid.availableDate) return;
+      const bidDates = bid.availableDate.split(',').map((d: string) => d.trim());
+      
+      const overlappingDates = dates.filter(d => bidDates.includes(d.trim()));
+      
+      if (overlappingDates.length > 0) {
+        overlappingDates.forEach(d => conflicts.add(d));
+        conflictingEvents.push({
+          id: bid.id,
+          requestNumber: bid.estimate?.requestNumber,
+          category: bid.estimate?.category || '기타 서비스',
+          details: bid.estimate?.details || '',
+          price: bid.price,
+          status: bid.status,
+          availableDate: bid.availableDate
+        });
       }
     });
 
-    const conflicts = dates.filter(d => existingDates.has(d.trim()));
-    
-    return { success: true, hasConflict: conflicts.length > 0, conflicts };
+    return { 
+      success: true, 
+      hasConflict: conflicts.size > 0, 
+      conflicts: Array.from(conflicts),
+      conflictingEvents
+    };
   } catch (error: any) {
     console.error("checkDateAvailabilityAction error:", error);
     return { success: false, error: error.message || "일정 중복 상태를 확인하는 중 오류가 발생했습니다." };

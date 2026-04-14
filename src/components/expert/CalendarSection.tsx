@@ -189,7 +189,7 @@ export default function CalendarSection({ userId, specialties = [], categoriesDa
 
   return (
     <>
-      <div className="flex flex-col h-full space-y-4">
+      <div className="flex flex-col flex-1 min-h-0 h-full space-y-4">
         <div className="flex justify-end">
         <button
           disabled={!isSelectedDateAvailable || isOwner}
@@ -211,7 +211,7 @@ export default function CalendarSection({ userId, specialties = [], categoriesDa
             : (isSelectedDateAvailable ? '📝 전문가에게 1:1 견적 요청하기' : '📅 스케줄 없는 날짜를 달력에서 선택해주세요')}
         </button>
       </div>
-      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm transition-all hover:shadow-md h-full flex flex-col min-h-0">
+      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm transition-all hover:shadow-md flex-1 flex flex-col min-h-0 h-full">
       {/* 헤더 부분 */}
       <div className="flex items-center justify-between mb-8">
         <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
@@ -251,7 +251,7 @@ export default function CalendarSection({ userId, specialties = [], categoriesDa
       </div>
 
       {/* 일정 목록 */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0 h-full">
         <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
           <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
             <CalendarIcon className="w-3.5 h-3.5" />
@@ -273,7 +273,7 @@ export default function CalendarSection({ userId, specialties = [], categoriesDa
             <span className="text-xs font-medium">예정된 일정이 없습니다.</span>
           </div>
         ) : (
-          <div className="space-y-2.5 overflow-y-auto h-full custom-scrollbar pr-1">
+          <div className="space-y-2.5 overflow-y-auto flex-1 min-h-0 custom-scrollbar pr-1">
             {displayedEvents.map((event) => {
               const [m, d] = event.date.split('-').slice(1);
               const isAuto = event.type === 'AUTO';

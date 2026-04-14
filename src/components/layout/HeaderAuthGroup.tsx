@@ -26,7 +26,7 @@ export default function HeaderAuthGroup() {
             <>
               <div className="w-px h-3 bg-slate-200 mx-1" />
               
-              {/* 전문가홈/헬퍼홈 - 누구나 접근 가능 (팝업) */}
+              {/* 전문가홈 - 누구나 접근 가능 (팝업) */}
               <button 
                 onClick={() => {
                   const width = 1400;
@@ -50,7 +50,7 @@ export default function HeaderAuthGroup() {
                   pathname.startsWith('/expert') ? "text-blue-600" : "text-slate-500"
                 )}
               >
-                {(session?.user as any)?.grade === 'PRO' ? '전문가홈' : '헬퍼홈'}
+                전문가홈
               </button>
             </>
           )}

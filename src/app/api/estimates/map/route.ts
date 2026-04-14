@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 
 import { auth } from '@/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const session = await auth();
@@ -27,6 +29,7 @@ export async function GET() {
         location: true,
         status: true,
         details: true,
+        isUrgent: true,
         createdAt: true,
         requestNumber: true,
         category: {
@@ -37,13 +40,14 @@ export async function GET() {
       orderBy: { createdAt: 'desc' }
     });
     
-    // 매핑: { id, category, status, location, details, createdAt, requestNumber }
+    // 매핑: { id, category, status, location, details, createdAt, requestNumber, isUrgent }
     const mapped = estimates.map(e => ({
       id: e.id,
       category: e.category?.name || '기타',
       status: e.status === 'PENDING' ? '요청중' : e.status === 'BIDDING' ? '견적중' : '진행중',
       location: e.location,
       details: e.details,
+      isUrgent: e.isUrgent,
       createdAt: e.createdAt,
       requestNumber: e.requestNumber,
     }));

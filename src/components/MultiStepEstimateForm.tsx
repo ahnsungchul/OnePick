@@ -557,16 +557,20 @@ export default function MultiStepEstimateForm({
               </div>
               <p className="text-slate-500 text-sm mb-6">결제 시 전문가들에게 긴급 푸시 알림이 발송되어 가장 빠르게 견적을 받아보실 수 있습니다.</p>
               
-              <div className="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-200">
+              <div className="bg-slate-50 p-4 rounded-xl mb-4 border border-slate-200">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-slate-600 font-medium">긴급 요청 수수료</span>
-                  <span className="text-slate-900 font-bold">5,000원</span>
+                  <span className="text-slate-900 font-bold">3,000원</span>
                 </div>
                 <div className="flex justify-between items-center text-sm text-blue-600 font-semibold border-t border-slate-200 pt-2 mt-2">
                   <span>총 결제금액</span>
-                  <span>5,000원</span>
+                  <span>3,000원</span>
                 </div>
               </div>
+
+              <p className="text-xs text-red-500 font-bold mb-5 bg-red-50 p-3 rounded-xl border border-red-100 break-keep">
+                ⚠️ 한 번 결제되어 적용된 긴급 요청은 중도 취소 시 환불이 절대 불가합니다.
+              </p>
 
               <button 
                 type="button"
@@ -574,7 +578,7 @@ export default function MultiStepEstimateForm({
                 disabled={isSubmitting}
                 className="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-md disabled:bg-slate-400"
               >
-                {isSubmitting ? '처리 중...' : '5,000원 결제하고 긴급 요청하기'}
+                {isSubmitting ? '처리 중...' : '3,000원 결제하고 긴급 요청하기'}
               </button>
             </div>
           </div>

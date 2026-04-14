@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, X, Trash2 } from 'lucide-react';
 import { addCustomScheduleAction, deleteCustomScheduleAction } from '@/actions/schedule.action';
 import ScheduleDetailModal from './ScheduleDetailModal';
+import CustomScheduleDetailModal from './CustomScheduleDetailModal';
 import YearMonthSelectorModal from './YearMonthSelectorModal';
 
 interface Schedule {
@@ -34,6 +35,7 @@ export default function ScheduleCalendar({ expertId, initialSchedules, isOwner =
   // New Modal States
   const [isYMModalOpen, setIsYMModalOpen] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<{ id: string, estimateId: string } | null>(null);
+  const [selectedCustomSchedule, setSelectedCustomSchedule] = useState<Schedule | null>(null);
 
   // Add Form State
   const [addTitle, setAddTitle] = useState('');
@@ -103,13 +105,16 @@ export default function ScheduleCalendar({ expertId, initialSchedules, isOwner =
     }
   };
 
-  const handleDeleteSchedule = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDeleteSchedule = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (!confirm('해당 일정을 삭제하시겠습니까?')) return;
     
     const res = await deleteCustomScheduleAction(id);
     if (res.success) {
       setSchedules(prev => prev.filter(s => s.id !== id));
+      if (selectedCustomSchedule?.id === id) {
+        setSelectedCustomSchedule(null);
+      }
     } else {
       alert(res.error);
     }
@@ -165,6 +170,8 @@ export default function ScheduleCalendar({ expertId, initialSchedules, isOwner =
     e.stopPropagation();
     if (sch.type === 'AUTO' && sch.estimateId) {
       setSelectedSchedule({ id: sch.id, estimateId: sch.estimateId });
+    } else if (sch.type === 'CUSTOM' || sch.type === 'HOLIDAY') {
+      setSelectedCustomSchedule(sch);
     }
   };
 
@@ -373,6 +380,19 @@ export default function ScheduleCalendar({ expertId, initialSchedules, isOwner =
           estimateId={selectedSchedule.estimateId}
           expertId={expertId}
           onClose={() => setSelectedSchedule(null)}
+        />
+      )}
+
+      {/* Custom Schedule Detail Modal */}
+      {selectedCustomSchedule && (
+        <CustomScheduleDetailModal
+          schedule={selectedCustomSchedule}
+          onClose={() => setSelectedCustomSchedule(null)}
+          onDelete={(id) => handleDeleteSchedule(id)}
+          onUpdate={(updatedSch) => {
+            setSchedules(prev => prev.map(s => s.id === updatedSch.id ? updatedSch : s));
+            setSelectedCustomSchedule(null);
+          }}
         />
       )}
     </div>

@@ -90,6 +90,7 @@ export default function ExpertBidListItem({
 
   const statusDisplay = getStatusDisplay();
   const unreadCount = !hasReadChat ? (estimate.chats?.filter((c: any) => c.senderId !== expertId && !c.isRead).length || 0) : 0;
+  const isOtherExpertSelected = bid.status !== 'ACCEPTED' && (estimate.status === 'SELECTED' || estimate.status === 'IN_PROGRESS' || estimate.status === 'COMPLETED' || estimate.status === 'INSPECTION');
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm mb-4 hover:border-blue-200 transition-all overflow-hidden flex flex-col lg:flex-row items-stretch">
@@ -133,7 +134,7 @@ export default function ExpertBidListItem({
           </div>
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-slate-400 shrink-0" />
-            <span className="truncate">요청일: {new Date(estimate.updatedAt || estimate.createdAt).toLocaleDateString()}</span>
+            <span className="truncate">요청일: {new Date(estimate.updatedAt || estimate.createdAt).toLocaleDateString('ko-KR')}</span>
           </div>
           <div className="flex items-center gap-2">
             <Phone className="w-4 h-4 text-slate-400 shrink-0" />
@@ -302,9 +303,9 @@ export default function ExpertBidListItem({
                 onMoveToStatus(category);
               }
             }}
-            disabled={estimate.status === 'CANCELLED' || estimate.status === 'COMPLETED'}
+            disabled={estimate.status === 'CANCELLED' || estimate.status === 'COMPLETED' || isOtherExpertSelected}
             className={`flex-1 relative px-4 py-3 font-bold text-sm rounded-xl transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-md ${
-              estimate.status === 'CANCELLED' || estimate.status === 'COMPLETED'
+              estimate.status === 'CANCELLED' || estimate.status === 'COMPLETED' || isOtherExpertSelected
                 ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none border border-slate-200'
                 : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/20'
             }`}

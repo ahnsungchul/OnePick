@@ -11,7 +11,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
-import { formatCategory, maskName, maskContact, maskAddress, calculateDDay } from '@/lib/utils';
+import { formatCategory } from '@/lib/utils';
 
 interface EstimateDetailViewProps {
   estimate: any;
@@ -53,7 +53,7 @@ export default function EstimateDetailView({ estimate }: EstimateDetailViewProps
             </div>
             <div>
               <p className="text-[11px] font-bold text-slate-400 uppercase">지역 정보</p>
-              <p className="text-sm font-bold text-slate-700">{maskAddress(estimate.location)}</p>
+              <p className="text-sm font-bold text-slate-700">{estimate.location}</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
@@ -87,7 +87,7 @@ export default function EstimateDetailView({ estimate }: EstimateDetailViewProps
             </div>
             <div>
               <p className="text-[11px] font-bold text-slate-400 uppercase">요청자</p>
-              <p className="text-sm font-bold text-slate-700">{maskName(estimate.authorName || estimate.customer?.name)}님</p>
+              <p className="text-sm font-bold text-slate-700">{estimate.authorName || estimate.customer?.name}님</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
@@ -96,7 +96,7 @@ export default function EstimateDetailView({ estimate }: EstimateDetailViewProps
             </div>
             <div>
               <p className="text-[11px] font-bold text-slate-400 uppercase">연락처</p>
-              <p className="text-sm font-bold text-slate-700">{maskContact(estimate.contact)}</p>
+              <p className="text-sm font-bold text-slate-700">{estimate.contact}</p>
             </div>
           </div>
         </div>

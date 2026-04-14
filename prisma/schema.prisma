@@ -59,7 +59,15 @@ model User {
   profile                 Profile?            @relation("ExpertProfile")
   accounts                Account[]
   bookmarks               Bookmark[]          @relation("UserBookmarks")
+  favoriteExperts         FavoriteExpert[]    @relation("UserFavoriteExperts")
+  favoritedBy             FavoriteExpert[]    @relation("ExpertFavoritedBy")
   certifications          Certification[]     @relation("UserCertifications")
+  payments                PaymentHistory[]    @relation("UserPayments")
+  
+  // 구독 관련 필드
+  subscriptionPlan        SubscriptionPlan    @default(LITE)
+  subscriptionDate        DateTime?
+  subscriptionEndDate     DateTime?
   estimates               Estimate[]          @relation("CustomerEstimates")
   inquiries               Inquiry[]           @relation("UserInquiries")
   portfolioCategories     PortfolioCategory[] @relation("ExpertPortfolioCategories")
@@ -165,6 +173,31 @@ model Bookmark {
   @@map("bookmarks")
 }
 
+model FavoriteExpert {
+  id        String   @id @default(uuid())
+  userId    Int
+  expertId  Int
+  createdAt DateTime @default(now())
+  
+  user      User     @relation("UserFavoriteExperts", fields: [userId], references: [id], onDelete: Cascade)
+  expert    User     @relation("ExpertFavoritedBy", fields: [expertId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, expertId])
+  @@map("favorite_experts")
+}
+
+model PaymentHistory {
+  id              String   @id @default(uuid())
+  expertId        Int
+  amount          Int
+  paymentDate     DateTime @default(now())
+  status          String   @default("PAID")
+  nextPaymentDate DateTime?
+  expert          User     @relation("UserPayments", fields: [expertId], references: [id], onDelete: Cascade)
+
+  @@map("payment_history")
+}
+
 model Bid {
   id              String    @id @default(uuid())
   estimateId      String
@@ -247,6 +280,7 @@ model VerificationToken {
 model Inquiry {
   id        String        @id @default(uuid())
   userId    Int
+  target    String        @default("USER")
   type      String
   title     String
   content   String
@@ -284,6 +318,7 @@ model Notice {
 
 model FAQ {
   id        Int      @id @default(autoincrement())
+  target    String   @default("USER")
   category  String
   question  String
   answer    String
@@ -369,4 +404,9 @@ enum BidStatus {
 enum InquiryStatus {
   PENDING
   ANSWERED
+}
+
+enum SubscriptionPlan {
+  LITE
+  BASIC
 }

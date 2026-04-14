@@ -10,9 +10,10 @@ type RequestFilterStatus = 'ALL' | 'PRE_BID' | 'SENT_BID' | 'ACCEPTED' | 'REJECT
 interface ExpertReceivedRequestListProps {
   bids: any[];
   expertId: number;
+  subscriptionPlan?: string;
 }
 
-export default function ExpertReceivedRequestList({ bids, expertId }: ExpertReceivedRequestListProps) {
+export default function ExpertReceivedRequestList({ bids, expertId, subscriptionPlan = 'LITE' }: ExpertReceivedRequestListProps) {
   const searchParams = useSearchParams();
   const initialFilter = (searchParams.get('filter') as RequestFilterStatus) || 'ALL';
   const [statusFilter, setStatusFilter] = useState<RequestFilterStatus>(initialFilter);
@@ -161,6 +162,7 @@ export default function ExpertReceivedRequestList({ bids, expertId }: ExpertRece
               key={bid.id} 
               bid={bid} 
               expertId={expertId} 
+              subscriptionPlan={subscriptionPlan}
             />
           ))}
         </div>

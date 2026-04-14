@@ -71,6 +71,7 @@ export default function MapEstimateFullModal({ estimateId, isOpen, onClose }: Ma
   const [bidMessage, setBidMessage] = useState('');
   const [selectedAvailableDates, setSelectedAvailableDates] = useState<string[]>([]);
   const [errorModalMessage, setErrorModalMessage] = useState('');
+  const [conflictData, setConflictData] = useState<{ conflicts: string[], events: any[] } | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   const addBidItem = () => {
@@ -211,8 +212,8 @@ export default function MapEstimateFullModal({ estimateId, isOpen, onClose }: Ma
     }
   };
 
-  const handleBidSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleBidSubmit = async (e?: React.FormEvent, bypassConflict = false) => {
+    if (e) e.preventDefault();
     if (!userId || isSubmittingBid) return;
 
     // 유효성 검사
@@ -253,12 +254,15 @@ export default function MapEstimateFullModal({ estimateId, isOpen, onClose }: Ma
     }
 
     // 일정 중복 검증
-    if (selectedAvailableDates.length > 0) {
+    if (selectedAvailableDates.length > 0 && !bypassConflict) {
       setIsSubmittingBid(true);
       const conflictRes = await checkDateAvailabilityAction(userId, selectedAvailableDates);
       setIsSubmittingBid(false);
       if (conflictRes.success && conflictRes.hasConflict) {
-        setErrorModalMessage(`이미 달력에 다른 일정이 등록된 날짜(${conflictRes.conflicts?.join(', ')})가 포함되어 있습니다. 다른 서비스 가능일을 선택해 주세요.`);
+        setConflictData({ 
+          conflicts: conflictRes.conflicts as string[], 
+          events: conflictRes.conflictingEvents || [] 
+        });
         return;
       }
     }
@@ -375,14 +379,12 @@ export default function MapEstimateFullModal({ estimateId, isOpen, onClose }: Ma
                 <ImageIcon className="w-3.5 h-3.5 text-blue-500" /> {formatCategory(estimate.category)}
               </span>
               <span className={`text-xs font-bold px-4 py-1 rounded-full shadow-md ${
-                estimate.status === 'PENDING' ? 'bg-blue-600 text-white' :
-                estimate.status === 'BIDDING' ? 'bg-emerald-500 text-white' :
+                (estimate.status === 'PENDING' || estimate.status === 'BIDDING') ? 'bg-blue-600 text-white' :
                 estimate.status === 'SELECTED' ? 'bg-emerald-500 text-white' :
                 estimate.status === 'IN_PROGRESS' ? 'bg-blue-600 text-white' :
                 'bg-slate-500 text-white'
               }`}>
-                {estimate.status === 'PENDING' ? '매칭중' :
-                 estimate.status === 'BIDDING' ? '견적중' :
+                {(estimate.status === 'PENDING' || estimate.status === 'BIDDING') ? '요청중' :
                  estimate.status === 'SELECTED' ? '전문가선택' :
                  estimate.status === 'IN_PROGRESS' ? '전문가확정' :
                  estimate.status === 'COMPLETED' ? '서비스완료' : '취소'}
@@ -1140,6 +1142,71 @@ export default function MapEstimateFullModal({ estimateId, isOpen, onClose }: Ma
             window.location.reload();
           }}
         />
+      )}
+
+      {/* 중복 상세 모달 */}
+      {conflictData && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col max-h-[80vh]">
+            <div className="p-6 md:p-8 flex-1 overflow-y-auto">
+              <div className="w-16 h-16 rounded-3xl bg-amber-50 flex items-center justify-center text-amber-500 mx-auto mb-5">
+                <AlertCircle className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 text-center mb-2">선택하신 날짜에 이미 등록된 일정이 있습니다</h3>
+              <p className="text-sm text-slate-500 text-center mb-6">
+                그래도 무시하고 일정을 추가하시겠습니까? (겹치는 날짜: <span className="font-bold text-slate-700">{conflictData.conflicts.join(', ')}</span>)
+              </p>
+
+              <div className="space-y-3">
+                <p className="text-xs font-bold text-slate-400 mb-2">기존 일정 목록</p>
+                {conflictData.events.map((event: any, i: number) => (
+                  <div key={i} className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex flex-col gap-2">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold border border-slate-200">
+                          {event.requestNumber || '요청'}
+                        </span>
+                        {event.status === 'PENDING' && <span className="px-2 py-0.5 bg-yellow-50 text-yellow-600 rounded text-[10px] font-bold border border-yellow-200">견적 대기중</span>}
+                        {event.status === 'ACCEPTED' && <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold border border-blue-200">채택됨(예정)</span>}
+                        {event.status === 'COMPLETED' && <span className="px-2 py-0.5 bg-green-50 text-green-600 rounded text-[10px] font-bold border border-green-200">완료됨</span>}
+                        {event.status === 'REJECTED' && <span className="px-2 py-0.5 bg-slate-100 text-slate-400 rounded text-[10px] font-bold border border-slate-200">마감/거절</span>}
+                        {event.status === 'CANCELED' && <span className="px-2 py-0.5 bg-red-50 text-red-500 rounded text-[10px] font-bold border border-red-200">취소됨</span>}
+                        
+                        <h4 className="font-bold text-sm text-slate-800 ml-0.5">{event.category}</h4>
+                      </div>
+                      <span className="text-lg font-black text-slate-900 shrink-0 ml-2">{event.price.toLocaleString()}원</span>
+                    </div>
+                    {event.details && (
+                      <p className="text-[11px] text-slate-500 line-clamp-1">{event.details}</p>
+                    )}
+                    <div className="mt-2 text-xs font-bold text-slate-600 bg-white inline-block border border-slate-200 px-2 py-1 rounded-md self-start">
+                      {event.availableDate}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 shrink-0">
+              <button 
+                onClick={() => setConflictData(null)}
+                className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition-all active:scale-95"
+              >
+                취소
+              </button>
+              <button 
+                onClick={() => {
+                  setConflictData(null);
+                  handleBidSubmit(undefined, true); // 무시하고 추가
+                }}
+                disabled={isSubmittingBid}
+                className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-white bg-slate-800 hover:bg-slate-900 shadow-lg shadow-slate-900/20 transition-all active:scale-95 disabled:opacity-50"
+              >
+                {isSubmittingBid ? '처리 중...' : '무시하고 추가'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   </div>

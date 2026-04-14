@@ -13,14 +13,12 @@ export async function getExpertSchedulesAction(expertId: number) {
     const bids = await prisma.bid.findMany({
       where: {
         expertId,
-        OR: [
-          { status: 'PENDING', estimate: { status: 'BIDDING' }, availableDate: { not: null } },
-          { status: 'ACCEPTED', estimate: { selectedDate: { not: null } } }
-        ]
+        status: { in: ['PENDING', 'ACCEPTED'] },
+        estimate: { status: { not: 'CANCELLED' } }
       },
       include: {
         estimate: {
-          select: { id: true, details: true, location: true, category: true, selectedDate: true, requestNumber: true, status: true, customer: { select: { name: true } } }
+          select: { id: true, details: true, location: true, category: true, selectedDate: true, requestNumber: true, status: true, customer: { select: { name: true } }, designatedExpertId: true, serviceDate: true }
         },
       },
     });
@@ -35,24 +33,41 @@ export async function getExpertSchedulesAction(expertId: number) {
       })),
       ...bids.flatMap((b) => {
         const isConfirmed = b.status === 'ACCEPTED';
+        const isDirect = b.estimate.designatedExpertId === expertId;
+        const isPreBid = isDirect && b.price === 0 && b.status === 'PENDING';
+        const isSentBid = isDirect && b.price > 0 && b.status === 'PENDING';
+        const isGeneralPending = !isDirect && b.status === 'PENDING';
         
+        let displayStatus = "";
+        if (isDirect) {
+          if (isPreBid) displayStatus = "1:1 견적전";
+          else if (isSentBid) displayStatus = "1:1 견적보낸";
+          else if (isConfirmed) displayStatus = "1:1 확정";
+        } else {
+          if (isGeneralPending) displayStatus = "매칭대기중";
+          else if (isConfirmed) displayStatus = "채택된견적";
+        }
+
+        if (!displayStatus) return [];
+
         let allDatesStr = '';
         if (isConfirmed && b.estimate.selectedDate) {
            allDatesStr = b.estimate.selectedDate;
-        } else if (!isConfirmed && b.availableDate) {
+        } else if (b.availableDate) {
            allDatesStr = b.availableDate;
+        } else if (b.estimate.serviceDate) {
+           allDatesStr = b.estimate.serviceDate;
         }
 
         if (!allDatesStr) return [];
 
-        const items: any[] = [];
-        const rawDates = allDatesStr.split(',').map(d => d.trim());
-        const reqNum = b.estimate.requestNumber || 'No#';
-        const displayStatus = isConfirmed ? '확정' : '입찰중';
+        const rawDates = allDatesStr.match(/\d{4}[^\d]?\d{1,2}[^\d]?\d{1,2}/g);
+        if (!rawDates) return [];
 
+        const items: any[] = [];
         rawDates.forEach((d, idx) => {
           let cleanDate = d;
-          const match = d.match(/(\d{4})[^\d](\d{1,2})[^\d](\d{1,2})/);
+          const match = d.match(/(\d{4})[^\d]?(\d{1,2})[^\d]?(\d{1,2})/);
           if (match) {
             cleanDate = `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
           }
@@ -102,7 +117,8 @@ export async function addCustomScheduleAction(data: {
     return { success: true, data: newSchedule };
   } catch (error: any) {
     console.error('addCustomScheduleAction error:', error);
-    return { success: false, error: '일정 추가에 실패했습니다.' };
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, error: `일정 추가에 실패했습니다. 상세오류: ${errorMessage}` };
   }
 }
 
@@ -146,4 +162,29 @@ export async function getScheduleDetailAction(estimateId: string, expertId: numb
     return { success: false, error: '스케줄 상세 정보를 불러오는데 실패했습니다.' };
   }
 }
+
+export async function updateCustomScheduleAction(data: {
+  id: string; // schedule id
+  title: string;
+  content?: string;
+  amount?: number;
+}) {
+  try {
+    const updatedSchedule = await prisma.schedule.update({
+      where: { id: data.id },
+      data: {
+        title: data.title,
+        content: data.content,
+        amount: data.amount || 0,
+      },
+    });
+    revalidatePath('/expert/gallery');
+    revalidatePath('/expert/dashboard');
+    return { success: true, data: updatedSchedule };
+  } catch (error: any) {
+    console.error('updateCustomScheduleAction error:', error);
+    return { success: false, error: '일정 수정에 실패했습니다.' };
+  }
+}
+
 

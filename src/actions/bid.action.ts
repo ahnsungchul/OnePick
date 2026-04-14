@@ -166,6 +166,15 @@ export async function cancelBidSelectionAction(estimateId: string, bidId: string
         data: { status: "PENDING" },
       });
 
+      // 2-1. 나머지 탈락(REJECTED)된 견적들도 다시 경쟁할 수 있도록 PENDING으로 원복
+      await tx.bid.updateMany({
+        where: {
+          estimateId: estimateId,
+          status: "REJECTED",
+        },
+        data: { status: "PENDING" },
+      });
+
       // 3. Estimate 상태 및 마감 상태 원복
       const updatedEstimate = await tx.estimate.update({
         where: { id: estimateId },
@@ -179,8 +188,10 @@ export async function cancelBidSelectionAction(estimateId: string, bidId: string
       return updatedEstimate;
     });
 
-    revalidatePath("/(user)/user/my-requests");
+    revalidatePath("/user/my-requests");
     revalidatePath(`/estimate/${estimateId}`);
+    revalidatePath("/expert/bids");
+    revalidatePath("/expert/dashboard");
     return { success: true, data: result };
   } catch (error: any) {
     console.error("cancelBidSelectionAction error:", error);

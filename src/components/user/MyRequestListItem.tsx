@@ -13,7 +13,8 @@ import {
   Edit2,
   Trash2,
   Star,
-  AlertCircle
+  AlertCircle,
+  Zap
 } from 'lucide-react';
 import { formatCategory, maskName, calculateDDay } from '@/lib/utils';
 import Link from 'next/link';
@@ -23,6 +24,7 @@ import BidDetailModal from './BidDetailModal';
 import ChatPopupModal from '../chat/ChatPopupModal';
 import UserInspectionModal from './UserInspectionModal';
 import UserReviewModal from './UserReviewModal';
+import UrgentUpgradeModal from './UrgentUpgradeModal';
 import { deleteEstimateAction, cancelEstimateAction, closeEstimateAction, cancelCloseEstimateAction, extendEstimateDeadlineAction } from '@/actions/estimate.action';
 import { acceptBidAction, cancelBidSelectionAction } from '@/actions/bid.action';
 import { completePaymentAction } from '@/actions/payment.action';
@@ -68,6 +70,7 @@ interface Estimate {
   unreadChats?: { id: string; senderId: number }[];
   bids: Bid[];
   isClosed?: boolean;
+  isUrgent?: boolean;
   extendedDays?: number;
   selectedDate?: string;
   completionPhotoUrls?: string[];
@@ -89,6 +92,7 @@ export default function MyRequestListItem({
 }) {
   const [isBidsOpen, setIsBidsOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isUrgentModalOpen, setIsUrgentModalOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isInspectionModalOpen, setIsInspectionModalOpen] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
@@ -100,11 +104,15 @@ export default function MyRequestListItem({
   const [isAccepting, setIsAccepting] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
   const [isCanceling, setIsCanceling] = useState(false);
+  const [expertCancelBidId, setExpertCancelBidId] = useState<string | null>(null);
 
-  const handleCancelSelection = async (e: React.MouseEvent, bidId: string) => {
+  const handleCancelSelectionClick = (e: React.MouseEvent, bidId: string) => {
     e.stopPropagation();
-    if (!window.confirm('전문가 선택을 취소하시겠습니까?')) return;
-    
+    setExpertCancelBidId(bidId);
+  };
+
+  const executeCancelSelection = async () => {
+    if (!expertCancelBidId) return;
     if (!session?.user?.id) {
       alert('로그인이 필요합니다.');
       return;
@@ -114,13 +122,14 @@ export default function MyRequestListItem({
     setIsCanceling(true);
 
     const userId = parseInt(session.user.id, 10);
-    const result = await cancelBidSelectionAction(estimate.id, bidId, userId);
+    const result = await cancelBidSelectionAction(estimate.id, expertCancelBidId, userId);
 
     if (result.success) {
       window.location.href = window.location.pathname + '?status=' + (activeFilter || 'ALL');
     } else {
       alert(result.error || '취소 중 오류가 발생했습니다.');
       setIsCanceling(false);
+      setExpertCancelBidId(null);
     }
   };
   const [selectedDates, setSelectedDates] = useState<Record<string, string>>({});
@@ -133,7 +142,7 @@ export default function MyRequestListItem({
 
   // 모달 팝업 시 배경 스크롤 방지
   useEffect(() => {
-    if (pendingBidId || showDateAlert || showCloseAlert || showActiveBidAlert || showCancelAlert) {
+    if (pendingBidId || showDateAlert || showCloseAlert || showActiveBidAlert || showCancelAlert || expertCancelBidId) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -323,6 +332,11 @@ export default function MyRequestListItem({
                 <currentStatus.icon className="w-3.5 h-3.5" />
                 {currentStatus.label}
               </span>
+              {estimate.isUrgent && (
+                <span className="flex items-center gap-1 bg-red-50 text-red-700 px-2.5 py-1 rounded-full text-xs font-bold border border-red-200/60 shadow-sm">
+                  <Zap className="w-3.5 h-3.5 fill-current" /> 긴급
+                </span>
+              )}
               {(estimate.status === 'PENDING' || estimate.status === 'BIDDING') && (
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                   calculateDDay(estimate.createdAt, isClosedLocal, estimate.extendedDays).isUrgent 
@@ -466,6 +480,20 @@ export default function MyRequestListItem({
               {/* Edit and Cancel Buttons */}
               {estimate.status !== 'DRAFT' && estimate.status !== 'COMPLETED' && estimate.status !== 'CANCELLED' && (
                 <div className="flex flex-row gap-2">
+                  <button 
+                    onClick={estimate.isUrgent ? undefined : () => setIsUrgentModalOpen(true)}
+                    disabled={estimate.status === 'IN_PROGRESS' || estimate.isUrgent}
+                    className={`w-full md:w-auto px-4 py-1 text-sm font-bold rounded-md border transition-colors ${
+                      estimate.isUrgent
+                      ? 'text-slate-400 bg-slate-50 border-slate-200 cursor-not-allowed opacity-70'
+                      : estimate.status === 'IN_PROGRESS'
+                        ? 'text-slate-400 bg-slate-50 border-slate-200 cursor-not-allowed opacity-70'
+                        : 'text-red-600 bg-red-50 border-red-100 hover:bg-red-100'
+                    }`}
+                    title={estimate.isUrgent ? '이미 긴급 요청으로 등록되었습니다.' : estimate.status === 'IN_PROGRESS' ? '전문가가 확정된 요청은 변경할 수 없습니다.' : ''}
+                  >
+                    {estimate.isUrgent ? '긴급 처리됨' : '긴급요청'}
+                  </button>
                   <button 
                     onClick={estimate.status === 'IN_PROGRESS' ? undefined : () => setIsEditOpen(true)}
                     disabled={estimate.status === 'IN_PROGRESS'}
@@ -743,18 +771,11 @@ export default function MyRequestListItem({
                         {estimate.status === 'SELECTED' && bid.status === 'ACCEPTED' ? (
                           <div className="flex gap-2 w-full">
                             <button 
-                              onClick={(e) => handleCancelSelection(e, bid.id)}
-                              disabled={isPaying || isCanceling}
-                              className="flex-1 text-sm font-bold bg-slate-500 text-white py-2.5 rounded-xl hover:bg-slate-600 transition-all shadow-md active:scale-95 disabled:bg-slate-400 disabled:shadow-none"
+                              onClick={(e) => handleCancelSelectionClick(e, bid.id)}
+                              disabled={isCanceling}
+                              className="w-full text-sm font-bold bg-slate-500 text-white py-2.5 rounded-xl hover:bg-slate-600 transition-all shadow-md active:scale-95 disabled:bg-slate-400 disabled:shadow-none"
                             >
-                              {isCanceling ? '처리 중...' : '선택취소'}
-                            </button>
-                            <button 
-                              onClick={(e) => handleCompletePayment(e, bid.id)}
-                              disabled={isPaying || isCanceling}
-                              className="flex-1 text-sm font-bold bg-blue-600 text-white py-2.5 rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-900/10 active:scale-95 disabled:bg-slate-400 disabled:shadow-none"
-                            >
-                              {isPaying ? '처리 중...' : '결제하기'}
+                              {isCanceling ? '처리 중...' : '선택 취소'}
                             </button>
                           </div>
                         ) : (
@@ -769,7 +790,7 @@ export default function MyRequestListItem({
                                 setIsClosedLocal(true);
                                 closeEstimateAction(estimate.id, parseInt(session.user.id, 10));
                               }
-                              setPendingBidId(bid.id); 
+                              handleAcceptBid(e, bid.id, bid.availableDate);
                             }}
                             disabled={activeBidId !== null && activeBidId !== bid.id}
                             className={`flex-1 text-sm font-bold py-2.5 rounded-xl transition-all shadow-md active:scale-95 ${
@@ -821,6 +842,12 @@ export default function MyRequestListItem({
         onClose={() => setIsDetailOpen(false)} 
       />
 
+      <UrgentUpgradeModal
+        estimateId={estimate.id}
+        isOpen={isUrgentModalOpen}
+        onClose={() => setIsUrgentModalOpen(false)}
+      />
+
       {/* 수정 모달 */}
       {session?.user?.id && (
         <EstimateEditModal
@@ -856,41 +883,6 @@ export default function MyRequestListItem({
         customerId={parseInt(session?.user?.id || '0', 10)}
         estimateId={estimate.id}
       />
-
-      {/* 결제 시간 초과 안내 모달 */}
-      {pendingBidId && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white rounded-[32px] w-full max-w-sm overflow-hidden shadow-xl animate-in zoom-in-95 duration-300 p-8 text-center" onClick={(e) => e.stopPropagation()}>
-            <div className="w-16 h-16 rounded-3xl bg-blue-50 flex items-center justify-center text-blue-600 mx-auto mb-6">
-              <AlertCircle className="w-8 h-8" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-2">전문가 선택 확인</h3>
-            <p className="text-sm text-slate-500 font-medium leading-relaxed mb-8">
-              선택 후 <strong className="text-red-500">24시간 이내에 결제가 완료되지 않으면</strong><br/>자동으로 선택이 취소됩니다.<br/><br/>선택을 진행하시겠습니까?
-            </p>
-            <div className="flex gap-3">
-              <button 
-                onClick={(e) => { e.stopPropagation(); setPendingBidId(null); }}
-                className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-all active:scale-95"
-              >
-                닫기
-              </button>
-              <button 
-                disabled={isAccepting}
-                onClick={(e) => { 
-                  e.stopPropagation(); 
-                  const targetBid = estimate.bids.find(b => b.id === pendingBidId);
-                  if (pendingBidId) handleAcceptBid(e, pendingBidId, targetBid?.availableDate);
-                  setPendingBidId(null);
-                }}
-                className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-95"
-              >
-                {isAccepting ? '처리 중...' : '진행하기'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 서비스일 미선택 안내 모달 */}
       {showDateAlert && (
@@ -1001,6 +993,39 @@ export default function MyRequestListItem({
                 className="w-full py-3.5 rounded-2xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-95"
               >
                 확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 전문가 선택 취소 확인 모달 */}
+      {expertCancelBidId && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-[32px] w-full max-w-sm overflow-hidden shadow-xl animate-in zoom-in-95 duration-300 p-8 text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="w-16 h-16 rounded-3xl bg-red-50 flex items-center justify-center text-red-500 mx-auto mb-6">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-2">전문가 선택을 취소하시겠습니까?</h3>
+            <p className="text-sm text-slate-500 font-medium leading-relaxed mb-8">
+              선택을 취소하시면 다시 전문가 제안 목록 확인 및 선택이 가능합니다.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setExpertCancelBidId(null); }}
+                className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-all active:scale-95"
+              >
+                돌아가기
+              </button>
+              <button 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  executeCancelSelection();
+                }}
+                disabled={isCanceling}
+                className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-white bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all active:scale-95 disabled:opacity-50"
+              >
+                {isCanceling ? '처리 중...' : '선택 취소'}
               </button>
             </div>
           </div>

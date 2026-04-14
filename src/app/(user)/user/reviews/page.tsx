@@ -5,7 +5,8 @@ import { useSession } from 'next-auth/react';
 import { getUserReviewsAction } from '@/actions/review.action';
 import { Loader2, AlertCircle, Star, Image as ImageIcon, Camera } from 'lucide-react';
 import UserReviewModal from '@/components/user/UserReviewModal';
-import { formatCategory } from '@/lib/utils';
+import UserReviewDetailModal from '@/components/user/UserReviewDetailModal';
+import { formatCategory, cn } from '@/lib/utils';
 
 export default function UserReviewsPage() {
   const { data: session, status } = useSession();
@@ -13,9 +14,12 @@ export default function UserReviewsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'ALL' | 'UNWRITTEN' | 'WRITTEN'>('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   
   // 모달 상태
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false); // 미작성(작성용) 모달
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false); // 상세조회 모달
   const [selectedReviewTarget, setSelectedReviewTarget] = useState<any>(null);
 
   useEffect(() => {
@@ -50,6 +54,16 @@ export default function UserReviewsPage() {
   const openReviewModal = (estimate: any) => {
     setSelectedReviewTarget(estimate);
     setIsReviewModalOpen(true);
+  };
+
+  const openDetailModal = (review: any) => {
+    setSelectedReviewTarget(review);
+    setIsDetailModalOpen(true);
+  };
+
+  const handleTabChange = (tab: any) => {
+    setActiveTab(tab);
+    setCurrentPage(1);
   };
 
   if (status === 'loading' || isLoading) {
@@ -113,7 +127,7 @@ export default function UserReviewsPage() {
             return (
               <button
                 key={f.value}
-                onClick={() => setActiveTab(f.value as any)}
+                onClick={() => handleTabChange(f.value)}
                 className={`flex-1 sm:flex-none py-4 px-6 border-b-2 font-bold text-sm transition-all flex items-center justify-center gap-2
                   ${isActive ? f.activeCls : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-50'}
                 `}
@@ -131,115 +145,143 @@ export default function UserReviewsPage() {
       </div>
 
       {currentList.length > 0 ? (
-        <div className="flex flex-col gap-4">
-          {currentList.map((item, index) => {
-            const isWritten = !!item.rating; // review data (item is Review)
-            const isUnwritten = !isWritten; // item is Estimate
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+            {currentList.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((item, index) => {
+              const isWritten = !!item.rating; 
+              const isUnwritten = !isWritten; 
 
-            // 작성 후기 렌더링
-            if (isWritten) {
-              const review = item as any;
-              const expert = review.expert;
-              const estimate = review.estimate;
-              const photos = estimate?.completionPhotoUrls || review.photoUrls || [];
+              // 작성 후기 렌더링 (갤러리용 정사각형 썸네일 카드)
+              if (isWritten) {
+                const review = item as any;
+                const expert = review.expert;
+                const estimate = review.estimate;
+                const photos = estimate?.completionPhotoUrls || review.photoUrls || [];
+                const firstThumb = photos.length > 0 ? photos[0] : null;
 
-              return (
-                <div key={`written-${review.id}`} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 hover:border-emerald-200 transition-colors">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <span className="px-2 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-bold rounded-md border border-emerald-100 inline-block mb-2">작성 완료</span>
-                      <h3 className="font-bold text-slate-800">{formatCategory(estimate?.category?.name || '')} 서비스 후기</h3>
-                      <p className="text-xs text-slate-500 mt-1">{expert?.name || '알 수 없는'} 전문가</p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
-                      <span className="font-bold text-lg text-slate-800">{review.rating}</span>
-                    </div>
-                  </div>
-                  
-                  <p className="text-sm text-slate-600 mb-4 bg-slate-50 p-4 rounded-xl leading-relaxed whitespace-pre-wrap">
-                    {review.content}
-                  </p>
-
-                  {(review.photoUrls && review.photoUrls.length > 0) && (
-                    <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
-                      {review.photoUrls.map((url: string, i: number) => (
-                        <div key={i} className="w-20 h-20 shrink-0 rounded-lg overflow-hidden border border-slate-200 relative group">
-                          <img src={url} alt={`후기 첨부 사진 ${i+1}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* 전문가 완료 사진 참고용 */}
-                  {!(review.photoUrls && review.photoUrls.length > 0) && estimate?.completionPhotoUrls && estimate.completionPhotoUrls.length > 0 && (
-                     <div className="mt-3 py-3 border-t border-slate-100">
-                       <p className="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1.5"><Camera className="w-3.5 h-3.5"/> 전문가가 등록한 완료 사진</p>
-                       <div className="flex gap-2 overflow-x-auto hide-scrollbar">
-                         {estimate.completionPhotoUrls.map((url: string, i: number) => (
-                           <img key={i} src={url} className="w-16 h-16 object-cover rounded-md border border-slate-200 shrink-0" alt={`완료 사진 ${i+1}`} />
-                         ))}
-                       </div>
-                     </div>
-                  )}
-                  <p className="text-[11px] text-slate-400 text-right mt-2">{new Date(review.createdAt).toLocaleDateString()}</p>
-                </div>
-              );
-            }
-
-            // 미작성 후기 렌더링
-            if (isUnwritten) {
-              const estimate = item as any;
-              const expert = estimate.expert;
-              const categoryName = formatCategory(estimate.category?.name || '');
-
-              return (
-                <div key={`unwritten-${estimate.id}`} className="bg-white py-5 px-6 rounded-2xl border border-blue-100 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-start md:items-center relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-[100px] -z-10 opacity-50"></div>
-                  
-                  <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-                    <div className="shrink-0 relative">
-                       {estimate.completionPhotoUrls && estimate.completionPhotoUrls.length > 0 ? (
-                         <div className="w-20 h-20 rounded-xl overflow-hidden shadow-sm border border-slate-200 relative group">
-                            <img src={estimate.completionPhotoUrls[0]} alt="시공 완료 사진" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
-                            {estimate.completionPhotoUrls.length > 1 && (
-                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white text-xs font-bold">
-                                +{estimate.completionPhotoUrls.length - 1}
-                              </div>
-                            )}
-                         </div>
-                       ) : (
-                         <div className="w-20 h-20 rounded-xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center text-slate-400">
-                           <ImageIcon className="w-6 h-6 mb-1 opacity-50" />
-                           <span className="text-[10px] font-bold">사진 없음</span>
-                         </div>
-                       )}
-                    </div>
-                    <div>
-                      <span className="px-2 py-1 bg-red-50 text-red-500 text-[10px] font-bold rounded-md border border-red-100 inline-block mb-2 animate-pulse">미작성 후기</span>
-                      <h3 className="text-lg font-bold text-slate-800">{categoryName}</h3>
-                      <p className="text-sm text-slate-500 mt-1">시공 완료: <span className="font-semibold text-slate-700">{new Date(estimate.updatedAt).toLocaleDateString()}</span></p>
-                      {expert && (
-                        <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-                          담당: {expert.name} 전문가
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <button 
-                    onClick={() => openReviewModal(estimate)}
-                    className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white text-sm font-bold rounded-xl shadow-md shadow-blue-600/20 hover:bg-blue-700 active:scale-95 transition-all"
+                return (
+                  <div 
+                    key={`written-${review.id}`} 
+                    onClick={() => openDetailModal(review)}
+                    className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:border-blue-400 hover:-translate-y-1 transition-all flex flex-col overflow-hidden cursor-pointer group h-full"
                   >
-                    후기 작성하기
+                    {/* 상단 썸네일 영역 (1:1 가로세로 비율 유지) */}
+                    <div className="w-full aspect-square bg-slate-100 relative shrink-0 overflow-hidden">
+                      {firstThumb ? (
+                        <img src={firstThumb} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="후기 썸네일" />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-300">
+                          <ImageIcon className="w-10 h-10 mb-2 opacity-50" />
+                          <span className="text-[10px] font-bold">사진 없음</span>
+                        </div>
+                      )}
+                      
+                      {photos.length > 1 && (
+                        <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-md">
+                          +{photos.length - 1}
+                        </div>
+                      )}
+                      
+                      <div className="absolute top-2 left-2 flex items-center gap-1 bg-amber-400 text-white px-2 py-1 rounded-lg font-black text-xs shadow-md">
+                        <Star className="w-3 h-3 fill-white" /> {review.rating}
+                      </div>
+                    </div>
+
+                    {/* 하단 텍스트 정보 */}
+                    <div className="p-4 flex flex-col flex-1 relative">
+                      <div className="mb-2 line-clamp-1">
+                        <h3 className="font-black text-slate-800 text-sm">{formatCategory(estimate?.category?.name || '')}</h3>
+                        <p className="text-[11px] text-slate-500 font-medium">{expert?.name || '알 수 없는'} 전문가</p>
+                      </div>
+                      
+                      <p className="text-xs text-slate-600 line-clamp-2 mt-auto font-medium leading-relaxed group-hover:text-slate-900 transition-colors">
+                        "{review.content}"
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-4 text-right">{new Date(review.createdAt).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                );
+              }
+
+              // 미작성 후기 렌더링 (갤러리 그리드용 소형 카드)
+              if (isUnwritten) {
+                const estimate = item as any;
+                const categoryName = formatCategory(estimate.category?.name || '');
+
+                return (
+                  <div 
+                    key={`unwritten-${estimate.id}`} 
+                    onClick={() => openReviewModal(estimate)}
+                    className="bg-blue-50/50 hover:bg-blue-50 py-5 px-4 rounded-2xl border border-blue-200 border-dashed hover:border-solid shadow-sm flex flex-col items-center justify-center text-center cursor-pointer group transition-all h-full min-h-[220px]"
+                  >
+                    <div className="w-12 h-12 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                      <Camera className="w-6 h-6" />
+                    </div>
+                    <span className="px-2 py-0.5 bg-red-100 text-red-600 text-[10px] font-black rounded-lg mb-2">미작성</span>
+                    <h3 className="text-sm font-black text-slate-800">{categoryName}</h3>
+                    <p className="text-[10px] text-slate-500 mt-1 mb-4 flex flex-col gap-0.5">
+                      <span>시공 완료: <strong className="text-slate-700">{new Date(estimate.updatedAt).toLocaleDateString()}</strong></span>
+                      {estimate.expert && <span>담당: {estimate.expert.name} 전문가</span>}
+                    </p>
+
+                    <span className="text-xs font-bold text-blue-600 bg-white border border-blue-200 px-4 py-2 rounded-xl group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all w-full mt-auto">
+                      작성하기
+                    </span>
+                  </div>
+                );
+              }
+              
+              return null;
+            })}
+          </div>
+
+          {/* 페이징 UI */}
+          {Math.ceil(currentList.length / ITEMS_PER_PAGE) > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-10">
+              <button 
+                onClick={() => {
+                  setCurrentPage(prev => Math.max(1, prev - 1));
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                disabled={currentPage === 1}
+                className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+              >
+                이전
+              </button>
+              
+              {Array.from({ length: Math.ceil(currentList.length / ITEMS_PER_PAGE) }).map((_, idx) => {
+                const pageNum = idx + 1;
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => {
+                      setCurrentPage(pageNum);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className={cn("w-10 h-10 rounded-xl text-sm font-bold transition-all",
+                      currentPage === pageNum 
+                        ? "bg-slate-800 text-white shadow-md"
+                        : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    )}
+                  >
+                    {pageNum}
                   </button>
-                </div>
-              );
-            }
-            
-            return null;
-          })}
-        </div>
+                );
+              })}
+
+              <button 
+                onClick={() => {
+                  setCurrentPage(prev => Math.min(Math.ceil(currentList.length / ITEMS_PER_PAGE), prev + 1));
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                disabled={currentPage === Math.ceil(currentList.length / ITEMS_PER_PAGE)}
+                className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+              >
+                다음
+              </button>
+            </div>
+          )}
+        </>
       ) : (
         <div className="bg-white p-20 rounded-2xl border border-slate-100 shadow-sm text-center">
           <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -252,19 +294,28 @@ export default function UserReviewsPage() {
         </div>
       )}
 
-      {selectedReviewTarget && (
-        <UserReviewModal
-          isOpen={isReviewModalOpen}
-          onClose={() => {
-            setIsReviewModalOpen(false);
-            setSelectedReviewTarget(null);
-          }}
-          expertName={selectedReviewTarget?.expert?.name || '전문가'}
-          expertId={selectedReviewTarget?.expert?.id}
-          customerId={parseInt(session?.user?.id || '0', 10)}
-          estimateId={selectedReviewTarget.id}
-        />
-      )}
+      {/* 작성용 모달 */}
+      <UserReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => {
+          setIsReviewModalOpen(false);
+          setSelectedReviewTarget(null);
+        }}
+        expertName={selectedReviewTarget?.expert?.name || '전문가'}
+        expertId={selectedReviewTarget?.expert?.id}
+        customerId={parseInt(session?.user?.id || '0', 10)}
+        estimateId={selectedReviewTarget?.id}
+      />
+
+      {/* 상세조회 신규 모달 */}
+      <UserReviewDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setSelectedReviewTarget(null);
+        }}
+        review={selectedReviewTarget}
+      />
     </div>
   );
 }

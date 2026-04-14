@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 /**
  * 1:1 문의 생성 (Create Inquiry)
  */
-export async function createInquiryAction(userId: number, type: string, title: string, content: string) {
+export async function createInquiryAction(userId: number, type: string, title: string, content: string, target: string = "USER") {
   try {
     if (!userId || !type || !title || !content) {
       throw new Error("필수 입력값이 누락되었습니다.");
@@ -23,6 +23,7 @@ export async function createInquiryAction(userId: number, type: string, title: s
     const inquiry = await (prisma as any).inquiry.create({
       data: {
         userId,
+        target,
         type,
         title,
         content,
@@ -45,7 +46,7 @@ export async function createInquiryAction(userId: number, type: string, title: s
 /**
  * 내 문의 내역 조회 (Get My Inquiries)
  */
-export async function getMyInquiriesAction(userId: number) {
+export async function getMyInquiriesAction(userId: number, target: string = "USER") {
   try {
     if (!userId) {
       throw new Error("사용자 정보를 찾을 수 없습니다.");
@@ -57,7 +58,7 @@ export async function getMyInquiriesAction(userId: number) {
     }
 
     const inquiries = await (prisma as any).inquiry.findMany({
-      where: { userId },
+      where: { userId, target },
       orderBy: { createdAt: "desc" },
     });
 
@@ -126,17 +127,18 @@ export async function getNoticesAction() {
 /**
  * FAQ 목록 조회 (Get FAQs)
  */
-export async function getFaqsAction() {
+export async function getFaqsAction(target: string = "USER") {
   try {
     const faqModel = (prisma as any).fAQ || (prisma as any).faq || (prisma as any).FAQ;
     if (!faqModel) {
       throw new Error("FAQ model not found in Prisma client");
     }
     const faqs = await faqModel.findMany({
+      where: { target },
       orderBy: { id: "asc" },
     });
     const data = Array.isArray(faqs) ? faqs : [];
-    console.log(`[getFaqsAction] Found ${data.length} faqs`);
+    console.log(`[getFaqsAction] Found ${data.length} faqs for target ${target}`);
     return { success: true, data, count: data.length };
   } catch (error: any) {
     console.error("Error fetching FAQs:", error);
@@ -188,11 +190,16 @@ export async function seedSupportDataAction() {
     if (faqCount === 0) {
       await (prisma as any).fAQ.createMany({
         data: [
-          { category: '이용문의', question: '원픽은 어떤 서비스인가요?', answer: '원픽은 사용자의 필요에 딱 맞는 전문가를 연결해 드리는 매칭 플랫폼입니다. 간단한 요청서 작성을 통해 여러 전문가의 견적을 비교하고 최적의 파트너를 찾으실 수 있습니다.' },
-          { category: '결제/환불', question: '결제 취소 및 환불 규정은 어떻게 되나요?', answer: '서비스 유형에 따라 상이할 수 있으나, 일반적으로 서비스 시작 전에는 전액 환불이 가능합니다. 상세한 환불 규정은 마이페이지 > 결제 내역의 상세 보기에서 확인하실 수 있습니다.' },
-          { category: '계정관리', question: '전문가로 등록하고 싶습니다. 어떻게 하나요?', answer: '마이페이지 하단의 "전문가 전환" 버튼을 클릭하시거나, 회원가입 시 역할을 "전문가"로 선택하시면 됩니다. 전문가 등록 시 필요한 서류가 있을 수 있으니 가이드를 참고해 주세요.' },
-          { category: '이용문의', question: '요청서를 수정하거나 삭제할 수 있나요?', answer: '네, 마이페이지 > 내 요청 목록에서 진행 중인 요청서의 "수정" 또는 "삭제" 버튼을 통해 처리하실 수 있습니다. 단, 이미 전문가와 매칭이 완료된 경우 수정에 제한이 있을 수 있습니다.' },
-          { category: '기타', question: '비밀번호를 잊어버렸어요.', answer: '로그인 화면 하단의 "비밀번호 찾기" 링크를 통해 가입하신 이메일로 임시 비밀번호를 발송받으실 수 있습니다.' }
+          { target: 'USER', category: '이용문의', question: '원픽은 어떤 서비스인가요?', answer: '원픽은 사용자의 필요에 딱 맞는 전문가를 연결해 드리는 매칭 플랫폼입니다. 간단한 요청서 작성을 통해 여러 전문가의 견적을 비교하고 최적의 파트너를 찾으실 수 있습니다.' },
+          { target: 'USER', category: '결제/환불', question: '결제 취소 및 환불 규정은 어떻게 되나요?', answer: '서비스 유형에 따라 상이할 수 있으나, 일반적으로 서비스 시작 전에는 전액 환불이 가능합니다. 상세한 환불 규정은 마이페이지 > 결제 내역의 상세 보기에서 확인하실 수 있습니다.' },
+          { target: 'USER', category: '계정관리', question: '전문가로 등록하고 싶습니다. 어떻게 하나요?', answer: '마이페이지 하단의 "전문가 전환" 버튼을 클릭하시거나, 회원가입 시 역할을 "전문가"로 선택하시면 됩니다. 전문가 등록 시 필요한 서류가 있을 수 있으니 가이드를 참고해 주세요.' },
+          { target: 'USER', category: '이용문의', question: '요청서를 수정하거나 삭제할 수 있나요?', answer: '네, 마이페이지 > 내 요청 목록에서 진행 중인 요청서의 "수정" 또는 "삭제" 버튼을 통해 처리하실 수 있습니다. 단, 이미 전문가와 매칭이 완료된 경우 수정에 제한이 있을 수 있습니다.' },
+          { target: 'USER', category: '기타', question: '비밀번호를 잊어버렸어요.', answer: '로그인 화면 하단의 "비밀번호 찾기" 링크를 통해 가입하신 이메일로 임시 비밀번호를 발송받으실 수 있습니다.' },
+          { target: 'EXPERT', category: '이용문의', question: '견적서는 어떻게 작성하나요?', answer: '전문가홈 > 받은 요청 메뉴에서 고객의 요청서를 확인하고 견적서를 작성할 수 있습니다.' },
+          { target: 'EXPERT', category: '정산/수수료', question: '정산은 언제 되나요?', answer: '고객이 서비스 완료를 확정하면 매주 수요일에 등록하신 계좌로 정산됩니다.' },
+          { target: 'EXPERT', category: '계정관리', question: '포트폴리오는 어떻게 등록하나요?', answer: '전문가홈 > 포트폴리오 메뉴에서 새로운 작업물과 설명을 등록하실 수 있습니다.' },
+          { target: 'EXPERT', category: '이용문의', question: '전문가 등급 기준은 무엇인가요?', answer: '평점, 응답률, 거래 완료 건수 등 다양한 지표를 종합하여 매월 1일 등급이 산정됩니다.' },
+          { target: 'EXPERT', category: '기타문의', question: '고객과 연락이 닿지 않습니다.', answer: '안심번호가 만료되었거나 고객이 앱을 삭제했을 수 있습니다. 1:1 문의를 남겨주시면 확인해 드리겠습니다.' }
         ]
       });
     }

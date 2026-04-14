@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Mail, Lock, AlertCircle, ArrowRight, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import SignupModal from './SignupModal';
 
 interface LoginModalProps {
@@ -19,6 +20,11 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: LoginModalPro
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -61,7 +67,9 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: LoginModalPro
     }
   };
 
-  return (
+  if (!isOpen || !mounted) return null;
+
+  const modalContent = (
     <div 
       className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200"
       onClick={onClose}
@@ -189,4 +197,6 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: LoginModalPro
       />
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

@@ -166,7 +166,7 @@ export default async function ExpertDashboardPage({
             <PortfolioClientLayout targetUserId={targetUserId} isOwner={isOwner} variant="dashboard" />
           </div>
 
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 flex flex-col min-h-0 h-full">
             {/* 캘린더 섹션 */}
             <CalendarSection userId={targetUserId} specialties={user.specialties} categoriesData={categoriesData} />
           </div>

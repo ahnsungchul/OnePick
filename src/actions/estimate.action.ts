@@ -666,3 +666,91 @@ export async function completeEstimateByCustomerAction(estimateId: string, userI
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * 일반 견적 요청을 결제 후 긴급 요청으로 변경하는 Action
+ */
+export async function upgradeToUrgentAction(estimateId: string, userId: number, paymentAmount: number = 3000) {
+  try {
+    const estimate = await prisma.estimate.findUnique({
+      where: { id: estimateId },
+      include: { category: true }
+    });
+
+    if (!estimate) {
+      throw new Error("존재하지 않는 견적 요청입니다.");
+    }
+
+    if (estimate.customerId !== userId) {
+      throw new Error("처리 권한이 없습니다.");
+    }
+
+    if (estimate.isUrgent) {
+      return { success: true }; // 이미 긴급요청
+    }
+
+    const resultEstimate = await prisma.estimate.update({
+      where: { id: estimateId },
+      data: { isUrgent: true }
+    });
+
+    // Redis 알림 스로틀링된 비동기 처리
+    try {
+      const promise = (async () => {
+        const { publishToExperts } = await import("@/lib/redis");
+        await publishToExperts(
+          JSON.stringify({
+            type: "URGENT_ESTIMATE",
+            estimateId: resultEstimate.id,
+            category: estimate.category?.name || "기타",
+            location: estimate.location,
+            message: `[긴급] 기존 견적 요청이 긴급으로 등록되었습니다.`,
+          })
+        );
+      })();
+      
+      await Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Redis Timeout")), 3000))
+      ]).catch(e => console.warn("Redis notification failed or timed out:", e.message));
+    } catch (redisError) {
+      console.warn("Redis initialization failed:", redisError);
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("upgradeToUrgentAction error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * 내 긴급 사용 내역 조회
+ */
+export async function getUrgentHistoryAction(userId: number) {
+  if (!userId || isNaN(userId)) {
+    return { success: false, error: "유효하지 않은 사용자 ID입니다." };
+  }
+  try {
+    const estimates = await prisma.estimate.findMany({
+      where: { 
+        customerId: userId,
+        isUrgent: true
+      },
+      include: {
+        category: true
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    const data = (estimates as any).map((est: any) => ({
+      ...est,
+      category: est.category?.name || '',
+    }));
+
+    return { success: true, data };
+  } catch (error: any) {
+    console.error("getUrgentHistoryAction error:", error);
+    return { success: false, error: error.message };
+  }
+}

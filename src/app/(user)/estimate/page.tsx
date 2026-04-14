@@ -97,11 +97,11 @@ export default function EstimateListPage() {
     });
     
     getCategoriesAction().then(res => {
-      if (res.success && res.data) {
+      if (res.success && res.data && res.data.length > 0) {
         const catNames = res.data.map(c => c.name);
         setCategoriesList(['전체', ...catNames]);
       } else {
-        setCategoriesList(['전체', '도배/장판', '욕실/주방', '전기/조명', '청소/이사', '가전/에어컨', '자동차 수리', '베이비/펫시터', '과외/레슨', '디자인/IT', '기타 서비스']);
+        setCategoriesList(['전체']); // DB의 데이터에 의존하도록 수정
       }
     });
     

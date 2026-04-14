@@ -5,6 +5,7 @@ import ExpertDashboardLayout from '@/components/layout/ExpertDashboardLayout';
 import { getExpertReceivedRequestsAction } from '@/actions/expert.action';
 import ExpertReceivedRequestList from '@/components/expert/ExpertReceivedRequestList';
 import Link from 'next/link';
+import prisma from '@/lib/prisma';
 
 export const metadata = {
   title: '받은요청 - OnePick 전문가',
@@ -46,6 +47,12 @@ export default async function ExpertRequestsPage({
 
   const bids = result.success && result.data ? result.data : [];
 
+  const expertUser = await prisma.user.findUnique({
+    where: { id: expertId },
+    select: { subscriptionPlan: true }
+  });
+  const subscriptionPlan = expertUser?.subscriptionPlan || 'LITE';
+
   return (
     <ExpertDashboardLayout>
       <div className="bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-slate-100 min-h-[500px]">
@@ -65,7 +72,7 @@ export default async function ExpertRequestsPage({
             </p>
           </div>
         ) : (
-          <ExpertReceivedRequestList bids={bids} expertId={expertId} />
+          <ExpertReceivedRequestList bids={bids} expertId={expertId} subscriptionPlan={subscriptionPlan} />
         )}
       </div>
     </ExpertDashboardLayout>

@@ -14,9 +14,10 @@ import { createInquiryAction, getMyInquiriesAction } from '@/actions/support.act
 
 interface InquiryTabProps {
   userId: string | undefined;
+  isExpert?: boolean;
 }
 
-export default function InquiryTab({ userId }: InquiryTabProps) {
+export default function InquiryTab({ userId, isExpert = false }: InquiryTabProps) {
   const [inquiryType, setInquiryType] = useState('');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -25,7 +26,13 @@ export default function InquiryTab({ userId }: InquiryTabProps) {
   const [history, setHistory] = useState<any[]>([]);
   const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
   
-  const inquiryTypes = [
+  const inquiryTypes = isExpert ? [
+    { value: 'account', label: '계정/프로필' },
+    { value: 'payment', label: '정산/수수료' },
+    { value: 'service', label: '견적/매칭 이용' },
+    { value: 'customer', label: '고객 분쟁/신고' },
+    { value: 'other', label: '기타 문의' },
+  ] : [
     { value: 'account', label: '계정/로그인' },
     { value: 'payment', label: '결제/환불' },
     { value: 'service', label: '서비스 이용' },
@@ -36,7 +43,8 @@ export default function InquiryTab({ userId }: InquiryTabProps) {
   const fetchHistory = async () => {
     if (!userId) return;
     try {
-      const result = await getMyInquiriesAction(parseInt(userId));
+      const target = isExpert ? "EXPERT" : "USER";
+      const result = await getMyInquiriesAction(parseInt(userId), target);
       if (result.success) {
         // 샘플 답변 완료 데이터 추가
         const sampleAnswered = {
@@ -92,16 +100,17 @@ export default function InquiryTab({ userId }: InquiryTabProps) {
         throw new Error("유효한 사용자 ID가 아닙니다.");
       }
 
+      const target = isExpert ? "EXPERT" : "USER";
       const typeLabel = inquiryTypes.find(t => t.value === inquiryType)?.label || inquiryType;
       const result = await createInquiryAction(
         parsedUserId,
         typeLabel,
         title,
-        content
+        content,
+        target
       );
 
       if (result.success) {
-        alert('문의가 접수되었습니다.');
         setTitle('');
         setContent('');
         setInquiryType('');
@@ -117,9 +126,10 @@ export default function InquiryTab({ userId }: InquiryTabProps) {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-5 duration-500">
-      {/* Inquiry Form Card */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+    <div className="animate-in fade-in slide-in-from-bottom-5 duration-500">
+      <div className="space-y-8">
+        {/* Inquiry Form Card */}
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
         <div className="p-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
@@ -227,6 +237,8 @@ export default function InquiryTab({ userId }: InquiryTabProps) {
             ))}
           </div>
         )}
+      </div>
+
       </div>
 
       {/* Inquiry Detail Modal */}

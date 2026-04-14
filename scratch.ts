@@ -1,7 +1,5 @@
-require('dotenv').config();
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
-
+import 'dotenv/config';
+import { prisma } from './src/lib/prisma';
 async function main() {
   const estimate = await prisma.estimate.findUnique({
     where: { requestNumber: '202604BQ315' },
@@ -11,4 +9,4 @@ async function main() {
   });
   console.log(JSON.stringify(estimate, null, 2));
 }
-main().finally(() => prisma.$disconnect());
+main().finally(() => {});

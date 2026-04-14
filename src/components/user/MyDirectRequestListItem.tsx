@@ -10,7 +10,8 @@ import {
   Trash2,
   Star,
   AlertCircle,
-  X
+  X,
+  Zap
 } from 'lucide-react';
 import { formatCategory, calculateDDay } from '@/lib/utils';
 import EstimateDetailModal from './EstimateDetailModal';
@@ -58,6 +59,7 @@ interface Estimate {
   unreadChats?: { id: string; senderId: number }[];
   bids: Bid[];
   isClosed?: boolean;
+  isUrgent?: boolean;
   selectedDate?: string;
   completionPhotoUrls?: string[];
 }
@@ -194,10 +196,17 @@ export default function MyDirectRequestListItem({
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm mb-4 hover:border-blue-200 transition-all overflow-hidden flex flex-col md:flex-row items-stretch">
       {/* 1. 전문가 정보 섹션 (좌측) */}
       <div className="p-5 md:p-6 w-full md:w-[280px] bg-slate-50/50 border-b md:border-b-0 md:border-r border-slate-100 flex flex-col items-center justify-center relative">
-        <span className={`absolute top-4 left-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${statusDisplay.color}`}>
-          <statusDisplay.icon className="w-3 h-3" />
-          {statusDisplay.label}
-        </span>
+        <div className="absolute top-4 left-4 flex gap-1.5 z-10 max-w-[calc(100%-100px)] flex-wrap">
+          <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${statusDisplay.color}`}>
+            <statusDisplay.icon className="w-3 h-3" />
+            {statusDisplay.label}
+          </span>
+          {estimate.isUrgent && (
+            <span className="flex items-center gap-1 bg-red-50 text-red-700 px-2.5 py-1 rounded-full text-[11px] font-bold border border-red-200/60 shadow-sm">
+              <Zap className="w-3 h-3 fill-current" /> 긴급
+            </span>
+          )}
+        </div>
 
         <div className="absolute top-4 right-4 flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100/50">
           <Star className="w-3 h-3 text-amber-500 fill-current" />
