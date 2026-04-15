@@ -9,6 +9,7 @@ import {
   subscribeToBasicAction, 
   cancelSubscriptionAction 
 } from '@/actions/subscription.action';
+import { getSystemConfig } from '@/actions/systemConfig.action';
 import { CreditCard, CheckCircle2, ShieldAlert, Receipt, Star, AlertCircle, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,7 @@ export default function SubscriptionPage() {
   const [planData, setPlanData] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [basicFee, setBasicFee] = useState<number>(11000);
 
   // 결제 폼 상태
   const [card1, setCard1] = useState('');
@@ -45,10 +47,15 @@ export default function SubscriptionPage() {
   const fetchSubscriptionData = async () => {
     if (!expertId || isNaN(expertId)) return;
     setIsLoading(true);
-    const [infoRes, historyRes] = await Promise.all([
+    const [infoRes, historyRes, feeRes] = await Promise.all([
       getSubscriptionInfoAction(expertId),
-      getPaymentHistoryAction(expertId)
+      getPaymentHistoryAction(expertId),
+      getSystemConfig('BASIC_SUBSCRIPTION_FEE', 11000)
     ]);
+
+    if (typeof feeRes === 'number') {
+      setBasicFee(feeRes);
+    }
 
     if (infoRes.success) {
       setPlanData(infoRes.data);
@@ -184,9 +191,9 @@ export default function SubscriptionPage() {
                     <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
                     <span className="text-sm font-bold text-slate-700">1:1견적요청 받기 가능</span>
                   </li>
-                  <li className="flex items-start gap-3 opacity-60">
-                    <ShieldAlert className="w-5 h-5 text-slate-400 shrink-0" />
-                    <span className="text-sm font-medium text-slate-500">요청 상세 내용 열람 불가능</span>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                    <span className="text-sm font-bold text-slate-700">요청상세 내용 열람 가능</span>
                   </li>
                   <li className="flex items-start gap-3 opacity-60">
                     <ShieldAlert className="w-5 h-5 text-slate-400 shrink-0" />
@@ -210,7 +217,7 @@ export default function SubscriptionPage() {
                       Basic 플랜 <Star className="w-5 h-5 fill-current" />
                     </h3>
                     <div className="flex items-baseline gap-1 mt-2">
-                      <span className="text-3xl font-black text-slate-900">11,000</span>
+                      <span className="text-3xl font-black text-slate-900">{basicFee.toLocaleString()}</span>
                       <span className="text-sm font-bold text-slate-500">원 / 월</span>
                     </div>
                   </div>
@@ -228,7 +235,7 @@ export default function SubscriptionPage() {
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" />
-                    <span className="text-sm font-bold text-slate-900">요청 상세 내용 무제한 열람</span>
+                    <span className="text-sm font-bold text-slate-900">요청상세 내용 열람 가능</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" />
@@ -479,7 +486,7 @@ export default function SubscriptionPage() {
                           })()}
                         </td>
                         <td className="p-4 font-bold text-slate-700">OnePick Basic 정기결제</td>
-                        <td className="p-4 font-bold text-slate-900 text-right">11,000원</td>
+                        <td className="p-4 font-bold text-slate-900 text-right">{basicFee.toLocaleString()}원</td>
                         <td className="p-4 text-center">
                           <span className="inline-flex bg-white border border-sky-200 text-sky-600 text-xs font-bold px-2 py-1 rounded-md">
                             결제예정
@@ -502,7 +509,7 @@ export default function SubscriptionPage() {
                           })() : '-'}
                         </td>
                         <td className="p-4 font-bold text-slate-700">OnePick Basic 정기결제</td>
-                        <td className="p-4 font-bold text-slate-900 text-right">{item.amount?.toLocaleString() || '11,000'}원</td>
+                        <td className="p-4 font-bold text-slate-900 text-right">{item.amount?.toLocaleString() || basicFee.toLocaleString()}원</td>
                         <td className="p-4 text-center">
                           <span className="inline-flex bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-1 rounded-md">
                             결제완료

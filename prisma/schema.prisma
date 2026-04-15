@@ -153,6 +153,7 @@ model Estimate {
   bids                Bid[]          @relation("EstimateBids")
   chats               Chat[]         @relation("EstimateChats")
   bookmarks           Bookmark[]     @relation("EstimateBookmarks")
+  payments            PaymentHistory[] @relation("EstimatePayments")
   category            Category?      @relation(fields: [categoryId], references: [id])
   customer            User           @relation("CustomerEstimates", fields: [customerId], references: [id], onDelete: Cascade)
   review              Review?        @relation("EstimateReview")
@@ -188,12 +189,16 @@ model FavoriteExpert {
 
 model PaymentHistory {
   id              String   @id @default(uuid())
-  expertId        Int
+  userId          Int
+  paymentType     String   @default("SUBSCRIPTION")
   amount          Int
   paymentDate     DateTime @default(now())
   status          String   @default("PAID")
   nextPaymentDate DateTime?
-  expert          User     @relation("UserPayments", fields: [expertId], references: [id], onDelete: Cascade)
+  estimateId      String?
+  
+  user            User     @relation("UserPayments", fields: [userId], references: [id], onDelete: Cascade)
+  estimate        Estimate? @relation("EstimatePayments", fields: [estimateId], references: [id], onDelete: SetNull)
 
   @@map("payment_history")
 }
@@ -409,4 +414,13 @@ enum InquiryStatus {
 enum SubscriptionPlan {
   LITE
   BASIC
+}
+
+model SystemConfig {
+  key         String   @id
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_configs")
 }

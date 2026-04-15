@@ -2,6 +2,7 @@
 
 import { useState, useRef, ChangeEvent, useEffect } from 'react';
 import { submitEstimateAction, saveEstimateDraftAction, getEstimateByIdAction } from '@/actions/estimate.action';
+import { getSystemConfig } from '@/actions/systemConfig.action';
 import { ChevronRight, MapPin, X, ChevronLeft, Search, Clock } from 'lucide-react';
 import * as motion from 'motion/react-client';
 import DaumPostcode from 'react-daum-postcode';
@@ -92,6 +93,13 @@ export default function MultiStepEstimateForm({
   const [estimateId, setEstimateId] = useState<string | null>(initialEstimateId || null);
 
   const [isLoading, setIsLoading] = useState(!!initialEstimateId);
+  const [urgentFee, setUrgentFee] = useState<number>(3000);
+
+  useEffect(() => {
+    getSystemConfig('URGENT_REQUEST_FEE', 3000).then(res => {
+      if (typeof res === 'number') setUrgentFee(res);
+    });
+  }, []);
 
   // 폼 상태 관리
   const [formDataState, setFormDataState] = useState({
@@ -560,11 +568,11 @@ export default function MultiStepEstimateForm({
               <div className="bg-slate-50 p-4 rounded-xl mb-4 border border-slate-200">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-slate-600 font-medium">긴급 요청 수수료</span>
-                  <span className="text-slate-900 font-bold">3,000원</span>
+                  <span className="text-slate-900 font-bold">{urgentFee.toLocaleString()}원</span>
                 </div>
                 <div className="flex justify-between items-center text-sm text-blue-600 font-semibold border-t border-slate-200 pt-2 mt-2">
                   <span>총 결제금액</span>
-                  <span>3,000원</span>
+                  <span>{urgentFee.toLocaleString()}원</span>
                 </div>
               </div>
 
@@ -578,7 +586,7 @@ export default function MultiStepEstimateForm({
                 disabled={isSubmitting}
                 className="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-md disabled:bg-slate-400"
               >
-                {isSubmitting ? '처리 중...' : '3,000원 결제하고 긴급 요청하기'}
+                {isSubmitting ? '처리 중...' : `${urgentFee.toLocaleString()}원 결제하고 긴급 요청하기`}
               </button>
             </div>
           </div>

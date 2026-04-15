@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Zap, CreditCard } from 'lucide-react';
 import { upgradeToUrgentAction } from '@/actions/estimate.action';
+import { getSystemConfig } from '@/actions/systemConfig.action';
 import { useSession } from 'next-auth/react';
 
 interface UrgentUpgradeModalProps {
@@ -11,7 +12,14 @@ interface UrgentUpgradeModalProps {
 
 export default function UrgentUpgradeModal({ isOpen, onClose, estimateId }: UrgentUpgradeModalProps) {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [urgentFee, setUrgentFee] = useState(3000);
   const { data: session } = useSession();
+
+  useEffect(() => {
+    getSystemConfig('URGENT_REQUEST_FEE', 3000).then(res => {
+      if (typeof res === 'number') setUrgentFee(res);
+    });
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -30,8 +38,8 @@ export default function UrgentUpgradeModal({ isOpen, onClose, estimateId }: Urge
     }
     setIsProcessing(true);
     
-    // 긴급업그레이드 비용: 3000원으로 고정 (테스트 환경)
-    const result = await upgradeToUrgentAction(estimateId, parseInt(session.user.id, 10), 3000);
+    // 긴급업그레이드 비용: DB 설정값
+    const result = await upgradeToUrgentAction(estimateId, parseInt(session.user.id, 10), urgentFee);
     
     if (result.success) {
       alert("결제가 완료되어 요청이 긴급으로 전환되었습니다!");
@@ -74,12 +82,12 @@ export default function UrgentUpgradeModal({ isOpen, onClose, estimateId }: Urge
           <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
             <div className="flex justify-between items-center mb-2">
               <span className="text-slate-500 font-bold text-sm">긴급 적용 비용</span>
-              <span className="font-bold text-slate-800">3,000원</span>
+              <span className="font-bold text-slate-800">{urgentFee.toLocaleString()}원</span>
             </div>
             <div className="w-full h-px bg-slate-100 my-3"></div>
             <div className="flex justify-between items-center">
               <span className="text-slate-800 font-black">총 결제 금액</span>
-              <span className="text-xl font-black text-rose-600">3,000원</span>
+              <span className="text-xl font-black text-rose-600">{urgentFee.toLocaleString()}원</span>
             </div>
           </div>
 

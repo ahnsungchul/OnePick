@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
+import { getSystemConfig } from "@/actions/systemConfig.action";
 
 export async function getSubscriptionInfoAction(expertId: number) {
   try {
@@ -46,7 +47,7 @@ export async function subscribeToBasicAction(expertId: number) {
 
     // 마지막 결제 내역 조회하여 남은 유효 기간 확인
     const lastPayment = await prisma.paymentHistory.findFirst({
-      where: { expertId },
+      where: { userId: expertId, paymentType: "SUBSCRIPTION" },
       orderBy: { paymentDate: 'desc' }
     });
 
@@ -80,11 +81,16 @@ export async function subscribeToBasicAction(expertId: number) {
       }
     });
 
-    // 2. 결제 내역 기록 (목업)
+    // 기본 결제 요금을 DB에서 가져옵니다 (없을 시 11000)
+    const currentFee = await getSystemConfig("BASIC_SUBSCRIPTION_FEE", 11000);
+    const amountToCharge = typeof currentFee === 'number' ? currentFee : Number(currentFee);
+
+    // 2. 결제 내역 기록
     await prisma.paymentHistory.create({
       data: {
-        expertId,
-        amount: 11000,
+        userId: expertId,
+        paymentType: "SUBSCRIPTION",
+        amount: amountToCharge,
         paymentDate: today,
         status: "PAID",
         nextPaymentDate: nextMonth
@@ -131,7 +137,7 @@ export async function cancelSubscriptionAction(expertId: number) {
 export async function getPaymentHistoryAction(expertId: number) {
   try {
     const history = await prisma.paymentHistory.findMany({
-      where: { expertId },
+      where: { userId: expertId, paymentType: "SUBSCRIPTION" },
       orderBy: { paymentDate: 'desc' }
     });
 

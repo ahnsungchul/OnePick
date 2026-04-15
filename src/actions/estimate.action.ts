@@ -694,6 +694,17 @@ export async function upgradeToUrgentAction(estimateId: string, userId: number, 
       data: { isUrgent: true }
     });
 
+    // 결제 내역 저장
+    await prisma.paymentHistory.create({
+      data: {
+        userId,
+        paymentType: "URGENT_REQUEST",
+        amount: paymentAmount,
+        status: "PAID",
+        estimateId: resultEstimate.id
+      }
+    });
+
     // Redis 알림 스로틀링된 비동기 처리
     try {
       const promise = (async () => {

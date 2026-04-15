@@ -27,10 +27,12 @@ export default function PortfolioList({ portfolios, onSelect }: PortfolioListPro
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {portfolios.map((item) => (
-          <div 
+          <a
             key={item.id} 
+            href={item.isImported && item.blogUrl ? item.blogUrl : `/expert/portfolio?userId=${item.expertId}&portfolioId=${item.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="group bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-300 cursor-pointer flex flex-col h-full"
-            onClick={() => onSelect(item)}
           >
             {/* 썸네일 영역 */}
             <div className="relative w-full aspect-video bg-slate-100 overflow-hidden">
@@ -71,7 +73,7 @@ export default function PortfolioList({ portfolios, onSelect }: PortfolioListPro
                 {new Date(item.createdAt).toLocaleDateString()}
               </div>
             </div>
-          </div>
+          </a>
         ))}
       </div>
     </>

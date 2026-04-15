@@ -259,13 +259,16 @@ export default function WritePortfolioForm({ expertId, categories, editData, ini
                     className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm"
                   />
                 </div>
-                <button 
-                  onClick={handleFetchUrl}
-                  disabled={isFetchingUrl || !blogUrl}
-                  className="px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap min-w-[120px] flex justify-center items-center shadow-sm"
-                >
-                  {isFetchingUrl ? <Loader2 className="w-4 h-4 animate-spin" /> : '정보 가져오기'}
-                </button>
+                {/* 안보이게 해달라는 요청 반영 - 나중에 쓰려면 false를 true로 */}
+                {false && (
+                  <button 
+                    onClick={handleFetchUrl}
+                    disabled={isFetchingUrl || !blogUrl}
+                    className="px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap min-w-[120px] flex justify-center items-center shadow-sm"
+                  >
+                    {isFetchingUrl ? <Loader2 className="w-4 h-4 animate-spin" /> : '정보 가져오기'}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -388,18 +391,23 @@ export default function WritePortfolioForm({ expertId, categories, editData, ini
           </div>
         )}
 
-        <div className="w-full h-px bg-slate-100"></div>
-        <div>
-          <label className="block text-sm font-bold text-slate-700 mb-2">검색어 태그 (검색 노출용)</label>
-          <input 
-            type="text" 
-            placeholder="예) 인테리어, 송파구, 30평형 (콤마로 구분)"
-            value={seoTags}
-            onChange={(e) => setSeoTags(e.target.value)}
-            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm"
-          />
-          <p className="text-xs text-slate-500 mt-2">네이버, 구글 검색 등의 SEO 키워드로 직접 반영됩니다. 여러 개일 경우 콤마(,)로 구분해 주세요.</p>
-        </div>
+        {/* 검색어 태그 요소 숨김 요청 반영 */}
+        {false && (
+          <>
+            <div className="w-full h-px bg-slate-100"></div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">검색어 태그 (검색 노출용)</label>
+              <input 
+                type="text" 
+                placeholder="예) 인테리어, 송파구, 30평형 (콤마로 구분)"
+                value={seoTags}
+                onChange={(e) => setSeoTags(e.target.value)}
+                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm"
+              />
+              <p className="text-xs text-slate-500 mt-2">네이버, 구글 검색 등의 SEO 키워드로 직접 반영됩니다. 여러 개일 경우 콤마(,)로 구분해 주세요.</p>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Footer */}
