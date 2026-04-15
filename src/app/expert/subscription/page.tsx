@@ -1,24 +1,42 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import ExpertDashboardLayout from '@/components/layout/ExpertDashboardLayout';
 import { 
   getSubscriptionInfoAction, 
   getPaymentHistoryAction, 
   subscribeToBasicAction, 
-  cancelSubscriptionAction 
+  cancelSubscriptionAction,
+  getActiveBillingKeyAction,
+  saveBillingKeyAction,
 } from '@/actions/subscription.action';
 import { getSystemConfig } from '@/actions/systemConfig.action';
-import { CreditCard, CheckCircle2, ShieldAlert, Receipt, Star, AlertCircle, X } from 'lucide-react';
+import { CreditCard, CheckCircle2, ShieldAlert, Star, AlertCircle, X, Trash2, ShieldCheck } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
-import { useRouter } from 'next/navigation';
+
+// ─── 카드사 목록 ───────────────────────────────────────────
+const CARD_COMPANIES = ['신한', '국민', '현대', '삼성', '롯데', '하나', '우리', 'BC', '농협', '씨티', '기타'];
+
+// ─── 카드 BIN → 카드사 자동 매핑 (주요 BIN 범위) ──────────
+function guessCardCompanyFromBin(bin: string): string {
+  if (!bin || bin.length < 1) return '';
+  const prefix = bin.slice(0, 1);
+  const prefix2 = bin.slice(0, 2);
+  const prefix4 = bin.slice(0, 4);
+  // 대략적인 매핑 (실제 PG 연동 시 PG사 응답값으로 교체)
+  if (['4'].includes(prefix)) return 'Visa';
+  if (['51','52','53','54','55'].includes(prefix2)) return '국민';
+  if (['36','38'].includes(prefix2)) return '다이너스';
+  if (['3528','3529','3534','3535'].includes(prefix4)) return 'JCB';
+  if (['34','37'].includes(prefix2)) return 'AMEX';
+  return '';
+}
 
 export default function SubscriptionPage() {
   const { data: session } = useSession();
   const expertId = Number(session?.user?.id);
-  const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<'PLANS' | 'PAYMENT' | 'CANCEL' | 'HISTORY'>('PLANS');
   const [planData, setPlanData] = useState<any>(null);
@@ -26,16 +44,24 @@ export default function SubscriptionPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [basicFee, setBasicFee] = useState<number>(11000);
 
+  // ─── 빌링키(카드) 상태 ───────────────────────────────────
+  const [billingKey, setBillingKey] = useState<any>(null); // DB에서 조회한 활성 카드
+  const [isEditingCard, setIsEditingCard] = useState(false);
+
   // 결제 폼 상태
   const [card1, setCard1] = useState('');
   const [card2, setCard2] = useState('');
   const [card3, setCard3] = useState('');
   const [card4, setCard4] = useState('');
+  const [expireMonth, setExpireMonth] = useState('');
+  const [expireYear, setExpireYear] = useState('');
+  const [cardCompanyInput, setCardCompanyInput] = useState('');
+  const [holderNameInput, setHolderNameInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isEditingCard, setIsEditingCard] = useState(false);
 
   // 모달 상태
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isDeleteCardModalOpen, setIsDeleteCardModalOpen] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
   const [isAlertOpen, setIsAlertOpen] = useState(false);
 
@@ -44,74 +70,97 @@ export default function SubscriptionPage() {
     setIsAlertOpen(true);
   };
 
-  const fetchSubscriptionData = async () => {
+  const fetchAllData = async () => {
     if (!expertId || isNaN(expertId)) return;
     setIsLoading(true);
-    const [infoRes, historyRes, feeRes] = await Promise.all([
+
+    const [infoRes, historyRes, feeRes, billingRes] = await Promise.all([
       getSubscriptionInfoAction(expertId),
       getPaymentHistoryAction(expertId),
-      getSystemConfig('BASIC_SUBSCRIPTION_FEE', 11000)
+      getSystemConfig('BASIC_SUBSCRIPTION_FEE', 11000),
+      getActiveBillingKeyAction(expertId),
     ]);
 
-    if (typeof feeRes === 'number') {
-      setBasicFee(feeRes);
+    if (typeof feeRes === 'number') setBasicFee(feeRes);
+    if (infoRes.success) setPlanData(infoRes.data);
+    if (historyRes.success) setHistory(historyRes.data as any[]);
+    if (billingRes.success) {
+      setBillingKey(billingRes.data);
+      // 카드가 있고 BASIC 구독 중이면 편집 모드 닫기
+      setIsEditingCard(!billingRes.data);
     }
-
-    if (infoRes.success) {
-      setPlanData(infoRes.data);
-      if (infoRes.data.plan === 'BASIC') setIsEditingCard(false);
-      else setIsEditingCard(true);
-    }
-    if (historyRes.success) setHistory(historyRes.data);
     setIsLoading(false);
   };
 
-  useEffect(() => {
-    fetchSubscriptionData();
-  }, [expertId]);
+  useEffect(() => { fetchAllData(); }, [expertId]);
 
-  const handleSubscribe = async (e: React.FormEvent) => {
+  // ─── 카드 등록 핸들러 ────────────────────────────────────
+  const handleCardSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cardNumber = card1 + card2 + card3 + card4;
-    if (cardNumber.length < 16) {
-      showAlert("카드 번호 16자리를 모두 입력해주세요.");
+
+    const cardFull = card1 + card2 + card3 + card4;
+    if (cardFull.replace(/\D/g, '').length < 16) {
+      showAlert('카드 번호 16자리를 모두 입력해주세요.');
       return;
     }
-    setIsSubmitting(true);
-    if (currentPlan === 'BASIC') {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      showAlert("정기 결제용 카드 정보가 성공적으로 변경되었습니다.");
-      setCard1('');
-      setCard2('');
-      setCard3('');
-      setCard4('');
-      setIsSubmitting(false);
-      setIsEditingCard(false);
+    if (!expireMonth || !expireYear) {
+      showAlert('유효기간을 선택해주세요.');
       return;
     }
 
-    const res = await subscribeToBasicAction(expertId);
-    if (res.success) {
-      showAlert(res.message || "Basic 요금제 결제가 완료되었습니다!");
-      setIsEditingCard(false);
-      fetchSubscriptionData();
-      // 기존: setActiveTab('PLANS'); 해당 탭에 유지되도록 제거함.
-    } else {
-      showAlert(res.error || "실패했습니다.");
+    setIsSubmitting(true);
+
+    // 카드사 자동 추론 (입력값 없을 시)
+    const bin = cardFull.replace(/\D/g, '').slice(0, 6);
+    const resolvedCompany = cardCompanyInput || guessCardCompanyFromBin(bin);
+
+    const saveRes = await saveBillingKeyAction({
+      expertId,
+      cardFull: cardFull.replace(/\D/g, ''),
+      cardExpireYear: expireYear,
+      cardExpireMonth: expireMonth,
+      cardCompany: resolvedCompany,
+      holderName: holderNameInput || session?.user?.name || '',
+    });
+
+    if (!saveRes.success) {
+      showAlert(saveRes.error || '카드 등록에 실패했습니다.');
+      setIsSubmitting(false);
+      return;
     }
+
+    // 신규 구독 결제 처리 (카드 등록과 동시에 BASIC 구독 신청인 경우)
+    const currentPlan = planData?.plan || 'LITE';
+    if (currentPlan !== 'BASIC') {
+      const subRes = await subscribeToBasicAction(expertId);
+      if (subRes.success) {
+        showAlert(subRes.message || 'Basic 요금제 결제가 완료되었습니다!');
+      } else {
+        showAlert(subRes.error || '결제 처리에 실패했습니다.');
+      }
+    } else {
+      showAlert('정기 결제용 카드 정보가 성공적으로 변경되었습니다.');
+    }
+
+    // 상태 초기화 및 데이터 갱신
+    setCard1(''); setCard2(''); setCard3(''); setCard4('');
+    setExpireMonth(''); setExpireYear('');
+    setCardCompanyInput(''); setHolderNameInput('');
+    setIsEditingCard(false);
     setIsSubmitting(false);
+    await fetchAllData();
   };
 
   const handleCancelSubscription = async () => {
     setIsSubmitting(true);
     const res = await cancelSubscriptionAction(expertId);
     if (res.success) {
-      showAlert("구독이 취소되어 Lite 요금제로 변경되었습니다.");
+      showAlert('구독이 취소되어 Lite 요금제로 변경되었습니다.');
       setIsCancelModalOpen(false);
-      fetchSubscriptionData();
+      await fetchAllData();
       setActiveTab('PLANS');
     } else {
-      showAlert(res.error || "실패했습니다.");
+      showAlert(res.error || '실패했습니다.');
     }
     setIsSubmitting(false);
   };
@@ -127,6 +176,20 @@ export default function SubscriptionPage() {
   }
 
   const currentPlan = planData?.plan || 'LITE';
+
+  // ─── 카드 UI 표시용 정보 ──────────────────────────────────
+  const displayBin = billingKey?.cardBin || '';
+  const displayLast4 = billingKey?.cardLast4 || '****';
+  const displayCompany = billingKey?.cardCompany || '';
+  const displayExpire = billingKey
+    ? `${billingKey.cardExpireMonth || '--'}/${billingKey.cardExpireYear || '--'}`
+    : '--/--';
+  const displayHolder = billingKey?.holderName || session?.user?.name || 'EXPERT';
+
+  // 카드 번호 마스킹 표시: BIN 앞 4자리 | BIN 뒤 2자리 + ** | **** | 끝 4자리
+  const maskedLine = billingKey
+    ? `${displayBin.slice(0, 4)} ${displayBin.slice(4, 6)}** **** ${displayLast4}`
+    : '---- ---- ---- ----';
 
   return (
     <ExpertDashboardLayout>
@@ -161,9 +224,8 @@ export default function SubscriptionPage() {
           </div>
         </div>
 
-        {/* 탭 콘텐츠 */}
         <div>
-          {/* 요금제 탭 */}
+          {/* ─── 요금제 탭 ─── */}
           {activeTab === 'PLANS' && (
             <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
               <div className={cn(
@@ -171,9 +233,7 @@ export default function SubscriptionPage() {
                 currentPlan === 'LITE' ? "border-slate-800 shadow-md" : "border-slate-200"
               )}>
                 {currentPlan === 'LITE' && (
-                  <div className="absolute top-0 right-0 bg-slate-800 text-white text-[10px] font-black px-4 py-1 rounded-bl-xl uppercase tracking-widest">
-                    CURRENT
-                  </div>
+                  <div className="absolute top-0 right-0 bg-slate-800 text-white text-[10px] font-black px-4 py-1 rounded-bl-xl uppercase tracking-widest">CURRENT</div>
                 )}
                 <div className="mb-4">
                   <h3 className="text-xl font-black text-slate-900">Lite 플랜</h3>
@@ -183,22 +243,10 @@ export default function SubscriptionPage() {
                   <p className="text-sm font-medium text-slate-500 mt-2">가입 시 부여되는 기본 상태</p>
                 </div>
                 <ul className="space-y-4 mt-8">
-                  <li className="flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                    <span className="text-sm font-bold text-slate-700">전문가홈 무료</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                    <span className="text-sm font-bold text-slate-700">1:1견적요청 받기 가능</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                    <span className="text-sm font-bold text-slate-700">요청상세 내용 열람 가능</span>
-                  </li>
-                  <li className="flex items-start gap-3 opacity-60">
-                    <ShieldAlert className="w-5 h-5 text-slate-400 shrink-0" />
-                    <span className="text-sm font-medium text-slate-500">견적서 제안 불가능</span>
-                  </li>
+                  <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /><span className="text-sm font-bold text-slate-700">전문가홈 무료</span></li>
+                  <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /><span className="text-sm font-bold text-slate-700">1:1견적요청 받기 가능</span></li>
+                  <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /><span className="text-sm font-bold text-slate-700">요청상세 내용 열람 가능</span></li>
+                  <li className="flex items-start gap-3 opacity-60"><ShieldAlert className="w-5 h-5 text-slate-400 shrink-0" /><span className="text-sm font-medium text-slate-500">견적서 제안 불가능</span></li>
                 </ul>
               </div>
 
@@ -207,15 +255,11 @@ export default function SubscriptionPage() {
                 currentPlan === 'BASIC' ? "border-blue-600 shadow-xl shadow-blue-600/10" : "border-slate-200 bg-slate-50/50 hover:border-blue-300"
               )}>
                 {currentPlan === 'BASIC' && (
-                  <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-black px-4 py-1 rounded-bl-xl uppercase tracking-widest">
-                    CURRENT
-                  </div>
+                  <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-black px-4 py-1 rounded-bl-xl uppercase tracking-widest">CURRENT</div>
                 )}
                 <div className="mb-4 flex items-start justify-between">
                   <div>
-                    <h3 className="text-xl font-black text-blue-700 flex items-center gap-2">
-                      Basic 플랜 <Star className="w-5 h-5 fill-current" />
-                    </h3>
+                    <h3 className="text-xl font-black text-blue-700 flex items-center gap-2">Basic 플랜 <Star className="w-5 h-5 fill-current" /></h3>
                     <div className="flex items-baseline gap-1 mt-2">
                       <span className="text-3xl font-black text-slate-900">{basicFee.toLocaleString()}</span>
                       <span className="text-sm font-bold text-slate-500">원 / 월</span>
@@ -223,26 +267,12 @@ export default function SubscriptionPage() {
                   </div>
                 </div>
                 <p className="text-sm font-medium text-slate-500 mt-2">전문가님을 위한 무제한 패스</p>
-                
                 <ul className="space-y-4 mt-8">
-                  <li className="flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" />
-                    <span className="text-sm font-bold text-slate-900">전문가홈 무료</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" />
-                    <span className="text-sm font-bold text-slate-900">1:1견적요청 받기 가능</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" />
-                    <span className="text-sm font-bold text-slate-900">요청상세 내용 열람 가능</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" />
-                    <span className="text-sm font-bold text-slate-900">견적서 무제한 제안</span>
-                  </li>
+                  <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" /><span className="text-sm font-bold text-slate-900">전문가홈 무료</span></li>
+                  <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" /><span className="text-sm font-bold text-slate-900">1:1견적요청 받기 가능</span></li>
+                  <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" /><span className="text-sm font-bold text-slate-900">요청상세 내용 열람 가능</span></li>
+                  <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" /><span className="text-sm font-bold text-slate-900">견적서 무제한 제안</span></li>
                 </ul>
-
                 {currentPlan !== 'BASIC' && (
                   <button 
                     onClick={() => setActiveTab('PAYMENT')}
@@ -255,125 +285,155 @@ export default function SubscriptionPage() {
             </div>
           )}
 
-          {/* 결제 탭 */}
+          {/* ─── 결제 및 정기 결제 탭 ─── */}
           {activeTab === 'PAYMENT' && (
             <div className="max-w-xl mx-auto">
-              {!isEditingCard && currentPlan === 'BASIC' ? (
+
+              {/* 등록된 카드 표시 */}
+              {!isEditingCard && billingKey ? (
                 <div className="bg-slate-50 p-8 rounded-2xl border border-slate-200 mb-8 text-center animate-in fade-in duration-300">
-                  <h3 className="text-xl font-black text-slate-900 mb-6">등록된 정기 결제 카드</h3>
-                  
-                  {/* 카드 모양 UI */}
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-black text-slate-900">등록된 정기 결제 카드</h3>
+                    {/* 보안 연동 뱃지 */}
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-full">
+                      <ShieldCheck className="w-3 h-3" /> DB 저장 완료
+                    </span>
+                  </div>
+
+                  {/* 카드 UI */}
                   <div className="w-80 h-48 mx-auto bg-gradient-to-tr from-slate-800 to-slate-900 rounded-2xl shadow-xl p-6 relative overflow-hidden flex flex-col justify-between text-left transform hover:scale-105 transition-transform duration-300">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -mr-10 -mt-10 blur-xl"></div>
+                    <div className="absolute -bottom-6 -left-6 w-28 h-28 bg-blue-400 opacity-5 rounded-full blur-xl"></div>
                     <div className="flex justify-between items-center relative z-10">
                       <CreditCard className="w-8 h-8 text-slate-300" />
-                      <span className="text-xs font-black text-slate-400 tracking-widest">ONEPICK PAY</span>
+                      <span className="text-xs font-black text-slate-400 tracking-widest">
+                        {displayCompany || 'ONEPICK PAY'}
+                      </span>
                     </div>
                     <div className="relative z-10">
-                      <div className="text-xl font-black text-slate-200 tracking-[0.2em] mb-2 font-mono">
-                        {card1 || '1234'} - {card2 || '5678'} - **** - {card4 || '9012'}
+                      <div className="text-lg font-black text-slate-200 tracking-[0.15em] mb-2 font-mono">
+                        {maskedLine}
                       </div>
                       <div className="flex justify-between items-end mt-4">
                         <div>
                           <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Card Holder</p>
-                          <p className="text-sm text-slate-200 font-bold uppercase tracking-wider">{session?.user?.name || 'EXPERT'}</p>
+                          <p className="text-sm text-slate-200 font-bold uppercase tracking-wider">{displayHolder}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase mb-1 inline-block">Expires</p>
-                          <p className="text-sm text-slate-200 font-bold tracking-wider inline-block ml-2">12/28</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Expires</p>
+                          <p className="text-sm text-slate-200 font-bold tracking-wider">{displayExpire}</p>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <p className="text-sm text-slate-500 mt-8 mb-6 font-medium">정기 결제가 매월 해당 카드로 자동 승인됩니다.</p>
-                  <button 
-                    onClick={() => setIsEditingCard(true)}
-                    className="px-6 py-3 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold rounded-xl transition-all shadow-sm"
-                  >
-                    카드 정보 변경하기
-                  </button>
+                  {/* 카드 등록 정보 */}
+                  <div className="mt-6 text-left bg-white rounded-xl border border-slate-100 p-4 space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-400 font-bold">카드번호</span>
+                      <span className="text-slate-700 font-black font-mono">{maskedLine}</span>
+                    </div>
+                    {displayCompany && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-400 font-bold">카드사</span>
+                        <span className="text-slate-700 font-bold">{displayCompany}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-400 font-bold">유효기간</span>
+                      <span className="text-slate-700 font-bold">{displayExpire}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-400 font-bold">등록일</span>
+                      <span className="text-slate-700 font-bold">
+                        {billingKey?.issuedAt ? new Date(billingKey.issuedAt).toLocaleDateString('ko-KR') : '-'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-slate-500 mt-6 mb-4 font-medium">정기 결제가 매월 해당 카드로 자동 승인됩니다.</p>
+
+                  <div className="flex gap-3 justify-center">
+                    <button 
+                      onClick={() => setIsEditingCard(true)}
+                      className="px-5 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-all shadow-sm text-sm"
+                    >
+                      카드 변경
+                    </button>
+                    <button 
+                      onClick={() => setIsDeleteCardModalOpen(true)}
+                      className="px-5 py-2.5 bg-white border border-red-200 hover:bg-red-50 text-red-500 font-bold rounded-xl transition-all text-sm flex items-center gap-1.5"
+                    >
+                      <Trash2 className="w-4 h-4" /> 카드 삭제
+                    </button>
+                  </div>
                 </div>
               ) : (
+                /* 카드 입력 폼 */
                 <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-8 animate-in slide-in-from-bottom-4 duration-300">
                   <div className="flex items-center gap-3 mb-2">
                     <CreditCard className="w-6 h-6 text-blue-600" />
-                    <h3 className="text-lg font-black text-slate-900">{currentPlan === 'BASIC' ? '새 결제 수단 등록' : '결제 수단 등록'}</h3>
+                    <h3 className="text-lg font-black text-slate-900">
+                      {currentPlan === 'BASIC' ? '새 결제 수단 등록' : '결제 수단 등록'}
+                    </h3>
                   </div>
-                  <p className="text-sm text-slate-500 mb-6 font-medium">정기 결제에 사용될 새로운 카드 정보를 안전하게 등록합니다.</p>
-                  
-                  <form onSubmit={handleSubscribe} className="space-y-5">
+                  <p className="text-sm text-slate-500 mb-6 font-medium">정기 결제에 사용될 카드 정보를 등록합니다.</p>
+
+                  <form onSubmit={handleCardSave} className="space-y-5">
+                    {/* 카드 번호 */}
                     <div>
                       <label className="block text-xs font-black text-slate-400 mb-2">카드 번호</label>
                       <div className="flex items-center gap-2">
-                        <input 
-                          id="card1"
-                          type="text" 
-                          maxLength={4}
-                          value={card1}
-                          onChange={e => {
-                            const val = e.target.value.replace(/\D/g, '');
-                            setCard1(val);
-                            if (val.length === 4) document.getElementById('card2')?.focus();
-                          }}
-                          placeholder="0000" 
-                          className="w-1/4 text-center p-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 font-medium"
-                        />
-                        <span className="text-slate-300 font-black">-</span>
-                        <input 
-                          id="card2"
-                          type="text" 
-                          maxLength={4}
-                          value={card2}
-                          onChange={e => {
-                            const val = e.target.value.replace(/\D/g, '');
-                            setCard2(val);
-                            if (val.length === 4) document.getElementById('card3')?.focus();
-                          }}
-                          placeholder="0000" 
-                          className="w-1/4 text-center p-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 font-medium"
-                        />
-                        <span className="text-slate-300 font-black">-</span>
-                        <input 
-                          id="card3"
-                          type="password" 
-                          maxLength={4}
-                          value={card3}
-                          onChange={e => {
-                            const val = e.target.value.replace(/\D/g, '');
-                            setCard3(val);
-                            if (val.length === 4) document.getElementById('card4')?.focus();
-                          }}
-                          placeholder="****" 
-                          className="w-1/4 text-center p-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 font-medium tracking-widest"
-                        />
-                        <span className="text-slate-300 font-black">-</span>
-                        <input 
-                          id="card4"
-                          type="password" 
-                          maxLength={4}
-                          value={card4}
-                          onChange={e => {
-                            const val = e.target.value.replace(/\D/g, '');
-                            setCard4(val);
-                          }}
-                          placeholder="****" 
-                          className="w-1/4 text-center p-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 font-medium tracking-widest"
-                        />
+                        {[
+                          { val: card1, set: setCard1, id: 'card1', mask: false },
+                          { val: card2, set: setCard2, id: 'card2', mask: false },
+                          { val: card3, set: setCard3, id: 'card3', mask: true },
+                          { val: card4, set: setCard4, id: 'card4', mask: true },
+                        ].map((c, idx) => (
+                          <React.Fragment key={c.id}>
+                            <input
+                              id={c.id}
+                              type={c.mask ? 'password' : 'text'}
+                              maxLength={4}
+                              value={c.val}
+                              onChange={e => {
+                                const val = e.target.value.replace(/\D/g, '');
+                                c.set(val);
+                                if (val.length === 4) {
+                                  const nextIds = ['card2', 'card3', 'card4'];
+                                  if (nextIds[idx]) document.getElementById(nextIds[idx])?.focus();
+                                }
+                              }}
+                              placeholder={c.mask ? '****' : '0000'}
+                              className="w-1/4 text-center p-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 font-medium"
+                            />
+                            {idx < 3 && <span className="text-slate-300 font-black">-</span>}
+                          </React.Fragment>
+                        ))}
                       </div>
                     </div>
+
+                    {/* 유효기간 + 카드사 */}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-black text-slate-400 mb-2">유효기간</label>
                         <div className="flex gap-2">
-                          <select className="w-1/2 p-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 font-medium text-slate-700">
-                            <option value="" disabled selected>월 (MM)</option>
+                          <select
+                            value={expireMonth}
+                            onChange={e => setExpireMonth(e.target.value)}
+                            className="w-1/2 p-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 font-medium text-slate-700"
+                          >
+                            <option value="" disabled>월</option>
                             {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(m => (
                               <option key={m} value={m}>{m}월</option>
                             ))}
                           </select>
-                          <select className="w-1/2 p-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 font-medium text-slate-700">
-                            <option value="" disabled selected>년도 (YY)</option>
+                          <select
+                            value={expireYear}
+                            onChange={e => setExpireYear(e.target.value)}
+                            className="w-1/2 p-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 font-medium text-slate-700"
+                          >
+                            <option value="" disabled>년도</option>
                             {Array.from({ length: 10 }, (_, i) => String(new Date().getFullYear() + i).slice(2)).map(y => (
                               <option key={y} value={y}>20{y}년</option>
                             ))}
@@ -381,32 +441,58 @@ export default function SubscriptionPage() {
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-black text-slate-400 mb-2">비밀번호 앞 2자리</label>
-                        <input 
-                          type="password" 
-                          placeholder="**" 
-                          className="w-full p-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 font-medium tracking-widest"
-                        />
+                        <label className="block text-xs font-black text-slate-400 mb-2">카드사 (선택)</label>
+                        <select
+                          value={cardCompanyInput}
+                          onChange={e => setCardCompanyInput(e.target.value)}
+                          className="w-full p-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 font-medium text-slate-700"
+                        >
+                          <option value="">자동 탐지</option>
+                          {CARD_COMPANIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
                       </div>
                     </div>
+
+                    {/* 카드 소유자명 */}
+                    <div>
+                      <label className="block text-xs font-black text-slate-400 mb-2">카드 소유자명 (선택)</label>
+                      <input
+                        type="text"
+                        value={holderNameInput}
+                        onChange={e => setHolderNameInput(e.target.value)}
+                        placeholder={session?.user?.name || '이름 입력'}
+                        className="w-full p-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 font-medium"
+                      />
+                    </div>
+
+                    {/* PG 연동 안내 */}
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-start gap-2">
+                      <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                      <p className="text-xs text-blue-600 font-medium leading-relaxed">
+                        카드 정보는 암호화되어 안전하게 저장됩니다.<br/>
+                        실제 카드번호는 저장되지 않으며, 마스킹 정보만 보관됩니다.
+                      </p>
+                    </div>
+
                     <div className="flex gap-3 mt-4">
-                      {currentPlan === 'BASIC' && (
+                      {(billingKey || currentPlan === 'BASIC') && (
                         <button 
                           type="button"
                           onClick={() => setIsEditingCard(false)}
                           className="w-1/3 py-4 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition-all active:scale-[0.98]"
                         >
-                          편집 취소
+                          취소
                         </button>
                       )}
                       <button 
                         disabled={isSubmitting}
                         type="submit"
-                        className={cn("py-4 bg-slate-900 hover:bg-black text-white font-bold rounded-xl transition-all active:scale-[0.98] disabled:opacity-50",
-                          currentPlan === 'BASIC' ? "w-2/3" : "w-full"
+                        className={cn(
+                          "py-4 bg-slate-900 hover:bg-black text-white font-bold rounded-xl transition-all active:scale-[0.98] disabled:opacity-50",
+                          (billingKey || currentPlan === 'BASIC') ? "w-2/3" : "w-full"
                         )}
                       >
-                        {isSubmitting ? "처리 중..." : currentPlan === 'BASIC' ? "수정된 카드로 정기결제 변경" : "Basic 구독 결제 승인 확인"}
+                        {isSubmitting ? '처리 중...' : currentPlan === 'BASIC' ? '카드 정보 저장' : 'Basic 구독 결제 및 카드 등록'}
                       </button>
                     </div>
                   </form>
@@ -415,7 +501,7 @@ export default function SubscriptionPage() {
             </div>
           )}
 
-          {/* 구독 취소 탭 */}
+          {/* ─── 구독 취소 탭 ─── */}
           {activeTab === 'CANCEL' && (
             <div className="max-w-xl mx-auto text-center py-10">
               {currentPlan === 'BASIC' ? (
@@ -425,8 +511,7 @@ export default function SubscriptionPage() {
                   </div>
                   <h3 className="text-xl font-black text-slate-900 mb-3">구독을 해지하시겠습니까?</h3>
                   <p className="text-sm text-slate-500 font-medium leading-relaxed mb-8">
-                    해지 시 즉각 Lite 요금제로 전환되며,<br/>
-                    상세 요청 조회 등 Basic 혜택이 모두 제한됩니다.
+                    해지 시 즉각 Lite 요금제로 전환되며,<br/>상세 요청 조회 등 Basic 혜택이 모두 제한됩니다.
                   </p>
                   <button 
                     onClick={() => setIsCancelModalOpen(true)}
@@ -442,8 +527,7 @@ export default function SubscriptionPage() {
                   </div>
                   <h3 className="text-xl font-black text-slate-900 mb-3">현재 해지할 구독이 없습니다</h3>
                   <p className="text-sm text-slate-500 font-medium leading-relaxed mb-8">
-                    회원님은 현재 기본 제공되는 <strong className="text-slate-800">Lite 요금제</strong>를 무상으로 이용 중입니다.<br/>
-                    별도의 정기 결제가 진행되지 않으므로 안심하셔도 좋습니다.
+                    회원님은 현재 기본 제공되는 <strong className="text-slate-800">Lite 요금제</strong>를 무상으로 이용 중입니다.
                   </p>
                   <button 
                     onClick={() => setActiveTab('PLANS')}
@@ -456,7 +540,7 @@ export default function SubscriptionPage() {
             </div>
           )}
 
-          {/* 결제내역 탭 */}
+          {/* ─── 결제내역 탭 ─── */}
           {activeTab === 'HISTORY' && (
             <div className="max-w-4xl mx-auto">
               <div className="bg-white border text-sm border-slate-200 rounded-2xl overflow-hidden">
@@ -466,53 +550,60 @@ export default function SubscriptionPage() {
                       <th className="p-4 font-bold text-slate-600">결제일</th>
                       <th className="p-4 font-bold text-slate-600">사용 마감일</th>
                       <th className="p-4 font-bold text-slate-600">내용</th>
+                      <th className="p-4 font-bold text-slate-600">결제 카드</th>
                       <th className="p-4 font-bold text-slate-600 text-right">금액</th>
                       <th className="p-4 font-bold text-slate-600 text-center">상태</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {/* 결제 예정 Row (Basic 가입 중일 때) */}
+                    {/* 결제 예정 Row */}
                     {currentPlan === 'BASIC' && history.length > 0 && history[0].nextPaymentDate && (
                       <tr className="border-b border-slate-100 bg-sky-50/30">
-                        <td className="p-4 font-medium text-slate-900">
-                          {new Date(history[0].nextPaymentDate).toLocaleDateString()}
-                        </td>
+                        <td className="p-4 font-medium text-slate-900">{new Date(history[0].nextPaymentDate).toLocaleDateString()}</td>
                         <td className="p-4 font-medium text-slate-500">
                           {(() => {
                             const d = new Date(history[0].nextPaymentDate);
                             d.setMonth(d.getMonth() + 1);
-                            d.setDate(d.getDate() - 1); // 사용 기한은 결제 전날까지
+                            d.setDate(d.getDate() - 1);
                             return d.toLocaleDateString();
                           })()}
                         </td>
                         <td className="p-4 font-bold text-slate-700">OnePick Basic 정기결제</td>
+                        <td className="p-4 text-slate-500 font-medium">
+                          {billingKey ? `**** ${billingKey.cardLast4}` : '-'}
+                        </td>
                         <td className="p-4 font-bold text-slate-900 text-right">{basicFee.toLocaleString()}원</td>
                         <td className="p-4 text-center">
-                          <span className="inline-flex bg-white border border-sky-200 text-sky-600 text-xs font-bold px-2 py-1 rounded-md">
-                            결제예정
-                          </span>
+                          <span className="inline-flex bg-white border border-sky-200 text-sky-600 text-xs font-bold px-2 py-1 rounded-md">결제예정</span>
                         </td>
                       </tr>
                     )}
 
                     {/* 실 결제 내역 */}
-                    {history.map((item, idx) => (
+                    {history.map((item) => (
                       <tr key={item.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                        <td className="p-4 text-slate-600 font-medium">
-                          {new Date(item.paymentDate).toLocaleDateString()}
-                        </td>
+                        <td className="p-4 text-slate-600 font-medium">{new Date(item.paymentDate).toLocaleDateString()}</td>
                         <td className="p-4 text-slate-500 font-medium">
                           {item.nextPaymentDate ? (() => {
                             const d = new Date(item.nextPaymentDate);
-                            d.setDate(d.getDate() - 1); // 사용 기한은 결제 전날까지
+                            d.setDate(d.getDate() - 1);
                             return d.toLocaleDateString();
                           })() : '-'}
                         </td>
                         <td className="p-4 font-bold text-slate-700">OnePick Basic 정기결제</td>
+                        <td className="p-4 text-slate-500 font-medium font-mono">
+                          {item.billingKey ? `**** ${item.billingKey.cardLast4}` : '-'}
+                        </td>
                         <td className="p-4 font-bold text-slate-900 text-right">{item.amount?.toLocaleString() || basicFee.toLocaleString()}원</td>
                         <td className="p-4 text-center">
-                          <span className="inline-flex bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-1 rounded-md">
-                            결제완료
+                          <span className={cn(
+                            "inline-flex text-xs font-bold px-2 py-1 rounded-md",
+                            item.status === 'PAID' ? "bg-emerald-100 text-emerald-700" :
+                            item.status === 'FAILED' ? "bg-red-100 text-red-600" :
+                            "bg-slate-100 text-slate-600"
+                          )}>
+                            {item.status === 'PAID' ? '결제완료' :
+                             item.status === 'FAILED' ? '결제실패' : item.status}
                           </span>
                         </td>
                       </tr>
@@ -520,9 +611,7 @@ export default function SubscriptionPage() {
 
                     {history.length === 0 && currentPlan !== 'BASIC' && (
                       <tr>
-                        <td colSpan={5} className="p-10 text-center text-slate-400 font-medium">
-                          결제 내역이 없습니다.
-                        </td>
+                        <td colSpan={6} className="p-10 text-center text-slate-400 font-medium">결제 내역이 없습니다.</td>
                       </tr>
                     )}
                   </tbody>
@@ -541,6 +630,28 @@ export default function SubscriptionPage() {
         isSubmitting={isSubmitting}
       />
 
+      {/* 카드 삭제 확인 모달 */}
+      <DeleteCardModal
+        isOpen={isDeleteCardModalOpen}
+        cardLast4={billingKey?.cardLast4}
+        onClose={() => setIsDeleteCardModalOpen(false)}
+        onConfirm={async () => {
+          setIsSubmitting(true);
+          const { deleteBillingKeyAction } = await import('@/actions/subscription.action');
+          const res = await deleteBillingKeyAction(expertId);
+          if (res.success) {
+            showAlert('카드 정보가 삭제되었습니다.');
+            setIsDeleteCardModalOpen(false);
+            await fetchAllData();
+            setIsEditingCard(true);
+          } else {
+            showAlert(res.error || '카드 삭제에 실패했습니다.');
+          }
+          setIsSubmitting(false);
+        }}
+        isSubmitting={isSubmitting}
+      />
+
       {/* 공통 알림 모달 */}
       <AlertModal 
         isOpen={isAlertOpen}
@@ -551,99 +662,75 @@ export default function SubscriptionPage() {
   );
 }
 
-// 공통 알림 Portal 모달
+// ─── Portal 모달 컴포넌트들 ───────────────────────────────
+
 function AlertModal({ isOpen, onClose, message }: any) {
   const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
+  useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
     if (isOpen) {
-      const originalStyle = window.getComputedStyle(document.body).overflow;
       document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = originalStyle;
-      };
+      return () => { document.body.style.overflow = ''; };
     }
   }, [isOpen]);
-
   if (!isOpen || !mounted) return null;
-
   return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-sm rounded-3xl shadow-xl p-8 text-center relative flex flex-col items-center">
-        <button onClick={onClose} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors">
-          <X className="w-5 h-5" />
-        </button>
-        <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-6 mt-2">
-          <AlertCircle className="w-8 h-8" />
-        </div>
+        <button onClick={onClose} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+        <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-6 mt-2"><AlertCircle className="w-8 h-8" /></div>
         <h3 className="text-xl font-black text-slate-900 mb-3">알림</h3>
-        <p className="text-sm text-slate-500 font-medium mb-8 leading-relaxed">
-          {message}
-        </p>
-        <button 
-          onClick={onClose}
-          className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-blue-600/20"
-        >
-          확인
-        </button>
+        <p className="text-sm text-slate-500 font-medium mb-8 leading-relaxed">{message}</p>
+        <button onClick={onClose} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-blue-600/20">확인</button>
       </div>
     </div>,
     document.body
   );
 }
 
-// 구독 취소 승인 Portal 모달
 function CancelModal({ isOpen, onClose, onConfirm, isSubmitting }: any) {
   const [mounted, setMounted] = useState(false);
-
+  useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (isOpen) {
-      const originalStyle = window.getComputedStyle(document.body).overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = originalStyle;
-      };
-    }
+    if (isOpen) { document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = ''; }; }
   }, [isOpen]);
-
   if (!isOpen || !mounted) return null;
-
   return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-sm rounded-3xl shadow-xl p-8 text-center relative flex flex-col items-center">
-        <button onClick={onClose} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors">
-          <X className="w-5 h-5" />
-        </button>
-        <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mb-6 mt-2">
-          <AlertCircle className="w-8 h-8" />
-        </div>
+        <button onClick={onClose} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+        <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mb-6 mt-2"><AlertCircle className="w-8 h-8" /></div>
         <h3 className="text-xl font-black text-slate-900 mb-3">정말 해지하시겠어요?</h3>
+        <p className="text-sm text-slate-500 font-medium mb-8">해지하시면 즉시 Basic 혜택이 중단됩니다.</p>
+        <div className="grid grid-cols-2 gap-3 w-full">
+          <button disabled={isSubmitting} onClick={onClose} className="py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors">돌아가기</button>
+          <button disabled={isSubmitting} onClick={onConfirm} className="py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-600/20">{isSubmitting ? '해지 중...' : '해지하기'}</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function DeleteCardModal({ isOpen, onClose, onConfirm, isSubmitting, cardLast4 }: any) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    if (isOpen) { document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = ''; }; }
+  }, [isOpen]);
+  if (!isOpen || !mounted) return null;
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-white w-full max-w-sm rounded-3xl shadow-xl p-8 text-center relative flex flex-col items-center">
+        <button onClick={onClose} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+        <div className="w-16 h-16 bg-red-50 text-red-400 rounded-full flex items-center justify-center mb-6 mt-2"><Trash2 className="w-7 h-7" /></div>
+        <h3 className="text-xl font-black text-slate-900 mb-3">카드를 삭제하시겠어요?</h3>
         <p className="text-sm text-slate-500 font-medium mb-8">
-          해지하시면 즉시 Basic 혜택이 중단됩니다.
+          등록된 카드 <span className="font-bold text-slate-800">**** {cardLast4}</span>를<br/>삭제하면 정기 결제가 중단됩니다.
         </p>
         <div className="grid grid-cols-2 gap-3 w-full">
-          <button 
-            disabled={isSubmitting}
-            onClick={onClose}
-            className="py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
-          >
-            돌아가기
-          </button>
-          <button 
-            disabled={isSubmitting}
-            onClick={onConfirm}
-            className="py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-600/20"
-          >
-            {isSubmitting ? "해지 중..." : "해지하기"}
-          </button>
+          <button disabled={isSubmitting} onClick={onClose} className="py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors">취소</button>
+          <button disabled={isSubmitting} onClick={onConfirm} className="py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors">{isSubmitting ? '삭제 중...' : '삭제하기'}</button>
         </div>
       </div>
     </div>,

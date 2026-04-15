@@ -63,7 +63,8 @@ model User {
   favoritedBy             FavoriteExpert[]    @relation("ExpertFavoritedBy")
   certifications          Certification[]     @relation("UserCertifications")
   payments                PaymentHistory[]    @relation("UserPayments")
-  
+  billingKeys             BillingKey[]        @relation("UserBillingKeys")
+
   // 구독 관련 필드
   subscriptionPlan        SubscriptionPlan    @default(LITE)
   subscriptionDate        DateTime?
@@ -188,19 +189,59 @@ model FavoriteExpert {
 }
 
 model PaymentHistory {
-  id              String   @id @default(uuid())
+  id              String      @id @default(uuid())
   userId          Int
-  paymentType     String   @default("SUBSCRIPTION")
+  paymentType     String      @default("SUBSCRIPTION")
   amount          Int
-  paymentDate     DateTime @default(now())
-  status          String   @default("PAID")
+  paymentDate     DateTime    @default(now())
+  status          String      @default("PAID")
   nextPaymentDate DateTime?
   estimateId      String?
-  
-  user            User     @relation("UserPayments", fields: [userId], references: [id], onDelete: Cascade)
-  estimate        Estimate? @relation("EstimatePayments", fields: [estimateId], references: [id], onDelete: SetNull)
+  // PG사 결제 연동 필드
+  billingKeyId    String?     // 사용된 빌링키 참조 (정기결제 시)
+  pgTransactionId String?     // PG사 거래 고유번호 (취소/환불 시 사용)
+  failureReason   String?     // 결제 실패 사유
+
+  user            User        @relation("UserPayments", fields: [userId], references: [id], onDelete: Cascade)
+  estimate        Estimate?   @relation("EstimatePayments", fields: [estimateId], references: [id], onDelete: SetNull)
+  billingKey      BillingKey? @relation("BillingKeyPayments", fields: [billingKeyId], references: [id], onDelete: SetNull)
 
   @@map("payment_history")
+}
+
+/// PG사에서 발급받은 빌링키(정기결제 토큰) 및 카드 마스킹 정보 저장 테이블.
+/// 실제 카드 번호는 절대 저장하지 않으며, PG사 서버에 암호화된 카드 정보가 보관됩니다.
+model BillingKey {
+  id              String          @id @default(uuid())
+  userId          Int                               // 전문가 userId
+  pgProvider      PgProvider      @default(PORTONE) // 연동 PG사 구분
+  billingKey      String                            // PG사 발급 빌링키 토큰 (정기결제 시 사용)
+  customerKey     String?                           // PG사 고객 식별키 (토스페이먼츠 등)
+  // 카드 마스킹 정보 (화면 표시용, 앞 6자리·뒤 4자리만 보관)
+  cardCompany     String?                           // 카드사명 (예: 신한, 국민, 현대)
+  cardType        String?                           // 카드 종류 (신용/체크)
+  cardBin         String?                           // 카드 BIN (앞 6자리)
+  cardLast4       String?                           // 카드 끝 4자리
+  cardExpireYear  String?                           // 유효기간 년도 (YY)
+  cardExpireMonth String?                           // 유효기간 월 (MM)
+  holderName      String?                           // 카드 소유자명
+  // 상태 및 메타데이터
+  isActive        Boolean         @default(true)    // 현재 정기결제에 사용 중인 키 여부
+  isDefault       Boolean         @default(false)   // 대표 결제 수단 여부
+  issueSucceeded  Boolean         @default(false)   // 빌링키 발급 성공 여부
+  failureMessage  String?                           // 발급 실패 메시지
+  issuedAt        DateTime?                         // 빌링키 발급 완료 시각
+  expiredAt       DateTime?                         // 빌링키 만료 시각 (PG사 정책에 따라)
+  deletedAt       DateTime?                         // 소프트 삭제 시각
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  user            User            @relation("UserBillingKeys", fields: [userId], references: [id], onDelete: Cascade)
+  payments        PaymentHistory[] @relation("BillingKeyPayments")
+
+  @@index([userId, isActive])
+  @@index([userId, isDefault])
+  @@map("billing_keys")
 }
 
 model Bid {
@@ -414,6 +455,16 @@ enum InquiryStatus {
 enum SubscriptionPlan {
   LITE
   BASIC
+}
+
+/// 연동 PG사 구분
+enum PgProvider {
+  PORTONE      // 포트원 (구 아임포트) - 다수 PG사 통합
+  TOSS         // 토스페이먼츠
+  KAKAO        // 카카오페이
+  NAVER        // 네이버페이
+  KG_INICIS    // KG 이니시스
+  NICE         // NHN KCP / 나이스페이
 }
 
 model SystemConfig {

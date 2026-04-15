@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { getSystemConfig } from "@/actions/systemConfig.action";
+import { v4 as uuidv4 } from "uuid";
 
 export async function getSubscriptionInfoAction(expertId: number) {
   try {
@@ -34,6 +35,134 @@ export async function getSubscriptionInfoAction(expertId: number) {
   }
 }
 
+/**
+ * 현재 활성화된 빌링키(정기결제 카드) 조회
+ */
+export async function getActiveBillingKeyAction(expertId: number) {
+  try {
+    const billingKey = await prisma.billingKey.findFirst({
+      where: {
+        userId: expertId,
+        isActive: true,
+        isDefault: true,
+        issueSucceeded: true,
+        deletedAt: null,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return { success: true, data: billingKey || null };
+  } catch (error: any) {
+    console.error("getActiveBillingKeyAction error:", error);
+    return { success: false, error: "카드 정보를 불러오는 중 오류가 발생했습니다.", data: null };
+  }
+}
+
+/**
+ * 빌링키(정기결제 카드) 등록 또는 교체
+ *
+ * 실제 PG 연동 전의 대체 구현:
+ *  - 카드번호 마스킹 정보(앞 6자리 BIN, 끝 4자리)만 DB에 저장
+ *  - billingKey 필드에는 향후 PG 토큰이 들어갈 위치 (현재는 내부 UUID로 임시 보관)
+ *  - 기존 활성 카드는 isActive=false 처리 (소프트 교체)
+ */
+export async function saveBillingKeyAction({
+  expertId,
+  cardFull,
+  cardExpireYear,
+  cardExpireMonth,
+  cardCompany,
+  cardType,
+  holderName,
+}: {
+  expertId: number;
+  cardFull: string;
+  cardExpireYear: string;
+  cardExpireMonth: string;
+  cardCompany?: string;
+  cardType?: string;
+  holderName?: string;
+}) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id || Number(session.user.id) !== expertId) {
+      return { success: false, error: "권한이 없습니다." };
+    }
+
+    const digitsOnly = cardFull.replace(/\D/g, "");
+    if (digitsOnly.length < 15 || digitsOnly.length > 16) {
+      return { success: false, error: "올바른 카드 번호를 입력해주세요." };
+    }
+    if (!cardExpireYear || !cardExpireMonth) {
+      return { success: false, error: "유효기간을 입력해주세요." };
+    }
+
+    const cardBin = digitsOnly.slice(0, 6);
+    const cardLast4 = digitsOnly.slice(-4);
+
+    // 기존 활성 빌링키 비활성화
+    await prisma.billingKey.updateMany({
+      where: { userId: expertId, isActive: true },
+      data: { isActive: false, isDefault: false },
+    });
+
+    // 신규 빌링키 등록 (PG 연동 전 임시 토큰 사용)
+    const mockBillingToken = `MOCK_${uuidv4()}`;
+
+    const newKey = await prisma.billingKey.create({
+      data: {
+        userId: expertId,
+        pgProvider: "PORTONE",
+        billingKey: mockBillingToken,
+        cardBin,
+        cardLast4,
+        cardExpireYear,
+        cardExpireMonth,
+        cardCompany: cardCompany || null,
+        cardType: cardType || null,
+        holderName: holderName || null,
+        isActive: true,
+        isDefault: true,
+        issueSucceeded: true,
+        issuedAt: new Date(),
+      },
+    });
+
+    revalidatePath("/expert/subscription");
+    return { success: true, data: newKey };
+  } catch (error: any) {
+    console.error("saveBillingKeyAction error:", error);
+    return { success: false, error: error.message || "카드 등록 중 오류가 발생했습니다." };
+  }
+}
+
+/**
+ * 빌링키 소프트 삭제 (정기결제 수단 제거)
+ */
+export async function deleteBillingKeyAction(expertId: number) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id || Number(session.user.id) !== expertId) {
+      return { success: false, error: "권한이 없습니다." };
+    }
+
+    await prisma.billingKey.updateMany({
+      where: { userId: expertId, isActive: true },
+      data: {
+        isActive: false,
+        isDefault: false,
+        deletedAt: new Date(),
+      },
+    });
+
+    revalidatePath("/expert/subscription");
+    return { success: true };
+  } catch (error: any) {
+    console.error("deleteBillingKeyAction error:", error);
+    return { success: false, error: "카드 삭제 중 오류가 발생했습니다." };
+  }
+}
+
 export async function subscribeToBasicAction(expertId: number) {
   try {
     const session = await auth();
@@ -45,47 +174,37 @@ export async function subscribeToBasicAction(expertId: number) {
     const nextMonth = new Date(today);
     nextMonth.setMonth(nextMonth.getMonth() + 1);
 
-    // 마지막 결제 내역 조회하여 남은 유효 기간 확인
     const lastPayment = await prisma.paymentHistory.findFirst({
       where: { userId: expertId, paymentType: "SUBSCRIPTION" },
-      orderBy: { paymentDate: 'desc' }
+      orderBy: { paymentDate: "desc" }
     });
 
-    // 최근 결제일로부터 한 달이 지나지 않았는지 체크 (중복 결제 방지)
     const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
     const isPeriodRemaining = lastPayment && (today.getTime() - lastPayment.paymentDate.getTime() < ONE_MONTH_MS);
 
     if (isPeriodRemaining) {
-      // 잔여 기간이 남은 경우 결제 내역 추가 없이 요금제만 재가입 처리
       await prisma.user.update({
         where: { id: expertId },
-        data: {
-          subscriptionPlan: "BASIC",
-          subscriptionEndDate: null,
-        }
+        data: { subscriptionPlan: "BASIC", subscriptionEndDate: null }
       });
-      
       revalidatePath("/expert/subscription");
       revalidatePath("/expert/requests");
-      
       return { success: true, message: "기존 가입 기간이 남아있어 추가 결제 없이 Basic 구독이 재개되었습니다." };
     }
 
-    // 1. 유저 플랜 업데이트 (신규 결제)
-    await prisma.user.update({
-      where: { id: expertId },
-      data: {
-        subscriptionPlan: "BASIC",
-        subscriptionDate: today,
-        subscriptionEndDate: null,
-      }
+    // 현재 활성 빌링키 조회
+    const activeBillingKey = await prisma.billingKey.findFirst({
+      where: { userId: expertId, isActive: true, isDefault: true, issueSucceeded: true, deletedAt: null },
     });
 
-    // 기본 결제 요금을 DB에서 가져옵니다 (없을 시 11000)
-    const currentFee = await getSystemConfig("BASIC_SUBSCRIPTION_FEE", 11000);
-    const amountToCharge = typeof currentFee === 'number' ? currentFee : Number(currentFee);
+    await prisma.user.update({
+      where: { id: expertId },
+      data: { subscriptionPlan: "BASIC", subscriptionDate: today, subscriptionEndDate: null }
+    });
 
-    // 2. 결제 내역 기록
+    const currentFee = await getSystemConfig("BASIC_SUBSCRIPTION_FEE", 11000);
+    const amountToCharge = typeof currentFee === "number" ? currentFee : Number(currentFee);
+
     await prisma.paymentHistory.create({
       data: {
         userId: expertId,
@@ -93,13 +212,14 @@ export async function subscribeToBasicAction(expertId: number) {
         amount: amountToCharge,
         paymentDate: today,
         status: "PAID",
-        nextPaymentDate: nextMonth
+        nextPaymentDate: nextMonth,
+        billingKeyId: activeBillingKey?.id || null,
+        pgTransactionId: activeBillingKey ? `MOCK_TXN_${uuidv4()}` : null,
       }
     });
 
     revalidatePath("/expert/subscription");
     revalidatePath("/expert/requests");
-    
     return { success: true };
   } catch (error: any) {
     console.error("subscribeToBasic error:", error);
@@ -115,18 +235,13 @@ export async function cancelSubscriptionAction(expertId: number) {
     }
 
     const today = new Date();
-
     await prisma.user.update({
       where: { id: expertId },
-      data: {
-        subscriptionPlan: "LITE",
-        subscriptionEndDate: today,
-      }
+      data: { subscriptionPlan: "LITE", subscriptionEndDate: today }
     });
 
     revalidatePath("/expert/subscription");
     revalidatePath("/expert/requests");
-    
     return { success: true };
   } catch (error: any) {
     console.error("cancelSubscription error:", error);
@@ -138,7 +253,12 @@ export async function getPaymentHistoryAction(expertId: number) {
   try {
     const history = await prisma.paymentHistory.findMany({
       where: { userId: expertId, paymentType: "SUBSCRIPTION" },
-      orderBy: { paymentDate: 'desc' }
+      include: {
+        billingKey: {
+          select: { cardLast4: true, cardCompany: true, cardBin: true }
+        }
+      },
+      orderBy: { paymentDate: "desc" }
     });
 
     return { success: true, data: history };

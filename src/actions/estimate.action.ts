@@ -749,19 +749,111 @@ export async function getUrgentHistoryAction(userId: number) {
         isUrgent: true
       },
       include: {
-        category: true
+        category: true,
+        // 해당 견적의 URGENT 결제 내역 조인
+        payments: {
+          where: { paymentType: "URGENT", status: "PAID" },
+          select: { amount: true, status: true, paymentDate: true },
+          take: 1,
+        },
       },
       orderBy: { createdAt: "desc" }
     });
 
-    const data = (estimates as any).map((est: any) => ({
+    const data = estimates.map((est: any) => ({
       ...est,
       category: est.category?.name || '',
+      // 결제 금액 (URGENT 결제 내역 있으면 해당 금액, 없으면 null)
+      paymentAmount: est.payments?.[0]?.amount ?? null,
+      paymentStatus: est.payments?.[0]?.status ?? null,
     }));
 
     return { success: true, data };
   } catch (error: any) {
     console.error("getUrgentHistoryAction error:", error);
     return { success: false, error: error.message };
+  }
+}
+
+
+/**
+ * 전문가의 서비스 지역 + 서비스 카테고리와 매칭되는 견적 요청 목록 조회 (우리동네요청)
+ */
+export async function getLocalRequestsForExpertAction(expertId: number) {
+  if (!expertId || isNaN(expertId)) {
+    return { success: false, error: "유효하지 않은 전문가 ID입니다." };
+  }
+  try {
+    // 전문가의 지역 및 전문 카테고리(specialties) 함께 조회
+    const expert = await (prisma.user as any).findUnique({
+      where: { id: expertId },
+      select: {
+        regions: true,
+        specialties: { select: { name: true } },
+      },
+    });
+
+    const regions: string[] = expert?.regions || [];
+    const specialtyNames: string[] = (expert?.specialties || []).map((s: any) => s.name);
+
+    // 지역 미설정 시 빈 배열 반환
+    if (regions.length === 0) {
+      return { success: true, data: [], regions: [], specialties: specialtyNames };
+    }
+
+    // 각 지역 키워드로 OR 조건 생성 (location contains 검색)
+    const locationFilters = regions.map((region) => ({
+      location: { contains: region },
+    }));
+
+    // 카테고리 필터: 전문가 카테고리가 설정된 경우에만 category로 좁힘
+    const categoryFilter =
+      specialtyNames.length > 0
+        ? { category: { name: { in: specialtyNames } } }
+        : {};
+
+    const estimates = await prisma.estimate.findMany({
+      where: {
+        designatedExpertId: null,
+        status: { in: ["PENDING", "BIDDING"] },
+        isClosed: false,
+        OR: locationFilters,
+        ...categoryFilter,
+      },
+      include: {
+        category: true,
+        bids: { select: { id: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+
+    const data = estimates.map((est: any) => ({
+      id: est.id,
+      requestNumber: est.requestNumber,
+      category: est.category?.name || "기타",
+      location: est.location,
+      details: est.details,
+      isUrgent: est.isUrgent,
+      status: est.status,
+      createdAt: est.createdAt,
+      isClosed: est.isClosed,
+      extendedDays: est.extendedDays,
+      bidCount: est.bids?.length || 0,
+      authorName: est.authorName,
+      contact: est.contact,
+      serviceDate: est.serviceDate,
+      serviceTime: est.serviceTime,
+      photoUrls: est.photoUrls || [],
+      customerId: est.customerId,
+    }));
+
+    return { success: true, data, regions, specialties: specialtyNames };
+  } catch (error: any) {
+    console.error("getLocalRequestsForExpertAction error:", error);
+    return {
+      success: false,
+      error: error.message || "우리동네 요청을 불러오는 중 오류가 발생했습니다.",
+    };
   }
 }
