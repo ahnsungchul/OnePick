@@ -132,92 +132,95 @@ export default function LocalRequestsClient({
 
       {!hasNoSetup && (
         <>
-          {/* ─── 지역 탭 ─── */}
-          <div className="mb-5">
-            <div className="flex items-center gap-2 mb-2.5">
-              <Building2 className="w-3.5 h-3.5 text-slate-400" />
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                서비스 지역
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {regionTabs.map((r) => {
-                const count = countByRegion[r] ?? 0;
-                const isActive = activeRegion === r;
-                return (
-                  <button
-                    key={r}
-                    onClick={() => setActiveRegion(r)}
-                    className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all border ${
-                      isActive
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20 scale-105'
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
-                    }`}
-                  >
-                    {r !== '전체' && (
-                      <Building2
-                        className={`w-3 h-3 ${isActive ? 'text-white/80' : 'text-slate-400'}`}
-                      />
-                    )}
-                    {r === '전체' ? (
-                      <LayoutGrid
-                        className={`w-3 h-3 ${isActive ? 'text-white/80' : 'text-slate-400'}`}
-                      />
-                    ) : null}
-                    {r}
-                    <span
-                      className={`text-[10px] font-black ${
-                        isActive ? 'text-white/70' : 'text-slate-400'
-                      }`}
-                    >
-                      {r === '전체' ? estimates.length : count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ─── 카테고리 탭 ─── */}
-          {categoryTabs.length > 1 && (
-            <div className="mb-7">
+          {/* ─── 필터 영역 (지역 / 카테고리 좌우 배치) ─── */}
+          <div className="mb-7 grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6">
+            {/* ─── 지역 탭 ─── */}
+            <div className="lg:pr-6 lg:border-r lg:border-slate-100">
               <div className="flex items-center gap-2 mb-2.5">
-                <Tag className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  서비스 카테고리
+                <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
+                  서비스 지역
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {categoryTabs.map((cat) => {
-                  const count =
-                    cat === '전체'
-                      ? afterRegionFilter.length
-                      : countByCategory[cat] || 0;
-                  const isActive = activeCategory === cat;
+                {regionTabs.map((r) => {
+                  const count = countByRegion[r] ?? 0;
+                  const isActive = activeRegion === r;
                   return (
                     <button
-                      key={cat}
-                      onClick={() => setActiveCategory(cat)}
+                      key={r}
+                      onClick={() => setActiveRegion(r)}
                       className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all border ${
                         isActive
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20 scale-105'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20 scale-105'
                           : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
                       }`}
                     >
-                      {formatCategory(cat)}
+                      {r !== '전체' && (
+                        <Building2
+                          className={`w-3 h-3 ${isActive ? 'text-white/80' : 'text-slate-400'}`}
+                        />
+                      )}
+                      {r === '전체' ? (
+                        <LayoutGrid
+                          className={`w-3 h-3 ${isActive ? 'text-white/80' : 'text-slate-400'}`}
+                        />
+                      ) : null}
+                      {r}
                       <span
                         className={`text-[10px] font-black ${
                           isActive ? 'text-white/70' : 'text-slate-400'
                         }`}
                       >
-                        {count}
+                        {r === '전체' ? estimates.length : count}
                       </span>
                     </button>
                   );
                 })}
               </div>
             </div>
-          )}
+
+            {/* ─── 카테고리 탭 ─── */}
+            {categoryTabs.length > 1 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2.5">
+                  <Tag className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
+                    서비스 카테고리
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {categoryTabs.map((cat) => {
+                    const count =
+                      cat === '전체'
+                        ? afterRegionFilter.length
+                        : countByCategory[cat] || 0;
+                    const isActive = activeCategory === cat;
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => setActiveCategory(cat)}
+                        className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+                          isActive
+                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20 scale-105'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+                        }`}
+                      >
+                        {formatCategory(cat)}
+                        <span
+                          className={`text-[10px] font-black ${
+                            isActive ? 'text-white/70' : 'text-slate-400'
+                          }`}
+                        >
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* 구분선 */}
           <div className="h-px bg-slate-100 mb-6" />

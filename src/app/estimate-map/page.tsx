@@ -795,7 +795,31 @@ export default function EstimateMapPage() {
         <div className="px-4 py-2.6 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
           <div>
             <h3 className="font-bold text-lg text-slate-800">
-              선택 요청 목록
+              {(() => {
+                if (!selectedMarker) return '선택 요청 목록';
+
+                // 개별 마커(비-클러스터)인 경우 기존 타이틀 유지
+                if (selectedMarker.id !== 'CLUSTER') return '선택 요청 목록';
+
+                const isUrgent = selectedMarker.isUrgentCluster === true;
+                const rawKey: string = selectedMarker.key || '';
+                const rawTitle: string = selectedMarker.title || '';
+
+                // 전국(대한민국 전체) 케이스
+                if (rawKey === '대한민국 전체' || rawTitle === '대한민국 전체') {
+                  return isUrgent ? '전국 긴급 요청' : '대한민국 전체 요청';
+                }
+
+                // 거리 기반 긴급 클러스터(개별 긴급 마커)
+                if (typeof rawKey === 'string' && rawKey.startsWith('URGENT_DIST_')) {
+                  const region = rawTitle || '기타';
+                  return `${region} 긴급 요청`;
+                }
+
+                // 일반 지역 클러스터 (도/시/군/구)
+                const region = rawTitle || rawKey || '선택 지역';
+                return isUrgent ? `${region} 긴급 요청` : `${region} 요청`;
+              })()}
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">선택한 마커 기준 검색결과 <span className="font-bold text-blue-600">{nearbyEstimates.length}</span>건</p>
           </div>

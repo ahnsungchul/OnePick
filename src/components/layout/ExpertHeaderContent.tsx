@@ -72,10 +72,10 @@ export default function ExpertHeaderContent({ isOwner = true }: ExpertHeaderCont
   const menuItems = [
     { name: '홈', href: '/expert/dashboard', showAlways: true },
     { name: '블로그', href: '/expert/portfolio', showAlways: true },
-    { name: '통합 스케줄', href: '/expert/gallery', showAlways: false },
+    { name: '통합스케줄', href: '/expert/gallery', showAlways: false },
     { name: '우리동네요청', href: '/expert/local-requests', showAlways: false },
-    { name: '1:1 견적 요청', href: '/expert/requests', showAlways: false },
-    { name: '참여한 견적', href: '/expert/bids', showAlways: false },
+    { name: '받은요청', href: '/expert/requests', showAlways: false },
+    { name: '참여한견적', href: '/expert/bids', showAlways: false },
     { name: '구독관리', href: '/expert/subscription', showAlways: false },
     { name: '고객지원', href: '/expert/support', showAlways: false },
   ];

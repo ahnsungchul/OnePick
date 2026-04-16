@@ -288,11 +288,346 @@ export async function cancelSubscriptionAction(expertId: number) {
   }
 }
 
+// ─── 위약금 계산 유틸리티 ───────────────────────────────────
+// 연간 할인을 받은 기간에 대해, 월간 정가와의 차액(할인액)을 위약금으로 부과합니다.
+//
+// ■ 계산 공식
+//   annualMonthlyRate = annualFee / annualMonths   (연간 월환산 단가)
+//   discountPerMonth  = monthlyFee - annualMonthlyRate (한 달당 할인받은 금액)
+//   penalty           = usedMonths × discountPerMonth
+//
+// ■ 전환 시점
+//   - 1개월 미만 사용(하루라도 사용): usedMonths=1, 이번 달 잔여 기간까지 이용 후 다음 달부터 월간 결제
+//   - 1개월 이상 사용: 이번 달까지(현재 결제 주기 끝) 사용 후 다음 달부터 월간 결제
+async function calcAnnualPenalty(expertId: number) {
+  const monthlyFeeRaw = await getSystemConfig("BASIC_SUBSCRIPTION_FEE", 11000);
+  const annualFeeRaw = await getSystemConfig("BASIC_ANNUAL_SUBSCRIPTION_FEE", 110000);
+  const annualMonthsRaw = await getSystemConfig("BASIC_ANNUAL_SUBSCRIPTION_MONTHS", 12);
+
+  const monthlyFee = typeof monthlyFeeRaw === "number" ? monthlyFeeRaw : Number(monthlyFeeRaw);
+  const annualFee = typeof annualFeeRaw === "number" ? annualFeeRaw : Number(annualFeeRaw);
+  const annualMonths = typeof annualMonthsRaw === "number" ? annualMonthsRaw : Number(annualMonthsRaw);
+
+  // 연간 월환산 단가 & 월당 할인액
+  const annualMonthlyRate = Math.round(annualFee / annualMonths);
+  const discountPerMonth = monthlyFee - annualMonthlyRate;
+
+  // 최근 연간 결제 내역 조회
+  const lastAnnualPayment = await prisma.paymentHistory.findFirst({
+    where: { userId: expertId, paymentType: "SUBSCRIPTION", billingCycle: "ANNUAL", status: "PAID" },
+    orderBy: { paymentDate: "desc" },
+  });
+
+  if (!lastAnnualPayment) {
+    return {
+      penalty: 0, usedMonths: 0, totalMonths: annualMonths,
+      monthlyFee, annualFee, annualMonthlyRate, discountPerMonth,
+      monthlyStartDate: new Date(),
+      lastPayment: null,
+    };
+  }
+
+  const today = new Date();
+  const payDate = new Date(lastAnnualPayment.paymentDate);
+
+  // 실 사용 개월 수 (최소 1, 최대 annualMonths)
+  const diffMs = today.getTime() - payDate.getTime();
+  const usedMonths = Math.min(annualMonths, Math.max(1, Math.ceil(diffMs / (30 * 24 * 60 * 60 * 1000))));
+
+  // 위약금 = 사용 개월 × 월당 할인액 (최소 0원)
+  const penalty = Math.max(0, usedMonths * discountPerMonth);
+
+  // 월간 결제 시작일 = 연간결제 시작일 + usedMonths 개월 (이번 달 잔여 기간까지 사용 후 다음 달)
+  const monthlyStartDate = new Date(payDate);
+  monthlyStartDate.setMonth(monthlyStartDate.getMonth() + usedMonths);
+
+  return {
+    penalty, usedMonths, totalMonths: annualMonths,
+    monthlyFee, annualFee, annualMonthlyRate, discountPerMonth,
+    monthlyStartDate,
+    lastPayment: lastAnnualPayment,
+  };
+}
+
+/**
+ * 연간 구독 위약금 정보 조회 (UI 미리보기용)
+ */
+export async function getAnnualPenaltyInfoAction(expertId: number) {
+  noStore();
+  try {
+    const info = await calcAnnualPenalty(expertId);
+    return { success: true, data: info };
+  } catch (error: any) {
+    console.error("getAnnualPenaltyInfo error:", error);
+    return { success: false, error: "위약금 정보 조회 중 오류가 발생했습니다." };
+  }
+}
+
+/**
+ * 월간 → 연간 플랜 전환
+ * 현재 월간 결제 기간이 끝난 시점부터 연간 결제가 시작되도록 예약합니다.
+ */
+export async function switchToAnnualAction(expertId: number) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id || Number(session.user.id) !== expertId) {
+      return { success: false, error: "권한이 없습니다." };
+    }
+
+    const annualFeeRaw = await getSystemConfig("BASIC_ANNUAL_SUBSCRIPTION_FEE", 110000);
+    const annualMonthsRaw = await getSystemConfig("BASIC_ANNUAL_SUBSCRIPTION_MONTHS", 12);
+    const annualFee = typeof annualFeeRaw === "number" ? annualFeeRaw : Number(annualFeeRaw);
+    const annualMonths = typeof annualMonthsRaw === "number" ? annualMonthsRaw : Number(annualMonthsRaw);
+
+    // 마지막 월간 결제 내역에서 다음 결제 예정일(= 월간 기간 종료일)을 가져옴
+    const lastMonthlyPayment = await prisma.paymentHistory.findFirst({
+      where: { userId: expertId, paymentType: "SUBSCRIPTION", billingCycle: "MONTHLY", status: "PAID" },
+      orderBy: { paymentDate: "desc" },
+    });
+
+    const annualStartDate = lastMonthlyPayment?.nextPaymentDate || new Date();
+    const annualEndDate = new Date(annualStartDate);
+    annualEndDate.setMonth(annualEndDate.getMonth() + annualMonths);
+
+    // 현재 활성 빌링키 조회
+    const activeBillingKey = await prisma.billingKey.findFirst({
+      where: { userId: expertId, isActive: true, isDefault: true, issueSucceeded: true, deletedAt: null },
+    });
+
+    // 결제 내역 생성 (연간 결제 — 시작일이 미래인 경우 "예약 결제" 개념)
+    await prisma.paymentHistory.create({
+      data: {
+        userId: expertId,
+        paymentType: "SUBSCRIPTION",
+        planName: "BASIC_ANNUAL",
+        billingCycle: "ANNUAL",
+        billingMonths: annualMonths,
+        amount: annualFee,
+        paymentDate: annualStartDate,
+        status: "PAID",
+        nextPaymentDate: annualEndDate,
+        billingKeyId: activeBillingKey?.id || null,
+        pgTransactionId: activeBillingKey ? `MOCK_TXN_${uuidv4()}` : null,
+      } as any,
+    });
+
+    // 유저 구독 정보를 연간으로 변경
+    await prisma.user.update({
+      where: { id: expertId },
+      data: {
+        subscriptionPlan: "BASIC",
+        subscriptionBillingCycle: "ANNUAL",
+        subscriptionEndDate: null,
+      } as any,
+    });
+
+    revalidatePath("/expert/subscription");
+    revalidatePath("/expert/requests");
+
+    const startStr = annualStartDate.toLocaleDateString("ko-KR");
+    return {
+      success: true,
+      message: `연간 플랜으로 전환되었습니다. ${startStr}부터 연간 결제(${annualFee.toLocaleString()}원/${annualMonths}개월)가 적용됩니다.`,
+    };
+  } catch (error: any) {
+    console.error("switchToAnnual error:", error);
+    return { success: false, error: "연간 플랜 전환 중 오류가 발생했습니다." };
+  }
+}
+
+/**
+ * 연간 → 월간 플랜 전환 (위약금 결제 후 전환)
+ */
+export async function switchToMonthlyAction(expertId: number) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id || Number(session.user.id) !== expertId) {
+      return { success: false, error: "권한이 없습니다." };
+    }
+
+    const { penalty, usedMonths, monthlyFee, annualFee, monthlyStartDate, lastPayment } =
+      await calcAnnualPenalty(expertId);
+
+    const activeBillingKey = await prisma.billingKey.findFirst({
+      where: { userId: expertId, isActive: true, isDefault: true, issueSucceeded: true, deletedAt: null },
+    });
+
+    const now = Date.now();
+
+    // paymentDate에 시간 오프셋을 줘서 내역 정렬 순서를 보장합니다.
+    // 결제내역은 paymentDate DESC 정렬이므로 → 취소(최신) → 위약금 → 월간 전환(가장 오래됨)
+    const cancelDate  = new Date(now + 2000); // +2초 → 가장 먼저 표시
+    const penaltyDate = new Date(now + 1000); // +1초
+    const switchDate  = new Date(now);        // 기준 시각
+
+    // 1) 기존 연간 구독 취소 내역 생성
+    await prisma.paymentHistory.create({
+      data: {
+        userId: expertId,
+        paymentType: "CANCELLATION",
+        planName: "BASIC_ANNUAL_CANCEL",
+        billingCycle: "ANNUAL",
+        billingMonths: 0,
+        amount: annualFee,
+        paymentDate: cancelDate,
+        status: "CANCELLED",
+        billingKeyId: activeBillingKey?.id || null,
+        pgTransactionId: lastPayment?.pgTransactionId
+          ? `CANCEL_${lastPayment.pgTransactionId}`
+          : null,
+      } as any,
+    });
+
+    // 2) 위약금이 0보다 크면 위약금 결제 내역 생성
+    if (penalty > 0) {
+      await prisma.paymentHistory.create({
+        data: {
+          userId: expertId,
+          paymentType: "PENALTY",
+          planName: "ANNUAL_TO_MONTHLY_PENALTY",
+          billingCycle: "MONTHLY",
+          billingMonths: 0,
+          amount: penalty,
+          paymentDate: penaltyDate,
+          status: "PAID",
+          billingKeyId: activeBillingKey?.id || null,
+          pgTransactionId: activeBillingKey ? `MOCK_PENALTY_${uuidv4()}` : null,
+        } as any,
+      });
+    }
+
+    // 3) 월간 구독 전환 — 이번 달(현재 결제 주기) 잔여 기간까지 사용 후
+    //    다음 달(monthlyStartDate)부터 월간 결제 시작
+    const monthlyNextPayment = new Date(monthlyStartDate);
+    monthlyNextPayment.setMonth(monthlyNextPayment.getMonth() + 1);
+
+    await prisma.paymentHistory.create({
+      data: {
+        userId: expertId,
+        paymentType: "SUBSCRIPTION",
+        planName: "BASIC_MONTHLY",
+        billingCycle: "MONTHLY",
+        billingMonths: 1,
+        amount: monthlyFee,
+        paymentDate: monthlyStartDate,   // 다음 달부터 결제 시작
+        status: "PAID",
+        nextPaymentDate: monthlyNextPayment,
+        billingKeyId: activeBillingKey?.id || null,
+        pgTransactionId: activeBillingKey ? `MOCK_TXN_${uuidv4()}` : null,
+      } as any,
+    });
+
+    await prisma.user.update({
+      where: { id: expertId },
+      data: {
+        subscriptionPlan: "BASIC",
+        subscriptionBillingCycle: "MONTHLY",
+        subscriptionEndDate: null,
+      } as any,
+    });
+
+    revalidatePath("/expert/subscription");
+    revalidatePath("/expert/requests");
+
+    const startStr = monthlyStartDate.toLocaleDateString("ko-KR");
+    return {
+      success: true,
+      penalty,
+      message: penalty > 0
+        ? `위약금 ${penalty.toLocaleString()}원 결제 완료. ${startStr}부터 월간 플랜(${monthlyFee.toLocaleString()}원/월)으로 전환됩니다.`
+        : `${startStr}부터 월간 플랜으로 전환됩니다.`,
+    };
+  } catch (error: any) {
+    console.error("switchToMonthly error:", error);
+    return { success: false, error: "월간 플랜 전환 중 오류가 발생했습니다." };
+  }
+}
+
+/**
+ * 연간 구독 중도 취소 (위약금 결제 후 LITE 전환)
+ */
+export async function cancelAnnualSubscriptionAction(expertId: number) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id || Number(session.user.id) !== expertId) {
+      return { success: false, error: "권한이 없습니다." };
+    }
+
+    const { penalty, annualFee, lastPayment } = await calcAnnualPenalty(expertId);
+
+    const activeBillingKey = await prisma.billingKey.findFirst({
+      where: { userId: expertId, isActive: true, isDefault: true, issueSucceeded: true, deletedAt: null },
+    });
+
+    const now = Date.now();
+    const cancelDate  = new Date(now + 1000); // +1초 → 취소 내역이 먼저 표시
+    const penaltyDate = new Date(now);        // 기준 시각
+
+    // 1) 연간 구독 취소 내역 생성
+    await prisma.paymentHistory.create({
+      data: {
+        userId: expertId,
+        paymentType: "CANCELLATION",
+        planName: "BASIC_ANNUAL_CANCEL",
+        billingCycle: "ANNUAL",
+        billingMonths: 0,
+        amount: annualFee,
+        paymentDate: cancelDate,
+        status: "CANCELLED",
+        billingKeyId: activeBillingKey?.id || null,
+        pgTransactionId: lastPayment?.pgTransactionId
+          ? `CANCEL_${lastPayment.pgTransactionId}`
+          : null,
+      } as any,
+    });
+
+    // 2) 위약금 결제 내역 생성
+    if (penalty > 0) {
+      await prisma.paymentHistory.create({
+        data: {
+          userId: expertId,
+          paymentType: "PENALTY",
+          planName: "ANNUAL_CANCEL_PENALTY",
+          billingCycle: "ANNUAL",
+          billingMonths: 0,
+          amount: penalty,
+          paymentDate: penaltyDate,
+          status: "PAID",
+          billingKeyId: activeBillingKey?.id || null,
+          pgTransactionId: activeBillingKey ? `MOCK_PENALTY_${uuidv4()}` : null,
+        } as any,
+      });
+    }
+
+    await prisma.user.update({
+      where: { id: expertId },
+      data: {
+        subscriptionPlan: "LITE",
+        subscriptionEndDate: new Date(),
+      },
+    });
+
+    revalidatePath("/expert/subscription");
+    revalidatePath("/expert/requests");
+
+    return {
+      success: true,
+      penalty,
+      message: penalty > 0
+        ? `위약금 ${penalty.toLocaleString()}원 결제 후 구독이 취소되었습니다.`
+        : "구독이 취소되었습니다.",
+    };
+  } catch (error: any) {
+    console.error("cancelAnnualSubscription error:", error);
+    return { success: false, error: "연간 구독 취소 중 오류가 발생했습니다." };
+  }
+}
+
 export async function getPaymentHistoryAction(expertId: number) {
   noStore();
   try {
     const history = await prisma.paymentHistory.findMany({
-      where: { userId: expertId, paymentType: "SUBSCRIPTION" },
+      where: { userId: expertId, paymentType: { in: ["SUBSCRIPTION", "PENALTY", "CANCELLATION"] } },
       include: {
         billingKey: {
           select: { cardLast4: true, cardCompany: true, cardBin: true }

@@ -3,16 +3,20 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import ExpertDashboardLayout from '@/components/layout/ExpertDashboardLayout';
-import { 
-  getSubscriptionInfoAction, 
-  getPaymentHistoryAction, 
-  subscribeToBasicAction, 
+import {
+  getSubscriptionInfoAction,
+  getPaymentHistoryAction,
+  subscribeToBasicAction,
   cancelSubscriptionAction,
   getActiveBillingKeyAction,
   saveBillingKeyAction,
+  switchToAnnualAction,
+  switchToMonthlyAction,
+  cancelAnnualSubscriptionAction,
+  getAnnualPenaltyInfoAction,
 } from '@/actions/subscription.action';
 import { getSystemConfig } from '@/actions/systemConfig.action';
-import { CreditCard, CheckCircle2, ShieldAlert, Star, AlertCircle, X, Trash2, ShieldCheck } from 'lucide-react';
+import { CreditCard, CheckCircle2, ShieldAlert, Star, AlertCircle, X, Trash2, ShieldCheck, ArrowRightLeft } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 
@@ -68,6 +72,12 @@ export default function SubscriptionPage() {
   const [isDeleteCardModalOpen, setIsDeleteCardModalOpen] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
   const [isAlertOpen, setIsAlertOpen] = useState(false);
+
+  // 플랜 전환 관련 상태
+  const [isSwitchToAnnualMode, setIsSwitchToAnnualMode] = useState(false); // 월→연 전환 모드
+  const [isPenaltyModalOpen, setIsPenaltyModalOpen] = useState(false); // 연→월 위약금 모달
+  const [isAnnualCancelModalOpen, setIsAnnualCancelModalOpen] = useState(false); // 연간 취소 위약금 모달
+  const [penaltyInfo, setPenaltyInfo] = useState<any>(null); // 위약금 정보
 
   const showAlert = (message: string) => {
     setAlertMessage(message);
@@ -206,6 +216,80 @@ export default function SubscriptionPage() {
     setIsSubmitting(false);
   };
 
+  // 월간 → 연간 전환 핸들러
+  const handleSwitchToAnnual = async () => {
+    if (!expertId || isNaN(expertId)) return;
+    setIsSubmitting(true);
+    const res = await switchToAnnualAction(expertId);
+    if (res.success) {
+      showAlert(res.message || '연간 플랜으로 전환되었습니다.');
+      setIsSwitchToAnnualMode(false);
+      await fetchAllData();
+      setActiveTab('HISTORY');
+    } else {
+      showAlert(res.error || '전환에 실패했습니다.');
+    }
+    setIsSubmitting(false);
+  };
+
+  // 연간 → 월간 위약금 조회 → 모달 열기
+  const openSwitchToMonthlyModal = async () => {
+    if (!expertId || isNaN(expertId)) return;
+    const res = await getAnnualPenaltyInfoAction(expertId);
+    if (res.success) {
+      setPenaltyInfo(res.data);
+      setIsPenaltyModalOpen(true);
+    } else {
+      showAlert(res.error || '위약금 정보를 불러올 수 없습니다.');
+    }
+  };
+
+  // 연간 → 월간 전환 확정 (위약금 결제)
+  const handleSwitchToMonthly = async () => {
+    if (!expertId || isNaN(expertId)) return;
+    setIsSubmitting(true);
+    const res = await switchToMonthlyAction(expertId);
+    if (res.success) {
+      showAlert(res.message || '월간 플랜으로 전환되었습니다.');
+      setIsPenaltyModalOpen(false);
+      setPenaltyInfo(null);
+      await fetchAllData();
+      setActiveTab('HISTORY');
+    } else {
+      showAlert(res.error || '전환에 실패했습니다.');
+    }
+    setIsSubmitting(false);
+  };
+
+  // 연간 구독 취소 위약금 조회 → 모달 열기
+  const openAnnualCancelModal = async () => {
+    if (!expertId || isNaN(expertId)) return;
+    const res = await getAnnualPenaltyInfoAction(expertId);
+    if (res.success) {
+      setPenaltyInfo(res.data);
+      setIsAnnualCancelModalOpen(true);
+    } else {
+      showAlert(res.error || '위약금 정보를 불러올 수 없습니다.');
+    }
+  };
+
+  // 연간 구독 취소 확정 (위약금 결제)
+  const handleCancelAnnual = async () => {
+    if (!expertId || isNaN(expertId)) return;
+    setIsSubmitting(true);
+    const res = await cancelAnnualSubscriptionAction(expertId);
+    if (res.success) {
+      showAlert(res.message || '구독이 취소되었습니다.');
+      setIsAnnualCancelModalOpen(false);
+      setPenaltyInfo(null);
+      await fetchAllData();
+      setActiveTab('PLANS');
+    } else {
+      showAlert(res.error || '취소에 실패했습니다.');
+    }
+    setIsSubmitting(false);
+  };
+
   if (isLoading) {
     return (
       <ExpertDashboardLayout>
@@ -295,8 +379,8 @@ export default function SubscriptionPage() {
                     <p className="text-sm font-medium text-slate-500 mt-2">가입 시 부여되는 기본 상태</p>
                   </div>
                   <ul className="space-y-4 mt-8">
-                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /><span className="text-sm font-bold text-slate-700">전문가홈 무료</span></li>
-                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /><span className="text-sm font-bold text-slate-700">1:1견적요청 받기 가능</span></li>
+                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /><span className="text-sm font-bold text-slate-700">전문가홈 이용</span></li>
+                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /><span className="text-sm font-bold text-slate-700">1:1요청 받기 가능</span></li>
                     <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /><span className="text-sm font-bold text-slate-700">요청상세 내용 열람 가능</span></li>
                     <li className="flex items-start gap-3 opacity-60"><ShieldAlert className="w-5 h-5 text-slate-400 shrink-0" /><span className="text-sm font-medium text-slate-500">견적서 제안 불가능</span></li>
                   </ul>
@@ -313,25 +397,34 @@ export default function SubscriptionPage() {
                   <div className="mb-4 flex items-start justify-between">
                     <div>
                       <h3 className="text-xl font-black text-blue-700 flex items-center gap-2">Basic 플랜 <Star className="w-5 h-5 fill-current" /></h3>
-                      <div className="flex items-baseline gap-1 mt-2">
+                      <div className="flex items-baseline gap-1 mt-2 flex-wrap">
                         <span className="text-3xl font-black text-slate-900">{basicFee.toLocaleString()}</span>
                         <span className="text-sm font-bold text-slate-500">원 / 월</span>
+                        <span className="text-[11px] font-bold text-slate-400 ml-1">VAT 포함</span>
                       </div>
                     </div>
                   </div>
                   <p className="text-sm font-medium text-slate-500 mt-2">매월 결제하는 무제한 패스</p>
                   <ul className="space-y-4 mt-8">
-                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" /><span className="text-sm font-bold text-slate-900">전문가홈 무료</span></li>
-                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" /><span className="text-sm font-bold text-slate-900">1:1견적요청 받기 가능</span></li>
+                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" /><span className="text-sm font-bold text-slate-900">전문가홈 이용</span></li>
+                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" /><span className="text-sm font-bold text-slate-900">1:1요청 받기 가능</span></li>
                     <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" /><span className="text-sm font-bold text-slate-900">요청상세 내용 열람 가능</span></li>
-                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" /><span className="text-sm font-bold text-slate-900">견적서 무제한 제안</span></li>
+                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" /><span className="text-sm font-bold text-slate-900">견적서 제안 무제한</span></li>
                   </ul>
-                  {!isCurrentMonthly && (
+                  {!isCurrentMonthly && !isCurrentAnnual && (
                     <button
                       onClick={() => { setSelectedCycle('MONTHLY'); setActiveTab('PAYMENT'); }}
                       className="w-full mt-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98]"
                     >
                       Basic 월간으로 업그레이드
+                    </button>
+                  )}
+                  {isCurrentAnnual && (
+                    <button
+                      onClick={openSwitchToMonthlyModal}
+                      className="w-full mt-8 py-3.5 bg-white border-2 border-blue-200 text-blue-600 hover:bg-blue-50 font-bold rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                    >
+                      <ArrowRightLeft className="w-4 h-4" /> 월간 플랜으로 전환
                     </button>
                   )}
                 </div>
@@ -355,9 +448,10 @@ export default function SubscriptionPage() {
                       <h3 className="text-xl font-black text-indigo-700 flex items-center gap-2">
                         Basic 연간 플랜 <Star className="w-5 h-5 fill-current" />
                       </h3>
-                      <div className="flex items-baseline gap-1 mt-2">
+                      <div className="flex items-baseline gap-1 mt-2 flex-wrap">
                         <span className="text-3xl font-black text-slate-900">{basicAnnualFee.toLocaleString()}</span>
                         <span className="text-sm font-bold text-slate-500">원 / {basicAnnualMonths}개월</span>
+                        <span className="text-[11px] font-bold text-slate-400 ml-1">VAT 포함</span>
                       </div>
                       <p className="text-xs font-bold text-indigo-600 mt-1">
                         월 환산 약 {effectiveMonthly.toLocaleString()}원
@@ -371,12 +465,20 @@ export default function SubscriptionPage() {
                     <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-indigo-500 shrink-0" /><span className="text-sm font-bold text-slate-900">월간 대비 연 결제 할인</span></li>
                     <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-indigo-500 shrink-0" /><span className="text-sm font-bold text-slate-900">이용 기간 내 서비스 제약 없음</span></li>
                   </ul>
-                  {!isCurrentAnnual && (
+                  {!isCurrentAnnual && !isCurrentMonthly && (
                     <button
                       onClick={() => { setSelectedCycle('ANNUAL'); setActiveTab('PAYMENT'); }}
                       className="w-full mt-8 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/20 active:scale-[0.98]"
                     >
                       연간 결제로 시작하기
+                    </button>
+                  )}
+                  {isCurrentMonthly && (
+                    <button
+                      onClick={() => { setIsSwitchToAnnualMode(true); setActiveTab('PAYMENT'); }}
+                      className="w-full mt-8 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/20 active:scale-[0.98] flex items-center justify-center gap-2"
+                    >
+                      <ArrowRightLeft className="w-4 h-4" /> 연간 플랜으로 전환
                     </button>
                   )}
                 </div>
@@ -388,8 +490,36 @@ export default function SubscriptionPage() {
           {activeTab === 'PAYMENT' && (
             <div className="max-w-xl mx-auto">
 
+              {/* 월→연 전환 모드 배너 */}
+              {isSwitchToAnnualMode && currentPlan === 'BASIC' && (
+                <div className="rounded-2xl border-2 border-indigo-300 bg-indigo-50/60 p-5 mb-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-black text-indigo-500 uppercase tracking-widest flex items-center gap-1.5">
+                        <ArrowRightLeft className="w-3.5 h-3.5" /> 플랜 전환
+                      </p>
+                      <h4 className="text-lg font-black text-indigo-700 mt-1">
+                        월간 → Basic 연간 플랜 · {basicAnnualMonths}개월
+                      </h4>
+                      <p className="text-sm font-bold text-slate-900 mt-1">
+                        결제 금액 <span className="text-indigo-700">{basicAnnualFee.toLocaleString()}원</span>
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1 font-medium">
+                        현재 월간 결제 기간 종료 후부터 연간 결제가 시작됩니다.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => { setIsSwitchToAnnualMode(false); setActiveTab('PLANS'); }}
+                      className="text-xs font-bold text-slate-500 hover:text-slate-900 underline underline-offset-4"
+                    >
+                      취소
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* 결제 진행 요약 (BASIC 아닌 경우에만 노출) */}
-              {currentPlan !== 'BASIC' && (
+              {currentPlan !== 'BASIC' && !isSwitchToAnnualMode && (
                 <div className={cn(
                   "rounded-2xl border-2 p-5 mb-6",
                   selectedCycle === 'ANNUAL'
@@ -487,13 +617,36 @@ export default function SubscriptionPage() {
                   </div>
 
                   <p className="text-sm text-slate-500 mt-6 mb-4 font-medium">
-                    {currentPlan === 'BASIC'
-                      ? '정기 결제가 해당 카드로 자동 승인됩니다.'
-                      : '구독 결제를 시작하면 등록된 카드로 즉시 승인됩니다.'}
+                    {isSwitchToAnnualMode
+                      ? '등록된 카드로 연간 플랜 결제가 진행됩니다.'
+                      : currentPlan === 'BASIC'
+                        ? '정기 결제가 해당 카드로 자동 승인됩니다.'
+                        : '구독 결제를 시작하면 등록된 카드로 즉시 승인됩니다.'}
                   </p>
 
+                  {/* 월→연 전환 모드: 연간 플랜 결제 버튼만 표시 */}
+                  {isSwitchToAnnualMode && (
+                    <div className="mt-2 mb-6">
+                      <button
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={handleSwitchToAnnual}
+                        className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl transition-all shadow-lg shadow-indigo-600/20 active:scale-[0.98] disabled:opacity-50 text-base flex items-center justify-center gap-2"
+                      >
+                        {isSubmitting ? '처리 중...' : `연간 플랜 결제하기 (${basicAnnualFee.toLocaleString()}원)`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setIsSwitchToAnnualMode(false); setActiveTab('PLANS'); }}
+                        className="w-full mt-3 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-all text-sm"
+                      >
+                        취소하고 돌아가기
+                      </button>
+                    </div>
+                  )}
+
                   {/* 카드는 있지만 아직 BASIC 구독 중이 아닐 때: 구독 시작 CTA */}
-                  {currentPlan !== 'BASIC' && (
+                  {!isSwitchToAnnualMode && currentPlan !== 'BASIC' && (
                     <div className="mt-2 mb-6 bg-white rounded-xl border border-blue-100 p-4 text-left">
                       <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">
                         등록된 카드로 구독 시작하기
@@ -523,20 +676,23 @@ export default function SubscriptionPage() {
                     </div>
                   )}
 
-                  <div className="flex gap-3 justify-center">
-                    <button
-                      onClick={() => setIsEditingCard(true)}
-                      className="px-5 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-all shadow-sm text-sm"
-                    >
-                      카드 변경
-                    </button>
-                    <button
-                      onClick={() => setIsDeleteCardModalOpen(true)}
-                      className="px-5 py-2.5 bg-white border border-red-200 hover:bg-red-50 text-red-500 font-bold rounded-xl transition-all text-sm flex items-center gap-1.5"
-                    >
-                      <Trash2 className="w-4 h-4" /> 카드 삭제
-                    </button>
-                  </div>
+                  {/* 카드 변경/삭제 (전환 모드가 아닐 때만 표시) */}
+                  {!isSwitchToAnnualMode && (
+                    <div className="flex gap-3 justify-center">
+                      <button
+                        onClick={() => setIsEditingCard(true)}
+                        className="px-5 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-all shadow-sm text-sm"
+                      >
+                        카드 변경
+                      </button>
+                      <button
+                        onClick={() => setIsDeleteCardModalOpen(true)}
+                        className="px-5 py-2.5 bg-white border border-red-200 hover:bg-red-50 text-red-500 font-bold rounded-xl transition-all text-sm flex items-center gap-1.5"
+                      >
+                        <Trash2 className="w-4 h-4" /> 카드 삭제
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 /* 카드 입력 폼 */
@@ -678,43 +834,73 @@ export default function SubscriptionPage() {
           )}
 
           {/* ─── 구독 취소 탭 ─── */}
-          {activeTab === 'CANCEL' && (
-            <div className="max-w-xl mx-auto text-center py-10">
-              {currentPlan === 'BASIC' ? (
-                <>
-                  <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <AlertCircle className="w-8 h-8" />
-                  </div>
-                  <h3 className="text-xl font-black text-slate-900 mb-3">구독을 해지하시겠습니까?</h3>
-                  <p className="text-sm text-slate-500 font-medium leading-relaxed mb-8">
-                    해지 시 즉각 Lite 요금제로 전환되며,<br/>상세 요청 조회 등 Basic 혜택이 모두 제한됩니다.
-                  </p>
-                  <button 
-                    onClick={() => setIsCancelModalOpen(true)}
-                    className="px-6 py-3.5 bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 font-bold rounded-xl transition-all"
-                  >
-                    Basic 구독 취소 계속하기
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div className="w-16 h-16 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <CheckCircle2 className="w-8 h-8" />
-                  </div>
-                  <h3 className="text-xl font-black text-slate-900 mb-3">현재 해지할 구독이 없습니다</h3>
-                  <p className="text-sm text-slate-500 font-medium leading-relaxed mb-8">
-                    회원님은 현재 기본 제공되는 <strong className="text-slate-800">Lite 요금제</strong>를 무상으로 이용 중입니다.
-                  </p>
-                  <button 
-                    onClick={() => setActiveTab('PLANS')}
-                    className="px-6 py-3.5 bg-slate-100 text-slate-600 hover:bg-slate-200 font-bold rounded-xl transition-all"
-                  >
-                    요금제 확인하러 가기
-                  </button>
-                </>
-              )}
-            </div>
-          )}
+          {activeTab === 'CANCEL' && (() => {
+            const currentCycle = planData?.billingCycle || 'MONTHLY';
+            const isAnnualSub = currentPlan === 'BASIC' && currentCycle === 'ANNUAL';
+            const isMonthlySub = currentPlan === 'BASIC' && currentCycle !== 'ANNUAL';
+
+            return (
+              <div className="max-w-xl mx-auto text-center py-10">
+                {/* 월간 구독 취소 (기존 로직) */}
+                {isMonthlySub && (
+                  <>
+                    <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                      <AlertCircle className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-xl font-black text-slate-900 mb-3">구독을 해지하시겠습니까?</h3>
+                    <p className="text-sm text-slate-500 font-medium leading-relaxed mb-8">
+                      해지 시 즉각 Lite 요금제로 전환되며,<br/>상세 요청 조회 등 Basic 혜택이 모두 제한됩니다.
+                    </p>
+                    <button
+                      onClick={() => setIsCancelModalOpen(true)}
+                      className="px-6 py-3.5 bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 font-bold rounded-xl transition-all"
+                    >
+                      Basic 구독 취소 계속하기
+                    </button>
+                  </>
+                )}
+
+                {/* 연간 구독 취소 (위약금 안내) */}
+                {isAnnualSub && (
+                  <>
+                    <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                      <AlertCircle className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-xl font-black text-slate-900 mb-3">연간 구독을 해지하시겠습니까?</h3>
+                    <p className="text-sm text-slate-500 font-medium leading-relaxed mb-8">
+                      연간 플랜을 중도 해지하면 할인받은 금액에 대한<br/>
+                      <strong className="text-red-600">위약금이 발생</strong>합니다. 위약금 결제 후 해지가 완료됩니다.
+                    </p>
+                    <button
+                      onClick={openAnnualCancelModal}
+                      className="px-6 py-3.5 bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 font-bold rounded-xl transition-all"
+                    >
+                      위약금 확인 및 해지 계속하기
+                    </button>
+                  </>
+                )}
+
+                {/* 구독 없음 */}
+                {currentPlan !== 'BASIC' && (
+                  <>
+                    <div className="w-16 h-16 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                      <CheckCircle2 className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-xl font-black text-slate-900 mb-3">현재 해지할 구독이 없습니다</h3>
+                    <p className="text-sm text-slate-500 font-medium leading-relaxed mb-8">
+                      회원님은 현재 기본 제공되는 <strong className="text-slate-800">Lite 요금제</strong>를 무상으로 이용 중입니다.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab('PLANS')}
+                      className="px-6 py-3.5 bg-slate-100 text-slate-600 hover:bg-slate-200 font-bold rounded-xl transition-all"
+                    >
+                      요금제 확인하러 가기
+                    </button>
+                  </>
+                )}
+              </div>
+            );
+          })()}
 
           {/* ─── 결제내역 탭 ─── */}
           {activeTab === 'HISTORY' && (
@@ -767,34 +953,69 @@ export default function SubscriptionPage() {
                     {history.map((item) => {
                       const cycle = item.billingCycle || 'MONTHLY';
                       const months = item.billingMonths || (cycle === 'ANNUAL' ? basicAnnualMonths : 1);
+                      const isPenalty = item.paymentType === 'PENALTY';
+                      const isCancellation = item.paymentType === 'CANCELLATION';
+                      const isSpecialRow = isPenalty || isCancellation;
+
+                      // 내용 라벨 결정
+                      let contentLabel = `OnePick Basic ${cycle === 'ANNUAL' ? `연간(${months}개월)` : '월간'} 정기결제`;
+                      if (isCancellation) {
+                        contentLabel = 'Basic 연간 플랜 구독 취소';
+                      } else if (isPenalty) {
+                        contentLabel = item.planName === 'ANNUAL_TO_MONTHLY_PENALTY'
+                          ? '연간→월간 전환 위약금'
+                          : '연간 구독 해지 위약금';
+                      }
+
+                      // 상태 뱃지 결정
+                      let statusLabel = item.status;
+                      let statusClass = "bg-slate-100 text-slate-600";
+                      if (isCancellation) {
+                        statusLabel = '구독취소';
+                        statusClass = "bg-amber-100 text-amber-700";
+                      } else if (isPenalty && item.status === 'PAID') {
+                        statusLabel = '위약금 결제';
+                        statusClass = "bg-red-100 text-red-600";
+                      } else if (item.status === 'PAID') {
+                        statusLabel = '결제완료';
+                        statusClass = "bg-emerald-100 text-emerald-700";
+                      } else if (item.status === 'FAILED') {
+                        statusLabel = '결제실패';
+                        statusClass = "bg-red-100 text-red-600";
+                      }
+
                       return (
-                        <tr key={item.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                        <tr key={item.id} className={cn(
+                          "border-b border-slate-100 last:border-0 hover:bg-slate-50",
+                          isPenalty && "bg-red-50/30",
+                          isCancellation && "bg-amber-50/30"
+                        )}>
                           <td className="p-4 text-slate-600 font-medium">{new Date(item.paymentDate).toLocaleDateString()}</td>
                           <td className="p-4 text-slate-500 font-medium">
-                            {item.nextPaymentDate ? (() => {
+                            {isSpecialRow ? '-' : item.nextPaymentDate ? (() => {
                               const d = new Date(item.nextPaymentDate);
                               d.setDate(d.getDate() - 1);
                               return d.toLocaleDateString();
                             })() : '-'}
                           </td>
-                          <td className="p-4 font-bold text-slate-700">
-                            OnePick Basic {cycle === 'ANNUAL' ? `연간(${months}개월)` : '월간'} 정기결제
+                          <td className={cn(
+                            "p-4 font-bold",
+                            isPenalty ? "text-red-600" : isCancellation ? "text-amber-700" : "text-slate-700"
+                          )}>
+                            {contentLabel}
                           </td>
                           <td className="p-4 text-slate-500 font-medium font-mono">
                             {item.billingKey ? `**** ${item.billingKey.cardLast4}` : '-'}
                           </td>
-                          <td className="p-4 font-bold text-slate-900 text-right">
-                            {(item.amount ?? (cycle === 'ANNUAL' ? basicAnnualFee : basicFee)).toLocaleString()}원
+                          <td className={cn(
+                            "p-4 font-bold text-right",
+                            isPenalty ? "text-red-600" : isCancellation ? "text-amber-700 line-through" : "text-slate-900"
+                          )}>
+                            {isCancellation ? `-${(item.amount ?? 0).toLocaleString()}원` : `${(item.amount ?? (cycle === 'ANNUAL' ? basicAnnualFee : basicFee)).toLocaleString()}원`}
                           </td>
                           <td className="p-4 text-center">
-                            <span className={cn(
-                              "inline-flex text-xs font-bold px-2 py-1 rounded-md",
-                              item.status === 'PAID' ? "bg-emerald-100 text-emerald-700" :
-                              item.status === 'FAILED' ? "bg-red-100 text-red-600" :
-                              "bg-slate-100 text-slate-600"
-                            )}>
-                              {item.status === 'PAID' ? '결제완료' :
-                               item.status === 'FAILED' ? '결제실패' : item.status}
+                            <span className={cn("inline-flex text-xs font-bold px-2 py-1 rounded-md", statusClass)}>
+                              {statusLabel}
                             </span>
                           </td>
                         </tr>
@@ -854,8 +1075,32 @@ export default function SubscriptionPage() {
         isSubmitting={isSubmitting}
       />
 
+      {/* 연간→월간 전환 위약금 모달 */}
+      <PenaltyModal
+        isOpen={isPenaltyModalOpen}
+        onClose={() => setIsPenaltyModalOpen(false)}
+        onConfirm={handleSwitchToMonthly}
+        isSubmitting={isSubmitting}
+        penaltyInfo={penaltyInfo}
+        title="월간 플랜으로 전환"
+        description="연간 플랜에서 할인받은 금액에 대한 위약금이 발생합니다."
+        confirmLabel="위약금 결제 후 월간 전환"
+      />
+
+      {/* 연간 구독 취소 위약금 모달 */}
+      <PenaltyModal
+        isOpen={isAnnualCancelModalOpen}
+        onClose={() => setIsAnnualCancelModalOpen(false)}
+        onConfirm={handleCancelAnnual}
+        isSubmitting={isSubmitting}
+        penaltyInfo={penaltyInfo}
+        title="연간 구독 해지"
+        description="연간 플랜을 중도 해지하면 할인받은 금액에 대한 위약금이 발생합니다."
+        confirmLabel="위약금 결제 후 구독 해지"
+      />
+
       {/* 공통 알림 모달 */}
-      <AlertModal 
+      <AlertModal
         isOpen={isAlertOpen}
         onClose={() => setIsAlertOpen(false)}
         message={alertMessage}
@@ -933,6 +1178,106 @@ function DeleteCardModal({ isOpen, onClose, onConfirm, isSubmitting, cardLast4 }
         <div className="grid grid-cols-2 gap-3 w-full">
           <button disabled={isSubmitting} onClick={onClose} className="py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors">취소</button>
           <button disabled={isSubmitting} onClick={onConfirm} className="py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors">{isSubmitting ? '삭제 중...' : '삭제하기'}</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function PenaltyModal({ isOpen, onClose, onConfirm, isSubmitting, penaltyInfo, title, description, confirmLabel }: any) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    if (isOpen) { document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = ''; }; }
+  }, [isOpen]);
+  if (!isOpen || !mounted || !penaltyInfo) return null;
+
+  const {
+    penalty, usedMonths, totalMonths,
+    monthlyFee, annualFee,
+    annualMonthlyRate = 0, discountPerMonth = 0,
+    monthlyStartDate,
+  } = penaltyInfo;
+
+  const startDateStr = monthlyStartDate
+    ? new Date(monthlyStartDate).toLocaleDateString('ko-KR')
+    : '';
+
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-white w-full max-w-md rounded-3xl shadow-xl p-8 relative flex flex-col items-center">
+        <button onClick={onClose} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+
+        <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mb-6 mt-2">
+          <AlertCircle className="w-8 h-8" />
+        </div>
+
+        <h3 className="text-xl font-black text-slate-900 mb-2 text-center">{title}</h3>
+        <p className="text-sm text-slate-500 font-medium mb-6 text-center leading-relaxed">{description}</p>
+
+        {/* 위약금 상세 계산 */}
+        <div className="w-full bg-slate-50 rounded-2xl border border-slate-200 p-5 mb-6 space-y-3">
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-500 font-medium">연간 결제 금액</span>
+            <span className="text-slate-900 font-bold">{annualFee?.toLocaleString()}원 / {totalMonths}개월</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-500 font-medium">연간 월환산 단가</span>
+            <span className="text-slate-900 font-bold">{annualMonthlyRate?.toLocaleString()}원 / 월</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-500 font-medium">월간 정가</span>
+            <span className="text-slate-900 font-bold">{monthlyFee?.toLocaleString()}원 / 월</span>
+          </div>
+          <div className="h-px bg-slate-100 my-1" />
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-500 font-medium">실 사용 기간</span>
+            <span className="text-slate-900 font-bold">{usedMonths}개월 / {totalMonths}개월</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-500 font-medium">월당 할인받은 금액</span>
+            <span className="text-slate-900 font-bold">{discountPerMonth?.toLocaleString()}원</span>
+          </div>
+          <div className="flex justify-between text-sm text-slate-400">
+            <span className="font-medium">계산식</span>
+            <span className="font-medium">{usedMonths}개월 × {discountPerMonth?.toLocaleString()}원</span>
+          </div>
+          <div className="h-px bg-slate-200 my-2" />
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-slate-500 font-medium">위약금 합계</span>
+            <span className="text-red-600 font-black text-lg">{penalty?.toLocaleString()}원</span>
+          </div>
+          {penalty === 0 && (
+            <p className="text-xs text-emerald-600 font-bold mt-1 text-center">
+              사용 기간이 충분하여 위약금이 없습니다.
+            </p>
+          )}
+          {startDateStr && (
+            <div className="mt-2 bg-blue-50 border border-blue-100 rounded-xl p-3 text-center">
+              <p className="text-xs text-blue-700 font-bold">
+                이번 달 잔여 기간까지 이용 후<br/>
+                <span className="text-sm">{startDateStr}</span>부터 월간 플랜이 적용됩니다.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 w-full">
+          <button
+            disabled={isSubmitting}
+            onClick={onClose}
+            className="py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
+          >
+            취소
+          </button>
+          <button
+            disabled={isSubmitting}
+            onClick={onConfirm}
+            className="py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-600/20 text-sm"
+          >
+            {isSubmitting ? '처리 중...' : penalty > 0 ? confirmLabel : '확인'}
+          </button>
         </div>
       </div>
     </div>,

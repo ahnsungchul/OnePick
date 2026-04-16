@@ -142,9 +142,9 @@ export default function ExpertHomeStatsBadges({
               <FileText className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-500 mb-0.5">고객이 보낸</p>
+              <p className="text-xs font-bold text-slate-500 mb-0.5">1:1받은 견적</p>
               <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                1:1 견적요청
+                받은 요청
               </h3>
             </div>
           </div>

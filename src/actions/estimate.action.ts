@@ -818,6 +818,10 @@ export async function getLocalRequestsForExpertAction(expertId: number) {
         status: { in: ["PENDING", "BIDDING"] },
         isClosed: false,
         OR: locationFilters,
+        // 본인이 이미 참여(입찰/견적 제출)한 요청은 제외
+        bids: {
+          none: { expertId: expertId },
+        },
         ...categoryFilter,
       },
       include: {
