@@ -154,12 +154,14 @@ export default function MyExpertsPage() {
                 <span className="truncate">{expert.regions?.[0] || '지역 미지정'}</span>
               </div>
 
-              <Link 
+              <a
                 href={`/expert/dashboard?userId=${expert.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="block w-full py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors"
               >
                 자세히 보기
-              </Link>
+              </a>
             </div>
           ))}
           

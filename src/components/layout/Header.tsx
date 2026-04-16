@@ -12,7 +12,7 @@ function HeaderContent() {
   const pathname = usePathname() || '';
   const searchParams = useSearchParams();
   const { data: session } = useSession();
-  const isExpertPath = pathname.startsWith('/expert');
+  const isExpertPath = pathname.startsWith('/expert') && !pathname.startsWith('/expert-search');
   const paramUserId = searchParams.get('userId');
 
   let isOwner = true;

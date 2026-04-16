@@ -31,7 +31,7 @@ export const authConfig = {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
       const isUserPage = nextUrl.pathname.startsWith('/user');
-      const isExpertPage = nextUrl.pathname.startsWith('/expert');
+      const isExpertPage = nextUrl.pathname.startsWith('/expert') && !nextUrl.pathname.startsWith('/expert-search');
       const isExpertDashboard = nextUrl.pathname === '/expert/dashboard';
       const isExpertPortfolio = nextUrl.pathname.startsWith('/expert/portfolio');
       

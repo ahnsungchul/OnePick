@@ -750,9 +750,9 @@ export async function getUrgentHistoryAction(userId: number) {
       },
       include: {
         category: true,
-        // 해당 견적의 URGENT 결제 내역 조인
+        // 해당 견적의 URGENT 결제 내역 조인 (paymentType: URGENT_REQUEST 또는 URGENT)
         payments: {
-          where: { paymentType: "URGENT", status: "PAID" },
+          where: { paymentType: { in: ["URGENT_REQUEST", "URGENT"] }, status: "PAID" },
           select: { amount: true, status: true, paymentDate: true },
           take: 1,
         },

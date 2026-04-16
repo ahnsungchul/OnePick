@@ -158,6 +158,93 @@ export async function updateExpertProfileAction(userId: number, introduction: st
 }
 
 /**
+ * 전문가찾기 - 지역 / 분야 필터 검색
+ */
+export async function getSearchExpertsAction({
+  province,
+  city,
+  category,
+}: {
+  province?: string;
+  city?: string;
+  category?: string;
+} = {}) {
+  try {
+    const experts = await prisma.user.findMany({
+      where: {
+        role: { in: ['EXPERT', 'BOTH'] },
+        ...(category && category !== '전체' ? {
+          specialties: { some: { name: category } }
+        } : {}),
+      },
+      include: {
+        profile: true,
+        specialties: true,
+        bids: {
+          where: { estimate: { status: 'COMPLETED' } },
+          select: { id: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const formatCareer = (career: string | null): string => {
+      if (!career || career === '경력 미입력' || career === '신입') return career || '신입';
+      const yearMatch = career.match(/(\d{4})년/);
+      const monthMatch = career.match(/(\d{1,2})월/);
+      if (yearMatch) {
+        const year = parseInt(yearMatch[1], 10);
+        const month = monthMatch ? parseInt(monthMatch[1], 10) : 1;
+        const now = new Date();
+        const monthsDiff = (now.getFullYear() - year) * 12 + (now.getMonth() + 1 - month);
+        const yearOfExp = monthsDiff >= 0 ? Math.floor(monthsDiff / 12) + 1 : 1;
+        return `경력 ${yearOfExp}년`;
+      }
+      return career;
+    };
+
+    const formatted = experts.map((expert: any) => {
+      const allCategoryNames: string[] = expert.specialties?.map((s: any) => s.name) || [];
+      const regions: string[] = expert.regions || [];
+
+      // 지역 필터 (users 테이블의 regions 배열 기준)
+      if (province && province !== '전국') {
+        const matchProvince = regions.some((r: string) => r.includes(province));
+        if (!matchProvince) return null;
+        if (city && city !== '전체') {
+          const matchCity = regions.some((r: string) => r.includes(city));
+          if (!matchCity) return null;
+        }
+      }
+
+      return {
+        id: expert.id,
+        name: expert.name,
+        specialty: allCategoryNames.join(', ') || '전문 서비스',
+        categories: allCategoryNames,
+        regions,
+        career: formatCareer(expert.career),
+        grade: expert.grade,
+        rating: expert.profile?.rating ?? 0,
+        reviews: expert.profile?.reviewCount ?? 0,
+        completedServices: expert.bids?.length ?? 0,
+        image: expert.image || `https://picsum.photos/seed/${expert.id}/200/200`,
+        introduction: expert.profile?.introduction || '',
+      };
+    }).filter(Boolean);
+
+    // 평점 내림차순 정렬
+    formatted.sort((a: any, b: any) => b.rating - a.rating);
+
+    return { success: true, data: formatted };
+  } catch (error: any) {
+    console.error('getSearchExpertsAction error:', error);
+    return { success: false, error: error.message, data: [] };
+  }
+}
+
+
+/**
  * 추천 전문가 목록을 가져옵니다 (role이 EXPERT 또는 BOTH).
  */
 export async function getRecommendedExpertsAction() {

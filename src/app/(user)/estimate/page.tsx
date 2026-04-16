@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { 
   Search, 
@@ -9,18 +9,18 @@ import {
   Star, 
   Zap, 
   AlertCircle,
+  FileText,
   Filter,
-  ArrowRight,
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
-import { useEffect } from 'react';
 import { getEstimatesAction } from '@/actions/estimate.action';
 import { getRecommendedExpertsAction } from '@/actions/expert.action';
 import { maskName, formatCategory, calculateDDay } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 import { toggleBookmarkAction, getMyBookmarkIdsAction } from '@/actions/bookmark.action';
 import { getCategoriesAction } from '@/actions/category.action';
+import MapEstimateFullModal from '@/components/expert/MapEstimateFullModal';
 
 // --- Mock Data ---
 
@@ -73,14 +73,21 @@ export default function EstimateListPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [estimates, setEstimates] = useState<any[]>([]);
   const [topExperts, setTopExperts] = useState<any[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(12);
   const [isFilterOpen, setIsFilterOpen] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showOnlyApplicable, setShowOnlyApplicable] = useState(false);
+  const [modalEstimateId, setModalEstimateId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  // 지원가능 요청만 항상 표시 (고정)
   const { data: session } = useSession();
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const isExpert = session?.user && ((session.user as any).role === 'EXPERT' || (session.user as any).role === 'BOTH');
-  const itemsPerPage = 5;
+  const STEP = 12;
+
+  const handleCardClick = (id: string) => {
+    setModalEstimateId(id);
+    setIsModalOpen(true);
+  };
 
   useEffect(() => {
     setIsMounted(true);
@@ -147,7 +154,8 @@ export default function EstimateListPage() {
   const normalRequests = useMemo(() => {
     let filtered = estimates;
     
-    if (showOnlyApplicable && isExpert) {
+    // 전문가는 항상 지원가능한 요청만 표시
+    if (isExpert) {
       filtered = filtered.filter(req => {
         const isBiddableStatus = req.status === 'PENDING' || req.status === 'BIDDING';
         const ddayResult = calculateDDay(req.createdAt, req.isClosed, req.extendedDays);
@@ -169,22 +177,129 @@ export default function EstimateListPage() {
 
     // 최신순 정렬 (날짜 내림차순)
     return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [selectedCategory, selectedProvince, selectedCity, showOnlyApplicable, estimates, isExpert, session]);
+  }, [selectedCategory, selectedProvince, selectedCity, estimates, isExpert, session]);
 
-  // 페이징 계산
-  const totalPages = Math.max(1, Math.ceil(normalRequests.length / itemsPerPage));
-  const currentNormalRequests = normalRequests.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // 더보기 - 보여줄 목록 계산
+  const visibleRequests = normalRequests.slice(0, visibleCount);
+  const hasMore = normalRequests.length > visibleCount;
 
-  // 필터 변경시 페이지 1로 초기화
+  // 필터 변경 시 visibleCount 초기화
   useEffect(() => {
-    setCurrentPage(1);
+    setVisibleCount(12);
   }, [selectedCategory, selectedProvince, selectedCity]);
 
   // 화면 제목에 쓰일 지역 튜플
   const displayRegionText = selectedProvince === '전국' ? '전국' : (selectedCity === '전체' ? selectedProvince : `${selectedProvince} ${selectedCity}`);
+
+  // ── 긴급 요청 슬라이드 로직 ──
+  const ITEMS_PER_PAGE = 8; // 4개 x 2줄
+  const SLIDE_THRESHOLD = 9; // 9개 이상일 때 슬라이드 활성화
+  const SLIDE_INTERVAL = 3000; // 3초
+
+  const totalUrgentPages = Math.ceil(urgentRequests.length / ITEMS_PER_PAGE);
+  const enableUrgentSlide = urgentRequests.length >= SLIDE_THRESHOLD;
+  const [urgentPage, setUrgentPage] = useState(0);
+  const [isUrgentPaused, setIsUrgentPaused] = useState(false);
+  const urgentTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const urgentTrackRef = useRef<HTMLDivElement | null>(null);
+  const [urgentSlideHeight, setUrgentSlideHeight] = useState<number | undefined>(undefined);
+
+  // 첫 번째 슬라이드(풀 8개) 렌더링 시 높이 측정 → 모든 슬라이드에 동일 적용
+  useEffect(() => {
+    if (!enableUrgentSlide) { setUrgentSlideHeight(undefined); return; }
+    requestAnimationFrame(() => {
+      if (urgentTrackRef.current) {
+        const firstPage = urgentTrackRef.current.querySelector<HTMLElement>('[data-urgent-page]');
+        if (firstPage) {
+          const h = firstPage.offsetHeight;
+          if (h > 0) setUrgentSlideHeight(h);
+        }
+      }
+    });
+  }, [enableUrgentSlide, urgentRequests.length]);
+
+  // 슬라이드 자동 롤링
+  useEffect(() => {
+    if (!enableUrgentSlide || isUrgentPaused) {
+      if (urgentTimerRef.current) clearInterval(urgentTimerRef.current);
+      return;
+    }
+    urgentTimerRef.current = setInterval(() => {
+      setUrgentPage(prev => (prev + 1) % totalUrgentPages);
+    }, SLIDE_INTERVAL);
+    return () => { if (urgentTimerRef.current) clearInterval(urgentTimerRef.current); };
+  }, [enableUrgentSlide, isUrgentPaused, totalUrgentPages]);
+
+  // 필터 변경 시 슬라이드 페이지 초기화
+  useEffect(() => {
+    setUrgentPage(0);
+  }, [selectedCategory, selectedProvince, selectedCity]);
+
+  // 페이지별 아이템 분할
+  const urgentPages = useMemo(() => {
+    if (!enableUrgentSlide) return [urgentRequests];
+    const pages: typeof urgentRequests[] = [];
+    for (let i = 0; i < urgentRequests.length; i += ITEMS_PER_PAGE) {
+      pages.push(urgentRequests.slice(i, i + ITEMS_PER_PAGE));
+    }
+    return pages;
+  }, [urgentRequests, enableUrgentSlide]);
+
+  // ── 마우스 드래그 & 터치 스와이프 ──
+  const dragStartX = useRef(0);
+  const dragDeltaX = useRef(0);
+  const isDragging = useRef(false);
+  const [dragOffset, setDragOffset] = useState(0);
+
+  const handleDragStart = useCallback((clientX: number) => {
+    if (!enableUrgentSlide) return;
+    isDragging.current = true;
+    dragStartX.current = clientX;
+    dragDeltaX.current = 0;
+    setIsUrgentPaused(true);
+  }, [enableUrgentSlide]);
+
+  const handleDragMove = useCallback((clientX: number) => {
+    if (!isDragging.current) return;
+    dragDeltaX.current = clientX - dragStartX.current;
+    setDragOffset(dragDeltaX.current);
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    const threshold = 60;
+    if (dragDeltaX.current < -threshold) {
+      setUrgentPage(prev => Math.min(prev + 1, totalUrgentPages - 1));
+    } else if (dragDeltaX.current > threshold) {
+      setUrgentPage(prev => Math.max(prev - 1, 0));
+    }
+    setDragOffset(0);
+    dragDeltaX.current = 0;
+    setIsUrgentPaused(false);
+  }, [totalUrgentPages]);
+
+  // 마우스 이벤트
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    handleDragStart(e.clientX);
+  }, [handleDragStart]);
+  const onMouseMove = useCallback((e: React.MouseEvent) => {
+    handleDragMove(e.clientX);
+  }, [handleDragMove]);
+  const onMouseUp = useCallback(() => handleDragEnd(), [handleDragEnd]);
+  const onMouseLeave = useCallback(() => {
+    if (isDragging.current) handleDragEnd();
+    setIsUrgentPaused(false);
+  }, [handleDragEnd]);
+
+  // 터치 이벤트
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    handleDragStart(e.touches[0].clientX);
+  }, [handleDragStart]);
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    handleDragMove(e.touches[0].clientX);
+  }, [handleDragMove]);
+  const onTouchEnd = useCallback(() => handleDragEnd(), [handleDragEnd]);
 
   // 새 견적요청 권한 체크
   const handleNewEstimateClick = async (e: React.MouseEvent) => {
@@ -343,61 +458,22 @@ export default function EstimateListPage() {
 
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-12">
         
-        {/* 추천 전문가 영역 (메인과 유사) */}
-        {filteredExperts.length > 0 && (
-          <section>
-            <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-3">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-                <h2 className="text-xl font-bold flex items-center gap-2 text-slate-900">
-                  추천 전문가 <Star className="w-5 h-5 text-amber-400 fill-current" />
-                </h2>
-                <div className="hidden sm:block w-px h-3 bg-slate-200" />
-                <p className="text-sm text-slate-500">{displayRegionText} 지역의 평점 높은 전문가님들입니다.</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {filteredExperts.slice(0, 4).map(expert => (
-                <div key={expert.id} className="relative bg-white rounded-2xl border border-slate-100 p-5 pt-7 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5 transition-all text-center group">
-                  <div className="absolute top-3 left-3 flex items-center bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 max-w-[50%]">
-                    <span className="font-bold text-[10px] text-blue-700 truncate">{expert.career || '경력 미입력'}</span>
-                  </div>
-                  <div className="absolute top-3 right-3 flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100/50 z-10">
-                    <Star className="w-3.5 h-3.5 text-amber-500 fill-current" />
-                    <span className="font-bold text-xs text-amber-700">{Number(expert.rating || 0).toFixed(1)}</span>
-                    <span className="text-amber-600/50 text-[10px]">({expert.reviews || 0})</span>
-                  </div>
-                  <div className="w-16 h-16 rounded-full overflow-hidden mx-auto mb-3 border border-slate-100 group-hover:scale-105 transition-transform duration-300">
-                    <img src={expert.image} alt={expert.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  </div>
-                  <h5 className="font-bold text-slate-900 mb-1">{expert.name}</h5>
-                  <p className="text-slate-500 text-xs mb-4">{expert.specialty}</p>
-                  <button 
-                    onClick={() => {
-                      const width = 1400;
-                      const height = 900;
-                      const left = (window.screen.width / 2) - (width / 2);
-                      const top = (window.screen.height / 2) - (height / 2);
-                      window.open(
-                        `/expert/dashboard?userId=${expert.id}`, 
-                        'ExpertDashboard', 
-                        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-                      );
-                    }}
-                    className="w-full text-xs font-bold bg-blue-50 text-blue-600 py-2.5 rounded-xl hover:bg-blue-600 hover:text-white transition-all"
-                  >
-                    프로필 보기
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
 
         <section>
-          {/* 긴급 요청 (랜덤 노출) */}
+          {/* 긴급 요청 (슬라이드) */}
           {urgentRequests.length > 0 && (
-            <div className="mb-10 bg-slate-900 rounded-3xl p-8 -mx-4 sm:mx-0 shadow-lg">
-              <div className="flex items-center justify-between mb-6">
+            <div
+              className="mb-10 bg-slate-900 rounded-3xl p-6 sm:p-8 -mx-4 sm:mx-0 shadow-lg select-none"
+              onMouseEnter={() => { if (!isDragging.current) setIsUrgentPaused(true); }}
+              onMouseLeave={onMouseLeave}
+              onMouseDown={enableUrgentSlide ? onMouseDown : undefined}
+              onMouseMove={enableUrgentSlide ? onMouseMove : undefined}
+              onMouseUp={enableUrgentSlide ? onMouseUp : undefined}
+              onTouchStart={enableUrgentSlide ? onTouchStart : undefined}
+              onTouchMove={enableUrgentSlide ? onTouchMove : undefined}
+              onTouchEnd={enableUrgentSlide ? onTouchEnd : undefined}
+            >
+              <div className="flex items-center justify-between mb-5">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                   <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                     긴급 견적 요청
@@ -406,216 +482,240 @@ export default function EstimateListPage() {
                   <p className="text-slate-400">오늘 바로 해결이 필요한 긴급 수리 요청입니다</p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {urgentRequests.map(req => (
-                  <Link 
-                    href={`/estimate/${req.id}?cat=${selectedCategory}&prv=${selectedProvince}&cit=${selectedCity}`} 
-                    key={req.id}
-                  >
-                    <div className={`relative ${calculateDDay(req.createdAt, req.isClosed, req.extendedDays).label === '요청 마감' ? 'bg-slate-100' : 'bg-white'} p-6 rounded-2xl shadow-sm transition-all flex flex-col justify-between group cursor-pointer h-full overflow-hidden`}>
-                      <span className="text-[10px] px-8 pt-2 pb-1 font-bold uppercase bg-orange-500 text-white absolute top-0 left-0 rotate-[-45deg] translate-x-[-28px] translate-y-[0px]">
-                        긴급
-                      </span>
-                      <div className="absolute top-4 right-4 flex items-center gap-2">
-                        <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${statusMap[req.status]?.color || statusMap['PENDING'].color}`}>
-                          {statusMap[req.status]?.label || '매칭중'}
-                        </span>
-                        <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-slate-100 text-slate-600">
-                          {req.bids?.length || 0}명 참여
-                        </span>
-                        {(req.status === 'PENDING' || req.status === 'BIDDING') && (
-                          <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${calculateDDay(req.createdAt, req.isClosed, req.extendedDays).isUrgent ? 'bg-red-500 text-white' : 'bg-slate-700 text-white'}`}>
-                            {calculateDDay(req.createdAt, req.isClosed, req.extendedDays).label}
-                          </span>
-                        )}
-                        {isExpert && (
-                          <button
-                            onClick={(e) => handleToggleBookmark(e, req.id)}
-                            className={`p-1.5 rounded-full transition-all border ${
-                              bookmarkedIds.includes(req.id)
-                                ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
-                                : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100 hover:text-slate-600'
-                            }`}
-                            title="즐겨찾기"
-                          >
-                            <Star className={`w-3.5 h-3.5 ${bookmarkedIds.includes(req.id) ? 'fill-current' : ''}`} />
-                          </button>
-                        )}
-                      </div>
-                      <div className="mt-8 text-left">
-                        <div className="mb-4 flex items-center gap-2">
-                          <span className="text-[10px] px-2 py-1 rounded-md font-bold bg-slate-50 text-slate-400 border border-slate-100">
-                            No. {req.requestNumber}
-                          </span>
-                          <span className="text-[10px] px-2 py-1 rounded-full font-bold bg-slate-100 text-slate-600">
-                            {formatCategory(req.category)}
-                          </span>
-                        </div>
-                        <h4 className="text-lg font-bold mb-1 group-hover:text-blue-600 transition-colors text-slate-900 line-clamp-1">
-                          {formatCategory(req.category)} 요청
-                        </h4>
-                        <p className="text-slate-500 text-sm mb-4 line-clamp-1">{req.details}</p>
-                        <p className="text-slate-400 text-xs mb-6 flex items-center gap-1"><MapPin className="w-3 h-3" /> {req.location.split(' ').slice(0, 3).join(' ')} • 빠른 방문 요망</p>
-                      </div>
-                      <div className="flex items-center justify-between pt-4 border-t border-slate-50 mt-auto">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500">
-                            {(req.authorName || req.customer?.name || "고객").charAt(0)}
+              {/* 슬라이드 트랙 */}
+              <div className="overflow-hidden" ref={urgentTrackRef}>
+                <div
+                  className="flex"
+                  style={{
+                    transform: enableUrgentSlide
+                      ? `translateX(calc(-${urgentPage * 100}% + ${dragOffset}px))`
+                      : undefined,
+                    transition: dragOffset !== 0 ? 'none' : 'transform 0.45s cubic-bezier(0.4,0,0.2,1)',
+                  }}
+                >
+                  {urgentPages.map((pageItems, pageIdx) => (
+                    <div
+                      key={pageIdx}
+                      data-urgent-page
+                      className="w-full flex-shrink-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 lg:grid-rows-2 gap-4 content-start"
+                      style={enableUrgentSlide && urgentSlideHeight ? { minHeight: urgentSlideHeight } : undefined}
+                    >
+                      {pageItems.map(req => (
+                        <div
+                          key={req.id}
+                          onClick={() => { if (Math.abs(dragDeltaX.current) < 5) handleCardClick(req.id); }}
+                          className="cursor-pointer"
+                        >
+                          <div className={`relative ${calculateDDay(req.createdAt, req.isClosed, req.extendedDays).label === '요청 마감' ? 'bg-slate-100' : 'bg-white'} p-4 rounded-2xl shadow-sm transition-all flex flex-col justify-between group h-full overflow-hidden`}>
+                            <span className="text-[10px] px-8 pt-2 pb-1 font-bold uppercase bg-orange-500 text-white absolute top-0 left-0 rotate-[-45deg] translate-x-[-28px] translate-y-[0px]">
+                              긴급
+                            </span>
+                            <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${statusMap[req.status]?.color || statusMap['PENDING'].color}`}>
+                                {statusMap[req.status]?.label || '매칭중'}
+                              </span>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                                {req.bids?.length || 0}명 참여
+                              </span>
+                              {(req.status === 'PENDING' || req.status === 'BIDDING') && (
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${calculateDDay(req.createdAt, req.isClosed, req.extendedDays).isUrgent ? 'bg-red-500 text-white' : 'bg-slate-700 text-white'}`}>
+                                  {calculateDDay(req.createdAt, req.isClosed, req.extendedDays).label}
+                                </span>
+                              )}
+                              {isExpert && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleToggleBookmark(e, req.id); }}
+                                  className={`p-1 rounded-full transition-all border ${
+                                    bookmarkedIds.includes(req.id)
+                                      ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
+                                      : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100 hover:text-slate-600'
+                                  }`}
+                                  title="즐겨찾기"
+                                >
+                                  <Star className={`w-3 h-3 ${bookmarkedIds.includes(req.id) ? 'fill-current' : ''}`} />
+                                </button>
+                              )}
+                            </div>
+                            <div className="mt-6 text-left">
+                              <div className="mb-3 flex items-center gap-2">
+                                <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-slate-50 text-slate-400 border border-slate-100">
+                                  No. {req.requestNumber}
+                                </span>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-600">
+                                  {formatCategory(req.category)}
+                                </span>
+                              </div>
+                              <h4 className="text-base font-bold mb-1 group-hover:text-blue-600 transition-colors text-slate-900 line-clamp-1">
+                                {formatCategory(req.category)} 요청
+                              </h4>
+                              <p className="text-slate-500 text-sm mb-3 line-clamp-1">{req.details}</p>
+                              <p className="text-slate-400 text-xs mb-4 flex items-center gap-1"><MapPin className="w-3 h-3" /> {req.location.split(' ').slice(0, 3).join(' ')} • 빠른 방문 요망</p>
+                            </div>
+                            <div className="flex items-center justify-between pt-3 border-t border-slate-50 mt-auto">
+                              <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500">
+                                  {(req.authorName || req.customer?.name || "고객").charAt(0)}
+                                </div>
+                                <span className="text-xs font-medium text-slate-500">{maskName(req.authorName || req.customer?.name)}님</span>
+                              </div>
+                              <span className="font-bold text-sm text-blue-500">견적 협의</span>
+                            </div>
                           </div>
-                          <span className="text-xs font-medium text-slate-500">{maskName(req.authorName || req.customer?.name)}님</span>
                         </div>
-                        <span className="font-bold text-blue-500">견적 협의</span>
-                      </div>
+                      ))}
                     </div>
-                  </Link>
-                ))}
+                  ))}
+                </div>
               </div>
+              {/* 페이징 도트 (슬라이드 활성화 시에만 표시) */}
+              {enableUrgentSlide && totalUrgentPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-5">
+                  {Array.from({ length: totalUrgentPages }).map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setUrgentPage(idx)}
+                      className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                        idx === urgentPage
+                          ? 'bg-white scale-110'
+                          : 'bg-white/30 hover:bg-white/50'
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {/* 일반 요청 (최신순) */}
           <div className="pt-8 sm:pt-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <h2 className="text-xl font-bold text-slate-900">최신 견적 요청</h2>
-                <span className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full">{normalRequests.length}건의 요청</span>
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-blue-600" />
+                  최신 견적 요청
+                </h2>
+                <span className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                  {normalRequests.length}건
+                </span>
               </div>
-              
-              {isExpert && (
-                <label className="flex items-center gap-2 cursor-pointer group select-none bg-white border border-slate-200 px-4 py-2 rounded-xl hover:border-blue-300 hover:bg-blue-50/30 transition-all">
-                  <div className="relative flex items-center justify-center">
-                    <input 
-                      type="checkbox" 
-                      className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:bg-blue-600 checked:border-blue-600 transition-colors cursor-pointer"
-                      checked={showOnlyApplicable}
-                      onChange={(e) => setShowOnlyApplicable(e.target.checked)}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                    </div>
-                  </div>
-                  <span className="text-sm font-bold text-slate-600 group-hover:text-blue-700 transition-colors">지원가능 요청 보기</span>
-                </label>
-              )}
+              <span className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full hidden sm:block">
+                {displayRegionText} · {selectedCategory !== '전체' ? selectedCategory : '전체 분야'}
+              </span>
             </div>
             
             {normalRequests.length > 0 ? (
-              <div className="flex flex-col">
-                {currentNormalRequests.map(req => (
-                  <Link 
-                    href={`/estimate/${req.id}?cat=${selectedCategory}&prv=${selectedProvince}&cit=${selectedCity}`} 
-                    key={req.id} 
-                    className="block my-[5px]"
-                  >
-                    <div className={`relative ${calculateDDay(req.createdAt, req.isClosed, req.extendedDays).label === '요청 마감' ? 'bg-slate-100' : 'bg-white'} p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 transition-colors flex flex-col sm:flex-row justify-between gap-4 group cursor-pointer items-stretch h-full overflow-hidden`}>
-                          {req.isUrgent && (
-                            <span className="text-[10px] font-bold text-white bg-orange-500 px-8 py-0.5 uppercase absolute top-0 left-0 rotate-[-45deg] translate-x-[-24px] translate-y-[8px]">
-                              긴급
+              <div className="flex flex-col gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {visibleRequests.map(req => {
+                    const dday = calculateDDay(req.createdAt, req.isClosed, req.extendedDays);
+                    const isExpired = dday.label === '요청 마감';
+                    return (
+                      <div
+                        key={req.id}
+                        onClick={() => handleCardClick(req.id)}
+                        className="cursor-pointer"
+                      >
+                        <div className={`group text-left border rounded-2xl p-4 hover:border-blue-300 hover:shadow-lg hover:shadow-blue-600/5 transition-all duration-300 hover:-translate-y-0.5 relative overflow-hidden flex flex-col gap-2 h-full ${isExpired ? 'bg-slate-50 border-slate-100' : 'bg-white border-slate-200'}`}>
+                          {/* 호버 좌측 액센트 */}
+                          <div className="absolute left-0 top-0 w-[3px] h-full bg-blue-500 scale-y-0 group-hover:scale-y-100 origin-top transition-transform duration-300" />
+
+                          {/* 배지 영역 */}
+                          <div className="flex items-center gap-1.5 flex-wrap pl-1 pr-10">
+                            {req.isUrgent && (
+                              <span className="inline-flex items-center gap-0.5 bg-red-600 text-white px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                <Zap className="w-3 h-3 fill-white" /> 긴급
+                              </span>
+                            )}
+                            <span className="bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                              {formatCategory(req.category)}
                             </span>
+                            {isExpired ? (
+                              <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full text-[10px] font-bold">요청 마감</span>
+                            ) : (
+                              (req.status === 'PENDING' || req.status === 'BIDDING') && (
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${dday.isUrgent ? 'bg-red-500 text-white animate-pulse' : 'bg-slate-700 text-white'}`}>
+                                  {dday.label}
+                                </span>
+                              )
+                            )}
+                          </div>
+
+                          {/* 북마크 버튼 */}
+                          {isExpert && (
+                            <button
+                              onClick={(e) => handleToggleBookmark(e, req.id)}
+                              className={`absolute top-3 right-3 p-1.5 rounded-full transition-all border z-10 ${bookmarkedIds.includes(req.id) ? 'bg-amber-500 text-white border-amber-600 shadow-sm' : 'bg-slate-50 text-slate-300 border-slate-200 hover:border-slate-300 hover:text-slate-400'}`}
+                              title="즐겨찾기"
+                            >
+                              <Star className={`w-3.5 h-3.5 ${bookmarkedIds.includes(req.id) ? 'fill-current' : ''}`} />
+                            </button>
                           )}
-                       <div className="absolute top-4 right-4 flex items-center gap-2">
-                        <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${statusMap[req.status]?.color || statusMap['PENDING'].color}`}>
-                          {statusMap[req.status]?.label || '매칭중'}
-                        </span>
-                        <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-slate-100 text-slate-600">
-                          {req.bids?.length || 0}명 참여
-                        </span>
-                        {(req.status === 'PENDING' || req.status === 'BIDDING') && (
-                          <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${calculateDDay(req.createdAt, req.isClosed, req.extendedDays).isUrgent ? 'bg-red-500 text-white' : 'bg-slate-700 text-white'}`}>
-                            {calculateDDay(req.createdAt, req.isClosed, req.extendedDays).label}
-                          </span>
-                        )}
-                        {isExpert && (
-                          <button
-                            onClick={(e) => handleToggleBookmark(e, req.id)}
-                            className={`p-1.5 rounded-full transition-all border ${
-                              bookmarkedIds.includes(req.id)
-                                ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
-                                : 'bg-slate-50 text-slate-300 border-slate-200 hover:border-slate-300 hover:text-slate-400'
-                            }`}
-                            title="즐겨찾기"
-                          >
-                            <Star className={`w-3.5 h-3.5 ${bookmarkedIds.includes(req.id) ? 'fill-current' : ''}`} />
-                          </button>
-                        )}
-                      </div>
-                      <div className="flex-1 mt-4 sm:mt-0 text-left">
-                        <div className="flex items-center gap-2 mb-2 pr-12">
-                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-slate-50 text-slate-400 border border-slate-100">
-                            No. {req.requestNumber}
-                          </span>
-                          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
-                            {formatCategory(req.category)}
-                          </span>
-                          <span className="hidden sm:inline-block text-xs text-slate-400">
-                            {new Date(req.createdAt).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3 mb-2 pr-12">
-                          <h4 className="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors shrink-0">
+
+                          {/* 요청 제목 */}
+                          <h4 className="text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors line-clamp-1 pl-1">
                             {formatCategory(req.category)} 요청
                           </h4>
-                          <div className="w-px h-3 bg-slate-200 shrink-0 hidden sm:block" />
-                          <p className="text-sm text-slate-500 line-clamp-1">
-                            {req.details}
+
+                          {/* 요청 내용 요약 */}
+                          <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed pl-1 flex-1">
+                            {req.details || '상세 내용을 확인하려면 클릭하세요.'}
                           </p>
-                        </div>
-                        <div className="flex items-center gap-4 text-xs text-slate-500">
-                          <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {req.location.split(' ').slice(0, 3).join(' ')}</span>
-                          <div className="flex items-center gap-1">
-                            <div className="w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center text-[8px] font-bold">{(req.authorName || req.customer?.name || "고객").charAt(0)}</div>
-                            {maskName(req.authorName || req.customer?.name)}님
+
+                          {/* 하단 정보 */}
+                          <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-50 pl-1">
+                            <div className="flex items-center gap-1 text-[11px] text-slate-500 font-medium">
+                              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span className="truncate max-w-[110px]">
+                                {req.location ? req.location.split(' ').slice(0, 3).join(' ') : '-'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              {(req.bids?.length > 0) && (
+                                <div className="flex items-center gap-0.5 text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-100">
+                                  <ChevronRight className="w-2.5 h-2.5" />
+                                  {req.bids.length}명
+                                </div>
+                              )}
+                              <span className="text-[10px] text-slate-300 font-bold">
+                                {req.createdAt ? new Date(req.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : ''}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                      <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-end shrink-0 border-t sm:border-t-0 mt-3 sm:mt-auto pt-3 sm:pt-0 border-slate-100 h-full gap-2">
-                        <div className="text-sm font-bold text-slate-900">견적 협의</div>
-                        <div className="text-xs font-bold text-blue-600 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                          자세히 보기 <ArrowRight className="w-3 h-3" />
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
+                    );
+                  })}
+                </div>
 
-                {/* 페이징 UI */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2 mt-8 pt-4">
-                    <button 
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1 rounded-md text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                {/* 더보기 버튼 */}
+                {hasMore && (
+                  <div className="flex flex-col items-center gap-2 pt-2">
+                    <button
+                      onClick={() => setVisibleCount(c => c + STEP)}
+                      className="flex items-center gap-2 px-8 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-bold text-sm hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-all active:scale-[0.98] shadow-sm"
                     >
-                      이전
+                      <ChevronRight className="w-4 h-4 rotate-90" />
+                      더보기
+                      <span className="text-xs font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                        {normalRequests.length - visibleCount}건 남음
+                      </span>
                     </button>
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: totalPages }).map((_, i) => (
-                        <button
-                          key={i}
-                          onClick={() => setCurrentPage(i + 1)}
-                          className={`w-8 h-8 rounded-md text-sm font-medium transition-colors ${
-                            currentPage === i + 1
-                            ? 'bg-blue-600 text-white'
-                            : 'text-slate-600 hover:bg-slate-100'
-                          }`}
-                        >
-                          {i + 1}
-                        </button>
-                      ))}
-                    </div>
-                    <button 
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1 rounded-md text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      다음
-                    </button>
+                    <p className="text-xs text-slate-400 font-medium">
+                      {visibleCount}건 / 총 {normalRequests.length}건
+                    </p>
                   </div>
+                )}
+
+                {/* 모두 로드됐을 때 */}
+                {!hasMore && normalRequests.length > STEP && (
+                  <p className="text-center text-xs text-slate-400 font-medium pt-2">
+                    모든 요청을 확인했습니다. (총 {normalRequests.length}건)
+                  </p>
                 )}
               </div>
             ) : (
               <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-500">
-                선택한 조건에 맞는 일반 견적 요청이 없습니다.<br/>
+                선택한 조건에 맞는 견적 요청이 없습니다.<br/>
                 다른 지역이나 분야를 선택해보세요.
               </div>
             )}
@@ -623,6 +723,17 @@ export default function EstimateListPage() {
         </section>
 
       </div>
+
+
+      {/* 요청 상세 모달 */}
+      <MapEstimateFullModal
+        isOpen={isModalOpen}
+        estimateId={modalEstimateId}
+        onClose={() => {
+          setIsModalOpen(false);
+          setModalEstimateId(null);
+        }}
+      />
 
       {/* 로그인/회원가입 유도 모달 */}
       {showAuthModal && (

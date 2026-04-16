@@ -47,7 +47,7 @@ export default function HeaderAuthGroup() {
                 }}
                 className={cn(
                   "hover:text-blue-600 transition-colors font-bold", 
-                  pathname.startsWith('/expert') ? "text-blue-600" : "text-slate-500"
+                  pathname.startsWith('/expert') && !pathname.startsWith('/expert-search') ? "text-blue-600" : "text-slate-500"
                 )}
               >
                 전문가홈
