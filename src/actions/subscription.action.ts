@@ -4,9 +4,11 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { getSystemConfig } from "@/actions/systemConfig.action";
+import { unstable_noStore as noStore } from "next/cache";
 import { v4 as uuidv4 } from "uuid";
 
 export async function getSubscriptionInfoAction(expertId: number) {
+  noStore();
   try {
     const user = await prisma.user.findUnique({
       where: { id: expertId },
@@ -14,17 +16,19 @@ export async function getSubscriptionInfoAction(expertId: number) {
         subscriptionPlan: true,
         subscriptionDate: true,
         subscriptionEndDate: true,
-      }
+        subscriptionBillingCycle: true,
+      } as any
     });
 
     if (!user) {
       return { success: false, error: "사용자를 찾을 수 없습니다." };
     }
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       data: {
         plan: user.subscriptionPlan,
+        billingCycle: (user as any).subscriptionBillingCycle || "MONTHLY",
         startDate: user.subscriptionDate,
         endDate: user.subscriptionEndDate
       }
@@ -39,6 +43,7 @@ export async function getSubscriptionInfoAction(expertId: number) {
  * 현재 활성화된 빌링키(정기결제 카드) 조회
  */
 export async function getActiveBillingKeyAction(expertId: number) {
+  noStore();
   try {
     const billingKey = await prisma.billingKey.findFirst({
       where: {
@@ -163,24 +168,45 @@ export async function deleteBillingKeyAction(expertId: number) {
   }
 }
 
-export async function subscribeToBasicAction(expertId: number) {
+export async function subscribeToBasicAction(
+  expertId: number,
+  billingCycle: "MONTHLY" | "ANNUAL" = "MONTHLY"
+) {
   try {
     const session = await auth();
     if (!session?.user?.id || Number(session.user.id) !== expertId) {
       return { success: false, error: "권한이 없습니다." };
     }
 
-    const today = new Date();
-    const nextMonth = new Date(today);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    const isAnnual = billingCycle === "ANNUAL";
+    const planName = isAnnual ? "BASIC_ANNUAL" : "BASIC_MONTHLY";
 
+    // system_configs 에서 동적으로 금액·개월수 조회
+    const monthlyFeeRaw = await getSystemConfig("BASIC_SUBSCRIPTION_FEE", 11000);
+    const annualFeeRaw  = await getSystemConfig("BASIC_ANNUAL_SUBSCRIPTION_FEE", 110000);
+    const annualMonthsRaw = await getSystemConfig("BASIC_ANNUAL_SUBSCRIPTION_MONTHS", 12);
+
+    const monthlyFee    = typeof monthlyFeeRaw === "number" ? monthlyFeeRaw : Number(monthlyFeeRaw);
+    const annualFee     = typeof annualFeeRaw === "number" ? annualFeeRaw : Number(annualFeeRaw);
+    const annualMonths  = typeof annualMonthsRaw === "number" ? annualMonthsRaw : Number(annualMonthsRaw);
+
+    const billingMonths = isAnnual ? annualMonths : 1;
+    const amountToCharge = isAnnual ? annualFee : monthlyFee;
+
+    const today = new Date();
+    const nextPaymentDate = new Date(today);
+    nextPaymentDate.setMonth(nextPaymentDate.getMonth() + billingMonths);
+
+    // 기존 가입 기간이 남았는지 확인 (월간 플랜 재가입시에만 적용)
     const lastPayment = await prisma.paymentHistory.findFirst({
       where: { userId: expertId, paymentType: "SUBSCRIPTION" },
       orderBy: { paymentDate: "desc" }
     });
 
-    const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
-    const isPeriodRemaining = lastPayment && (today.getTime() - lastPayment.paymentDate.getTime() < ONE_MONTH_MS);
+    const lastCoverageMonths = (lastPayment as any)?.billingMonths ?? 1;
+    const coverageMs = lastCoverageMonths * 30 * 24 * 60 * 60 * 1000;
+    const isPeriodRemaining = !isAnnual && lastPayment &&
+      (today.getTime() - lastPayment.paymentDate.getTime() < coverageMs);
 
     if (isPeriodRemaining) {
       await prisma.user.update({
@@ -197,30 +223,43 @@ export async function subscribeToBasicAction(expertId: number) {
       where: { userId: expertId, isActive: true, isDefault: true, issueSucceeded: true, deletedAt: null },
     });
 
+    // 신규 필드(subscriptionBillingCycle / planName / billingCycle / billingMonths)는
+    // 스키마 마이그레이션 직후 prisma generate 재실행 전까지 타입 인식이 늦을 수 있어
+    // data 객체를 as any 로 처리합니다.
     await prisma.user.update({
       where: { id: expertId },
-      data: { subscriptionPlan: "BASIC", subscriptionDate: today, subscriptionEndDate: null }
+      data: {
+        subscriptionPlan: "BASIC",
+        subscriptionDate: today,
+        subscriptionEndDate: null,
+        subscriptionBillingCycle: billingCycle,
+      } as any
     });
-
-    const currentFee = await getSystemConfig("BASIC_SUBSCRIPTION_FEE", 11000);
-    const amountToCharge = typeof currentFee === "number" ? currentFee : Number(currentFee);
 
     await prisma.paymentHistory.create({
       data: {
         userId: expertId,
         paymentType: "SUBSCRIPTION",
+        planName,
+        billingCycle,
+        billingMonths,
         amount: amountToCharge,
         paymentDate: today,
         status: "PAID",
-        nextPaymentDate: nextMonth,
+        nextPaymentDate,
         billingKeyId: activeBillingKey?.id || null,
         pgTransactionId: activeBillingKey ? `MOCK_TXN_${uuidv4()}` : null,
-      }
+      } as any
     });
 
     revalidatePath("/expert/subscription");
     revalidatePath("/expert/requests");
-    return { success: true };
+    return {
+      success: true,
+      message: isAnnual
+        ? `Basic 연간 플랜(${billingMonths}개월) 결제가 완료되었습니다!`
+        : undefined
+    };
   } catch (error: any) {
     console.error("subscribeToBasic error:", error);
     return { success: false, error: "구독 결제 처리 중 오류가 발생했습니다." };
@@ -250,6 +289,7 @@ export async function cancelSubscriptionAction(expertId: number) {
 }
 
 export async function getPaymentHistoryAction(expertId: number) {
+  noStore();
   try {
     const history = await prisma.paymentHistory.findMany({
       where: { userId: expertId, paymentType: "SUBSCRIPTION" },
@@ -261,7 +301,15 @@ export async function getPaymentHistoryAction(expertId: number) {
       orderBy: { paymentDate: "desc" }
     });
 
-    return { success: true, data: history };
+    // billingCycle / billingMonths 미기록 구 데이터의 기본값 보정
+    const normalized = history.map((h: any) => ({
+      ...h,
+      planName: h.planName || (h.billingCycle === "ANNUAL" ? "BASIC_ANNUAL" : "BASIC_MONTHLY"),
+      billingCycle: h.billingCycle || "MONTHLY",
+      billingMonths: h.billingMonths || 1,
+    }));
+
+    return { success: true, data: normalized };
   } catch (error: any) {
     console.error("getPaymentHistory error:", error);
     return { success: false, error: "결제 내역 조회 중 오류가 발생했습니다." };

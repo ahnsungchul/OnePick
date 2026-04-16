@@ -43,6 +43,10 @@ export default function SubscriptionPage() {
   const [history, setHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [basicFee, setBasicFee] = useState<number>(11000);
+  const [basicAnnualFee, setBasicAnnualFee] = useState<number>(110000);
+  const [basicAnnualMonths, setBasicAnnualMonths] = useState<number>(12);
+  // 결제 진행 전 선택한 요금제 타입 (MONTHLY | ANNUAL)
+  const [selectedCycle, setSelectedCycle] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY');
 
   // ─── 빌링키(카드) 상태 ───────────────────────────────────
   const [billingKey, setBillingKey] = useState<any>(null); // DB에서 조회한 활성 카드
@@ -74,14 +78,18 @@ export default function SubscriptionPage() {
     if (!expertId || isNaN(expertId)) return;
     setIsLoading(true);
 
-    const [infoRes, historyRes, feeRes, billingRes] = await Promise.all([
+    const [infoRes, historyRes, feeRes, annualFeeRes, annualMonthsRes, billingRes] = await Promise.all([
       getSubscriptionInfoAction(expertId),
       getPaymentHistoryAction(expertId),
       getSystemConfig('BASIC_SUBSCRIPTION_FEE', 11000),
+      getSystemConfig('BASIC_ANNUAL_SUBSCRIPTION_FEE', 110000),
+      getSystemConfig('BASIC_ANNUAL_SUBSCRIPTION_MONTHS', 12),
       getActiveBillingKeyAction(expertId),
     ]);
 
     if (typeof feeRes === 'number') setBasicFee(feeRes);
+    if (typeof annualFeeRes === 'number') setBasicAnnualFee(annualFeeRes);
+    if (typeof annualMonthsRes === 'number') setBasicAnnualMonths(annualMonthsRes);
     if (infoRes.success) setPlanData(infoRes.data);
     if (historyRes.success) setHistory(historyRes.data as any[]);
     if (billingRes.success) {
@@ -131,12 +139,21 @@ export default function SubscriptionPage() {
 
     // 신규 구독 결제 처리 (카드 등록과 동시에 BASIC 구독 신청인 경우)
     const currentPlan = planData?.plan || 'LITE';
+    let subscribedNow = false;
     if (currentPlan !== 'BASIC') {
-      const subRes = await subscribeToBasicAction(expertId);
+      const subRes = await subscribeToBasicAction(expertId, selectedCycle);
       if (subRes.success) {
-        showAlert(subRes.message || 'Basic 요금제 결제가 완료되었습니다!');
+        subscribedNow = true;
+        const defaultMsg = selectedCycle === 'ANNUAL'
+          ? `Basic 연간 플랜(${basicAnnualMonths}개월) 결제가 완료되었습니다!`
+          : 'Basic 요금제 결제가 완료되었습니다!';
+        showAlert(subRes.message || defaultMsg);
       } else {
-        showAlert(subRes.error || '결제 처리에 실패했습니다.');
+        // 카드는 저장됐지만 구독 결제 단계에서 실패 - 사용자가 다시 시도할 수 있도록 명확히 안내
+        showAlert(
+          (subRes.error || '결제 처리에 실패했습니다.')
+          + '\n카드는 등록되었습니다. 결제 탭에서 "구독 시작하기" 버튼으로 다시 시도해 주세요.'
+        );
       }
     } else {
       showAlert('정기 결제용 카드 정보가 성공적으로 변경되었습니다.');
@@ -149,6 +166,9 @@ export default function SubscriptionPage() {
     setIsEditingCard(false);
     setIsSubmitting(false);
     await fetchAllData();
+
+    // 구독이 방금 시작되었다면 결제내역 탭으로 자동 이동해 최신 내역 확인 유도
+    if (subscribedNow) setActiveTab('HISTORY');
   };
 
   const handleCancelSubscription = async () => {
@@ -161,6 +181,27 @@ export default function SubscriptionPage() {
       setActiveTab('PLANS');
     } else {
       showAlert(res.error || '실패했습니다.');
+    }
+    setIsSubmitting(false);
+  };
+
+  /**
+   * 등록된 카드가 있지만 아직 BASIC 구독 중이 아닐 때
+   * 재입력 없이 기존 카드로 구독을 바로 시작하는 핸들러
+   */
+  const handleSubscribeWithExistingCard = async (cycle: 'MONTHLY' | 'ANNUAL') => {
+    if (!expertId || isNaN(expertId)) return;
+    setIsSubmitting(true);
+    const subRes = await subscribeToBasicAction(expertId, cycle);
+    if (subRes.success) {
+      const defaultMsg = cycle === 'ANNUAL'
+        ? `Basic 연간 플랜(${basicAnnualMonths}개월) 결제가 완료되었습니다!`
+        : 'Basic 요금제 결제가 완료되었습니다!';
+      showAlert(subRes.message || defaultMsg);
+      await fetchAllData();
+      setActiveTab('HISTORY');
+    } else {
+      showAlert(subRes.error || '결제 처리에 실패했습니다.');
     }
     setIsSubmitting(false);
   };
@@ -226,68 +267,162 @@ export default function SubscriptionPage() {
 
         <div>
           {/* ─── 요금제 탭 ─── */}
-          {activeTab === 'PLANS' && (
-            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-              <div className={cn(
-                "p-8 rounded-3xl border-2 transition-all relative overflow-hidden",
-                currentPlan === 'LITE' ? "border-slate-800 shadow-md" : "border-slate-200"
-              )}>
-                {currentPlan === 'LITE' && (
-                  <div className="absolute top-0 right-0 bg-slate-800 text-white text-[10px] font-black px-4 py-1 rounded-bl-xl uppercase tracking-widest">CURRENT</div>
-                )}
-                <div className="mb-4">
-                  <h3 className="text-xl font-black text-slate-900">Lite 플랜</h3>
-                  <div className="flex items-baseline gap-1 mt-2">
-                    <span className="text-3xl font-black text-slate-900">Free</span>
-                  </div>
-                  <p className="text-sm font-medium text-slate-500 mt-2">가입 시 부여되는 기본 상태</p>
-                </div>
-                <ul className="space-y-4 mt-8">
-                  <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /><span className="text-sm font-bold text-slate-700">전문가홈 무료</span></li>
-                  <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /><span className="text-sm font-bold text-slate-700">1:1견적요청 받기 가능</span></li>
-                  <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /><span className="text-sm font-bold text-slate-700">요청상세 내용 열람 가능</span></li>
-                  <li className="flex items-start gap-3 opacity-60"><ShieldAlert className="w-5 h-5 text-slate-400 shrink-0" /><span className="text-sm font-medium text-slate-500">견적서 제안 불가능</span></li>
-                </ul>
-              </div>
+          {activeTab === 'PLANS' && (() => {
+            const currentCycle = planData?.billingCycle || 'MONTHLY';
+            const isCurrentMonthly = currentPlan === 'BASIC' && currentCycle !== 'ANNUAL';
+            const isCurrentAnnual  = currentPlan === 'BASIC' && currentCycle === 'ANNUAL';
+            // 연간 기준 월 환산 절감율
+            const effectiveMonthly = basicAnnualMonths > 0 ? Math.round(basicAnnualFee / basicAnnualMonths) : 0;
+            const savingPct = basicFee > 0
+              ? Math.max(0, Math.round((1 - effectiveMonthly / basicFee) * 100))
+              : 0;
 
-              <div className={cn(
-                "p-8 rounded-3xl border-2 transition-all relative overflow-hidden",
-                currentPlan === 'BASIC' ? "border-blue-600 shadow-xl shadow-blue-600/10" : "border-slate-200 bg-slate-50/50 hover:border-blue-300"
-              )}>
-                {currentPlan === 'BASIC' && (
-                  <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-black px-4 py-1 rounded-bl-xl uppercase tracking-widest">CURRENT</div>
-                )}
-                <div className="mb-4 flex items-start justify-between">
-                  <div>
-                    <h3 className="text-xl font-black text-blue-700 flex items-center gap-2">Basic 플랜 <Star className="w-5 h-5 fill-current" /></h3>
+            return (
+              <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+                {/* Lite */}
+                <div className={cn(
+                  "p-8 rounded-3xl border-2 transition-all relative overflow-hidden",
+                  currentPlan === 'LITE' ? "border-slate-800 shadow-md" : "border-slate-200"
+                )}>
+                  {currentPlan === 'LITE' && (
+                    <div className="absolute top-0 right-0 bg-slate-800 text-white text-[10px] font-black px-4 py-1 rounded-bl-xl uppercase tracking-widest">CURRENT</div>
+                  )}
+                  <div className="mb-4">
+                    <h3 className="text-xl font-black text-slate-900">Lite 플랜</h3>
                     <div className="flex items-baseline gap-1 mt-2">
-                      <span className="text-3xl font-black text-slate-900">{basicFee.toLocaleString()}</span>
-                      <span className="text-sm font-bold text-slate-500">원 / 월</span>
+                      <span className="text-3xl font-black text-slate-900">Free</span>
+                    </div>
+                    <p className="text-sm font-medium text-slate-500 mt-2">가입 시 부여되는 기본 상태</p>
+                  </div>
+                  <ul className="space-y-4 mt-8">
+                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /><span className="text-sm font-bold text-slate-700">전문가홈 무료</span></li>
+                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /><span className="text-sm font-bold text-slate-700">1:1견적요청 받기 가능</span></li>
+                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /><span className="text-sm font-bold text-slate-700">요청상세 내용 열람 가능</span></li>
+                    <li className="flex items-start gap-3 opacity-60"><ShieldAlert className="w-5 h-5 text-slate-400 shrink-0" /><span className="text-sm font-medium text-slate-500">견적서 제안 불가능</span></li>
+                  </ul>
+                </div>
+
+                {/* Basic 월간 */}
+                <div className={cn(
+                  "p-8 rounded-3xl border-2 transition-all relative overflow-hidden",
+                  isCurrentMonthly ? "border-blue-600 shadow-xl shadow-blue-600/10" : "border-slate-200 bg-slate-50/50 hover:border-blue-300"
+                )}>
+                  {isCurrentMonthly && (
+                    <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-black px-4 py-1 rounded-bl-xl uppercase tracking-widest">CURRENT</div>
+                  )}
+                  <div className="mb-4 flex items-start justify-between">
+                    <div>
+                      <h3 className="text-xl font-black text-blue-700 flex items-center gap-2">Basic 플랜 <Star className="w-5 h-5 fill-current" /></h3>
+                      <div className="flex items-baseline gap-1 mt-2">
+                        <span className="text-3xl font-black text-slate-900">{basicFee.toLocaleString()}</span>
+                        <span className="text-sm font-bold text-slate-500">원 / 월</span>
+                      </div>
                     </div>
                   </div>
+                  <p className="text-sm font-medium text-slate-500 mt-2">매월 결제하는 무제한 패스</p>
+                  <ul className="space-y-4 mt-8">
+                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" /><span className="text-sm font-bold text-slate-900">전문가홈 무료</span></li>
+                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" /><span className="text-sm font-bold text-slate-900">1:1견적요청 받기 가능</span></li>
+                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" /><span className="text-sm font-bold text-slate-900">요청상세 내용 열람 가능</span></li>
+                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" /><span className="text-sm font-bold text-slate-900">견적서 무제한 제안</span></li>
+                  </ul>
+                  {!isCurrentMonthly && (
+                    <button
+                      onClick={() => { setSelectedCycle('MONTHLY'); setActiveTab('PAYMENT'); }}
+                      className="w-full mt-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98]"
+                    >
+                      Basic 월간으로 업그레이드
+                    </button>
+                  )}
                 </div>
-                <p className="text-sm font-medium text-slate-500 mt-2">전문가님을 위한 무제한 패스</p>
-                <ul className="space-y-4 mt-8">
-                  <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" /><span className="text-sm font-bold text-slate-900">전문가홈 무료</span></li>
-                  <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" /><span className="text-sm font-bold text-slate-900">1:1견적요청 받기 가능</span></li>
-                  <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" /><span className="text-sm font-bold text-slate-900">요청상세 내용 열람 가능</span></li>
-                  <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" /><span className="text-sm font-bold text-slate-900">견적서 무제한 제안</span></li>
-                </ul>
-                {currentPlan !== 'BASIC' && (
-                  <button 
-                    onClick={() => setActiveTab('PAYMENT')}
-                    className="w-full mt-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98]"
-                  >
-                    Basic 요금제로 업그레이드
-                  </button>
-                )}
+
+                {/* Basic 연간 (신규) */}
+                <div className={cn(
+                  "p-8 rounded-3xl border-2 transition-all relative overflow-hidden",
+                  isCurrentAnnual
+                    ? "border-indigo-600 shadow-xl shadow-indigo-600/10"
+                    : "border-indigo-200 bg-gradient-to-br from-indigo-50/60 to-white hover:border-indigo-400"
+                )}>
+                  {isCurrentAnnual ? (
+                    <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-black px-4 py-1 rounded-bl-xl uppercase tracking-widest">CURRENT</div>
+                  ) : savingPct > 0 && (
+                    <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-black px-4 py-1 rounded-bl-xl uppercase tracking-widest">
+                      {savingPct}% 절약
+                    </div>
+                  )}
+                  <div className="mb-4 flex items-start justify-between">
+                    <div>
+                      <h3 className="text-xl font-black text-indigo-700 flex items-center gap-2">
+                        Basic 연간 플랜 <Star className="w-5 h-5 fill-current" />
+                      </h3>
+                      <div className="flex items-baseline gap-1 mt-2">
+                        <span className="text-3xl font-black text-slate-900">{basicAnnualFee.toLocaleString()}</span>
+                        <span className="text-sm font-bold text-slate-500">원 / {basicAnnualMonths}개월</span>
+                      </div>
+                      <p className="text-xs font-bold text-indigo-600 mt-1">
+                        월 환산 약 {effectiveMonthly.toLocaleString()}원
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-sm font-medium text-slate-500 mt-2">연간 결제로 {basicAnnualMonths}개월 이용</p>
+                  <ul className="space-y-4 mt-8">
+                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-indigo-500 shrink-0" /><span className="text-sm font-bold text-slate-900">Basic 월간 플랜의 모든 혜택</span></li>
+                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-indigo-500 shrink-0" /><span className="text-sm font-bold text-slate-900">{basicAnnualMonths}개월 이용권 일괄 결제</span></li>
+                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-indigo-500 shrink-0" /><span className="text-sm font-bold text-slate-900">월간 대비 연 결제 할인</span></li>
+                    <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-indigo-500 shrink-0" /><span className="text-sm font-bold text-slate-900">이용 기간 내 서비스 제약 없음</span></li>
+                  </ul>
+                  {!isCurrentAnnual && (
+                    <button
+                      onClick={() => { setSelectedCycle('ANNUAL'); setActiveTab('PAYMENT'); }}
+                      className="w-full mt-8 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/20 active:scale-[0.98]"
+                    >
+                      연간 결제로 시작하기
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ─── 결제 및 정기 결제 탭 ─── */}
           {activeTab === 'PAYMENT' && (
             <div className="max-w-xl mx-auto">
+
+              {/* 결제 진행 요약 (BASIC 아닌 경우에만 노출) */}
+              {currentPlan !== 'BASIC' && (
+                <div className={cn(
+                  "rounded-2xl border-2 p-5 mb-6",
+                  selectedCycle === 'ANNUAL'
+                    ? "border-indigo-200 bg-indigo-50/40"
+                    : "border-blue-200 bg-blue-50/40"
+                )}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-black text-slate-500 uppercase tracking-widest">선택한 요금제</p>
+                      <h4 className={cn(
+                        "text-lg font-black mt-1",
+                        selectedCycle === 'ANNUAL' ? "text-indigo-700" : "text-blue-700"
+                      )}>
+                        {selectedCycle === 'ANNUAL'
+                          ? `Basic 연간 플랜 · ${basicAnnualMonths}개월`
+                          : 'Basic 월간 플랜 · 1개월'}
+                      </h4>
+                      <p className="text-sm font-bold text-slate-900 mt-1">
+                        결제 금액{' '}
+                        <span className={selectedCycle === 'ANNUAL' ? 'text-indigo-700' : 'text-blue-700'}>
+                          {(selectedCycle === 'ANNUAL' ? basicAnnualFee : basicFee).toLocaleString()}원
+                        </span>
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setActiveTab('PLANS')}
+                      className="text-xs font-bold text-slate-500 hover:text-slate-900 underline underline-offset-4"
+                    >
+                      요금제 변경
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* 등록된 카드 표시 */}
               {!isEditingCard && billingKey ? (
@@ -351,16 +486,51 @@ export default function SubscriptionPage() {
                     </div>
                   </div>
 
-                  <p className="text-sm text-slate-500 mt-6 mb-4 font-medium">정기 결제가 매월 해당 카드로 자동 승인됩니다.</p>
+                  <p className="text-sm text-slate-500 mt-6 mb-4 font-medium">
+                    {currentPlan === 'BASIC'
+                      ? '정기 결제가 해당 카드로 자동 승인됩니다.'
+                      : '구독 결제를 시작하면 등록된 카드로 즉시 승인됩니다.'}
+                  </p>
+
+                  {/* 카드는 있지만 아직 BASIC 구독 중이 아닐 때: 구독 시작 CTA */}
+                  {currentPlan !== 'BASIC' && (
+                    <div className="mt-2 mb-6 bg-white rounded-xl border border-blue-100 p-4 text-left">
+                      <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">
+                        등록된 카드로 구독 시작하기
+                      </p>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <button
+                          type="button"
+                          disabled={isSubmitting}
+                          onClick={() => handleSubscribeWithExistingCard('MONTHLY')}
+                          className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-md shadow-blue-600/20 active:scale-[0.98] disabled:opacity-50 text-sm"
+                        >
+                          {isSubmitting
+                            ? '처리 중...'
+                            : `월간 ${basicFee.toLocaleString()}원 결제`}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isSubmitting}
+                          onClick={() => handleSubscribeWithExistingCard('ANNUAL')}
+                          className="flex-1 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-md shadow-indigo-600/20 active:scale-[0.98] disabled:opacity-50 text-sm"
+                        >
+                          {isSubmitting
+                            ? '처리 중...'
+                            : `연간 ${basicAnnualFee.toLocaleString()}원 결제`}
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex gap-3 justify-center">
-                    <button 
+                    <button
                       onClick={() => setIsEditingCard(true)}
                       className="px-5 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-all shadow-sm text-sm"
                     >
                       카드 변경
                     </button>
-                    <button 
+                    <button
                       onClick={() => setIsDeleteCardModalOpen(true)}
                       className="px-5 py-2.5 bg-white border border-red-200 hover:bg-red-50 text-red-500 font-bold rounded-xl transition-all text-sm flex items-center gap-1.5"
                     >
@@ -484,7 +654,7 @@ export default function SubscriptionPage() {
                           취소
                         </button>
                       )}
-                      <button 
+                      <button
                         disabled={isSubmitting}
                         type="submit"
                         className={cn(
@@ -492,7 +662,13 @@ export default function SubscriptionPage() {
                           (billingKey || currentPlan === 'BASIC') ? "w-2/3" : "w-full"
                         )}
                       >
-                        {isSubmitting ? '처리 중...' : currentPlan === 'BASIC' ? '카드 정보 저장' : 'Basic 구독 결제 및 카드 등록'}
+                        {isSubmitting
+                          ? '처리 중...'
+                          : currentPlan === 'BASIC'
+                            ? '카드 정보 저장'
+                            : selectedCycle === 'ANNUAL'
+                              ? `Basic 연간 결제 및 카드 등록 (${basicAnnualFee.toLocaleString()}원)`
+                              : `Basic 월간 결제 및 카드 등록 (${basicFee.toLocaleString()}원)`}
                       </button>
                     </div>
                   </form>
@@ -557,61 +733,87 @@ export default function SubscriptionPage() {
                   </thead>
                   <tbody>
                     {/* 결제 예정 Row */}
-                    {currentPlan === 'BASIC' && history.length > 0 && history[0].nextPaymentDate && (
-                      <tr className="border-b border-slate-100 bg-sky-50/30">
-                        <td className="p-4 font-medium text-slate-900">{new Date(history[0].nextPaymentDate).toLocaleDateString()}</td>
-                        <td className="p-4 font-medium text-slate-500">
-                          {(() => {
-                            const d = new Date(history[0].nextPaymentDate);
-                            d.setMonth(d.getMonth() + 1);
-                            d.setDate(d.getDate() - 1);
-                            return d.toLocaleDateString();
-                          })()}
-                        </td>
-                        <td className="p-4 font-bold text-slate-700">OnePick Basic 정기결제</td>
-                        <td className="p-4 text-slate-500 font-medium">
-                          {billingKey ? `**** ${billingKey.cardLast4}` : '-'}
-                        </td>
-                        <td className="p-4 font-bold text-slate-900 text-right">{basicFee.toLocaleString()}원</td>
-                        <td className="p-4 text-center">
-                          <span className="inline-flex bg-white border border-sky-200 text-sky-600 text-xs font-bold px-2 py-1 rounded-md">결제예정</span>
-                        </td>
-                      </tr>
-                    )}
+                    {currentPlan === 'BASIC' && history.length > 0 && history[0].nextPaymentDate && (() => {
+                      const first = history[0];
+                      const nextCycle = first.billingCycle || 'MONTHLY';
+                      const nextMonths = first.billingMonths || (nextCycle === 'ANNUAL' ? basicAnnualMonths : 1);
+                      const nextAmount = nextCycle === 'ANNUAL' ? basicAnnualFee : basicFee;
+                      return (
+                        <tr className="border-b border-slate-100 bg-sky-50/30">
+                          <td className="p-4 font-medium text-slate-900">{new Date(first.nextPaymentDate).toLocaleDateString()}</td>
+                          <td className="p-4 font-medium text-slate-500">
+                            {(() => {
+                              const d = new Date(first.nextPaymentDate);
+                              d.setMonth(d.getMonth() + nextMonths);
+                              d.setDate(d.getDate() - 1);
+                              return d.toLocaleDateString();
+                            })()}
+                          </td>
+                          <td className="p-4 font-bold text-slate-700">
+                            OnePick Basic {nextCycle === 'ANNUAL' ? `연간(${nextMonths}개월)` : '월간'} 정기결제
+                          </td>
+                          <td className="p-4 text-slate-500 font-medium">
+                            {billingKey ? `**** ${billingKey.cardLast4}` : '-'}
+                          </td>
+                          <td className="p-4 font-bold text-slate-900 text-right">{nextAmount.toLocaleString()}원</td>
+                          <td className="p-4 text-center">
+                            <span className="inline-flex bg-white border border-sky-200 text-sky-600 text-xs font-bold px-2 py-1 rounded-md">결제예정</span>
+                          </td>
+                        </tr>
+                      );
+                    })()}
 
                     {/* 실 결제 내역 */}
-                    {history.map((item) => (
-                      <tr key={item.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                        <td className="p-4 text-slate-600 font-medium">{new Date(item.paymentDate).toLocaleDateString()}</td>
-                        <td className="p-4 text-slate-500 font-medium">
-                          {item.nextPaymentDate ? (() => {
-                            const d = new Date(item.nextPaymentDate);
-                            d.setDate(d.getDate() - 1);
-                            return d.toLocaleDateString();
-                          })() : '-'}
-                        </td>
-                        <td className="p-4 font-bold text-slate-700">OnePick Basic 정기결제</td>
-                        <td className="p-4 text-slate-500 font-medium font-mono">
-                          {item.billingKey ? `**** ${item.billingKey.cardLast4}` : '-'}
-                        </td>
-                        <td className="p-4 font-bold text-slate-900 text-right">{item.amount?.toLocaleString() || basicFee.toLocaleString()}원</td>
-                        <td className="p-4 text-center">
-                          <span className={cn(
-                            "inline-flex text-xs font-bold px-2 py-1 rounded-md",
-                            item.status === 'PAID' ? "bg-emerald-100 text-emerald-700" :
-                            item.status === 'FAILED' ? "bg-red-100 text-red-600" :
-                            "bg-slate-100 text-slate-600"
-                          )}>
-                            {item.status === 'PAID' ? '결제완료' :
-                             item.status === 'FAILED' ? '결제실패' : item.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {history.map((item) => {
+                      const cycle = item.billingCycle || 'MONTHLY';
+                      const months = item.billingMonths || (cycle === 'ANNUAL' ? basicAnnualMonths : 1);
+                      return (
+                        <tr key={item.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                          <td className="p-4 text-slate-600 font-medium">{new Date(item.paymentDate).toLocaleDateString()}</td>
+                          <td className="p-4 text-slate-500 font-medium">
+                            {item.nextPaymentDate ? (() => {
+                              const d = new Date(item.nextPaymentDate);
+                              d.setDate(d.getDate() - 1);
+                              return d.toLocaleDateString();
+                            })() : '-'}
+                          </td>
+                          <td className="p-4 font-bold text-slate-700">
+                            OnePick Basic {cycle === 'ANNUAL' ? `연간(${months}개월)` : '월간'} 정기결제
+                          </td>
+                          <td className="p-4 text-slate-500 font-medium font-mono">
+                            {item.billingKey ? `**** ${item.billingKey.cardLast4}` : '-'}
+                          </td>
+                          <td className="p-4 font-bold text-slate-900 text-right">
+                            {(item.amount ?? (cycle === 'ANNUAL' ? basicAnnualFee : basicFee)).toLocaleString()}원
+                          </td>
+                          <td className="p-4 text-center">
+                            <span className={cn(
+                              "inline-flex text-xs font-bold px-2 py-1 rounded-md",
+                              item.status === 'PAID' ? "bg-emerald-100 text-emerald-700" :
+                              item.status === 'FAILED' ? "bg-red-100 text-red-600" :
+                              "bg-slate-100 text-slate-600"
+                            )}>
+                              {item.status === 'PAID' ? '결제완료' :
+                               item.status === 'FAILED' ? '결제실패' : item.status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
 
                     {history.length === 0 && currentPlan !== 'BASIC' && (
                       <tr>
-                        <td colSpan={6} className="p-10 text-center text-slate-400 font-medium">결제 내역이 없습니다.</td>
+                        <td colSpan={6} className="p-10 text-center">
+                          <p className="text-slate-400 font-medium mb-3">결제 내역이 없습니다.</p>
+                          {billingKey && (
+                            <button
+                              onClick={() => setActiveTab('PAYMENT')}
+                              className="text-xs font-bold text-blue-600 hover:text-blue-800 underline underline-offset-4"
+                            >
+                              등록된 카드로 구독 시작하기 →
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     )}
                   </tbody>

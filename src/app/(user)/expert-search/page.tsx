@@ -46,6 +46,18 @@ export default function ExpertSearchPage() {
   const [experts, setExperts]                   = useState<any[]>([]);
   const [isLoading, setIsLoading]               = useState(true);
   const [visibleCount, setVisibleCount]         = useState(STEP);
+  const [hasAutoClosedFilter, setHasAutoClosedFilter] = useState(false);
+
+  /* 화면 로드(초기 데이터 로딩 완료) 후 1초 뒤 필터 자동 닫기 - 최초 1회만 */
+  useEffect(() => {
+    if (!isLoading && !hasAutoClosedFilter) {
+      const timer = setTimeout(() => {
+        setIsFilterOpen(false);
+        setHasAutoClosedFilter(true);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, hasAutoClosedFilter]);
 
   // 추천 전문가 섹션
   type RecoTab = 'rating' | 'completed' | 'reviews';

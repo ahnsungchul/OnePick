@@ -1,4 +1,15 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-console.log('Available models:', Object.keys(prisma).filter(k => !k.startsWith('$') && !k.startsWith('_')));
-prisma.$disconnect();
+
+async function main() {
+  const user = await prisma.user.findFirst({
+    where: { role: 'EXPERT', subscriptionPlan: 'BASIC' },
+  });
+  console.log("BASIC user:", user?.id);
+  const user2 = await prisma.user.findFirst({
+    where: { role: 'EXPERT' },
+    select: { id: true, subscriptionPlan: true }
+  });
+  console.log("First expert:", user2);
+}
+main().finally(() => prisma.$disconnect());

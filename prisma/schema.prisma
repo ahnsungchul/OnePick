@@ -69,6 +69,7 @@ model User {
   subscriptionPlan        SubscriptionPlan    @default(LITE)
   subscriptionDate        DateTime?
   subscriptionEndDate     DateTime?
+  subscriptionBillingCycle String             @default("MONTHLY") // MONTHLY | ANNUAL
   estimates               Estimate[]          @relation("CustomerEstimates")
   inquiries               Inquiry[]           @relation("UserInquiries")
   portfolioCategories     PortfolioCategory[] @relation("ExpertPortfolioCategories")
@@ -192,6 +193,9 @@ model PaymentHistory {
   id              String      @id @default(uuid())
   userId          Int
   paymentType     String      @default("SUBSCRIPTION")
+  planName        String?     // 예: BASIC_MONTHLY / BASIC_ANNUAL
+  billingCycle    String      @default("MONTHLY") // MONTHLY | ANNUAL
+  billingMonths   Int         @default(1)          // 결제로 구매한 이용 개월 수 (월 1, 연간 12)
   amount          Int
   paymentDate     DateTime    @default(now())
   status          String      @default("PAID")

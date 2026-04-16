@@ -75,6 +75,19 @@ export default function EstimateListPage() {
   const [topExperts, setTopExperts] = useState<any[]>([]);
   const [visibleCount, setVisibleCount] = useState(12);
   const [isFilterOpen, setIsFilterOpen] = useState(true);
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+  const [hasAutoClosedFilter, setHasAutoClosedFilter] = useState(false);
+
+  /* 화면 로드(초기 데이터 로딩 완료) 후 1초 뒤 필터 자동 닫기 - 최초 1회만 */
+  useEffect(() => {
+    if (isPageLoaded && !hasAutoClosedFilter) {
+      const timer = setTimeout(() => {
+        setIsFilterOpen(false);
+        setHasAutoClosedFilter(true);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isPageLoaded, hasAutoClosedFilter]);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [modalEstimateId, setModalEstimateId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -91,32 +104,33 @@ export default function EstimateListPage() {
 
   useEffect(() => {
     setIsMounted(true);
-    getEstimatesAction().then(res => {
-      if (res.success && res.data) {
-        setEstimates(res.data);
-      }
-    });
-    
-    getRecommendedExpertsAction().then(res => {
-      if (res.success && res.data) {
-        setTopExperts(res.data);
-      }
-    });
-    
-    getCategoriesAction().then(res => {
-      if (res.success && res.data && res.data.length > 0) {
-        const catNames = res.data.map(c => c.name);
-        setCategoriesList(['전체', ...catNames]);
-      } else {
-        setCategoriesList(['전체']); // DB의 데이터에 의존하도록 수정
-      }
-    });
-    
-    // 북마크 정보 가져오기
-    getMyBookmarkIdsAction().then(res => {
-      if (res.success && res.data) {
-        setBookmarkedIds(res.data);
-      }
+    Promise.allSettled([
+      getEstimatesAction().then(res => {
+        if (res.success && res.data) {
+          setEstimates(res.data);
+        }
+      }),
+      getRecommendedExpertsAction().then(res => {
+        if (res.success && res.data) {
+          setTopExperts(res.data);
+        }
+      }),
+      getCategoriesAction().then(res => {
+        if (res.success && res.data && res.data.length > 0) {
+          const catNames = res.data.map(c => c.name);
+          setCategoriesList(['전체', ...catNames]);
+        } else {
+          setCategoriesList(['전체']); // DB의 데이터에 의존하도록 수정
+        }
+      }),
+      // 북마크 정보 가져오기
+      getMyBookmarkIdsAction().then(res => {
+        if (res.success && res.data) {
+          setBookmarkedIds(res.data);
+        }
+      }),
+    ]).finally(() => {
+      setIsPageLoaded(true);
     });
   }, []);
 
