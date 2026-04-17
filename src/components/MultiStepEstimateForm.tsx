@@ -473,7 +473,12 @@ export default function MultiStepEstimateForm({
     : (formDataState.locationText.trim() !== '' && formDataState.locationDetailText.trim() !== '');
   const isStep3Valid = formDataState.serviceDateType === 'specific'
     ? formDataState.selectedDates.length > 0
-    : (formDataState.periodStart !== '' && formDataState.periodEnd !== '' && formDataState.selectedWeekdays.length > 0);
+    : true;
+  const isStep4Valid = formDataState.details.trim() !== ''
+    && formDataState.authorName.trim() !== ''
+    && formDataState.contact1.length === 3
+    && formDataState.contact2.length === 4
+    && formDataState.contact3.length === 4;
 
   return (
     <div className={`mx-auto p-4 sm:p-8 bg-white relative ${isEditMode ? 'border-none shadow-none' : 'border border-slate-200 rounded-2xl shadow-sm'}`}>
@@ -807,7 +812,7 @@ export default function MultiStepEstimateForm({
               </label>
               <label className="flex-1 cursor-pointer">
                 <input type="radio" name="scheduleType" value="periodic" checked={formDataState.serviceDateType === 'periodic'} onChange={() => setFormDataState({...formDataState, serviceDateType: 'periodic'})} className="sr-only peer" />
-                <div className="border border-slate-200 rounded-xl p-4 text-center peer-checked:border-blue-500 peer-checked:bg-blue-50 transition-all font-semibold text-slate-700 peer-checked:text-blue-700">기간 및 요일 선택</div>
+                <div className="border border-slate-200 rounded-xl p-4 text-center peer-checked:border-blue-500 peer-checked:bg-blue-50 transition-all font-semibold text-slate-700 peer-checked:text-blue-700">추후 전문가와 협의</div>
               </label>
             </div>
 
@@ -838,29 +843,13 @@ export default function MultiStepEstimateForm({
                 )}
               </div>
             ) : (
-              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">서비스 기간</label>
-                  <div className="flex flex-col sm:flex-row items-center gap-2">
-                    <input type="date" value={formDataState.periodStart} onChange={(e) => setFormDataState({...formDataState, periodStart: e.target.value})} className="w-full sm:flex-1 border border-slate-300 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    <span className="text-slate-400 font-bold hidden sm:block">~</span>
-                    <input type="date" value={formDataState.periodEnd} onChange={(e) => setFormDataState({...formDataState, periodEnd: e.target.value})} className="w-full sm:flex-1 border border-slate-300 p-3 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  </div>
+              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-6 opacity-60 pointer-events-none select-none">
+                <label className="block text-sm font-medium text-slate-700 mb-2">희망 날짜 추가</label>
+                <div className="flex gap-2 mb-4">
+                  <input type="date" disabled className="flex-1 border border-slate-300 p-3 rounded-xl bg-slate-100 cursor-not-allowed" />
+                  <button type="button" disabled className="px-4 py-3 bg-slate-400 text-white font-semibold rounded-xl cursor-not-allowed">추가</button>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">원하시는 요일 (다중 선택 가능)</label>
-                  <div className="flex gap-2 flex-wrap">
-                    {['월', '화', '수', '목', '금', '토', '일'].map(day => (
-                      <label key={day} className="cursor-pointer">
-                        <input type="checkbox" checked={formDataState.selectedWeekdays.includes(day)} onChange={(e) => {
-                          if (e.target.checked) setFormDataState({...formDataState, selectedWeekdays: [...formDataState.selectedWeekdays, day]});
-                          else setFormDataState({...formDataState, selectedWeekdays: formDataState.selectedWeekdays.filter(d => d !== day)});
-                        }} className="sr-only peer" />
-                        <div className="w-10 h-10 flex items-center justify-center rounded-full border border-slate-200 bg-white peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600 font-bold text-slate-600 transition-all select-none shadow-sm">{day}</div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
+                <p className="text-sm text-slate-500">추후 전문가와 협의하여 일정을 정합니다.</p>
               </div>
             )}
 
@@ -994,27 +983,18 @@ export default function MultiStepEstimateForm({
             <h3 className="text-lg font-semibold text-slate-800 mb-4">추가 옵션</h3>
             <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
               <label className="flex items-center gap-3 cursor-pointer">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   checked={formDataState.isUrgent}
                   onChange={(e) => setFormDataState({...formDataState, isUrgent: e.target.checked})}
                   className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                 />
-                <div>
-                  <div className="font-semibold text-slate-800">긴급 요청 🚀</div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-slate-800">긴급 요청 🚀</span>
+                    <span className="text-sm font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-md">3,000원</span>
+                  </div>
                   <div className="text-xs text-slate-500">가장 먼저 전문가의 견적을 받아보세요. (유료)</div>
-                </div>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={formDataState.needsReestimate}
-                  onChange={(e) => setFormDataState({...formDataState, needsReestimate: e.target.checked})}
-                  className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                />
-                <div>
-                  <div className="font-semibold text-slate-800">방문 후 재견적 희망</div>
-                  <div className="text-xs text-slate-500">정확한 금액 산출을 위해 방문을 원합니다.</div>
                 </div>
               </label>
             </div>
@@ -1105,7 +1085,6 @@ export default function MultiStepEstimateForm({
 
                   <div className="flex gap-2 flex-wrap">
                     {formDataState.isUrgent && <span className="text-xs font-bold bg-red-100 text-red-600 px-2 py-1 rounded-md">🚀 긴급 요청</span>}
-                    {formDataState.needsReestimate && <span className="text-xs font-bold bg-blue-100 text-blue-600 px-2 py-1 rounded-md">방문 견적 희망</span>}
                   </div>
                 </div>
                 <button type="button" onClick={() => setStep(4)} className="text-sm text-blue-600 font-semibold hover:underline bg-blue-50 px-3 py-1 rounded-lg shrink-0">수정</button>
@@ -1148,10 +1127,10 @@ export default function MultiStepEstimateForm({
               onClick={handleNextStep}
               disabled={
                 isAutoSaving ||
-                (step === 1 && !isStep1Valid) || 
+                (step === 1 && !isStep1Valid) ||
                 (step === 2 && !isStep2Valid) ||
                 (step === 3 && !isStep3Valid) ||
-                (step === 4 && formDataState.details.trim() === '')
+                (step === 4 && !isStep4Valid)
               }
               className="flex-1 py-3.5 px-4 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
             >

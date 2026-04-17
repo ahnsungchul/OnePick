@@ -81,11 +81,12 @@ export async function getExpertHomeDataAction(userId: number) {
        };
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await (prisma.user as any).findUnique({
       where: { id: userId },
       include: {
         profile: true,
         specialties: true,
+        expertServices: { include: { category: true } },
         certifications: true,
       },
     });
@@ -101,8 +102,27 @@ export async function getExpertHomeDataAction(userId: number) {
       revenue: 0,
     };
 
-    return { 
-      success: true, 
+    // 카테고리별로 상세 서비스를 그룹핑하여 "카테고리(상세1, 상세2)" 포맷 생성
+    const rawSpecialties: { name: string }[] = (user as any).specialties || [];
+    const rawServices: { name: string; category: { name: string } }[] = (user as any).expertServices || [];
+    const servicesByCategory = new Map<string, string[]>();
+    rawServices.forEach((svc) => {
+      const catName = svc.category?.name;
+      if (!catName) return;
+      if (!servicesByCategory.has(catName)) servicesByCategory.set(catName, []);
+      servicesByCategory.get(catName)!.push(svc.name);
+    });
+    const specialtiesFormatted = rawSpecialties.map((s) => {
+      const subs = servicesByCategory.get(s.name) || [];
+      return subs.length > 0 ? `${s.name}(${subs.join(', ')})` : s.name;
+    });
+    const serviceDetails = rawServices.map((svc) => ({
+      category: svc.category?.name || '',
+      service: svc.name,
+    }));
+
+    return {
+      success: true,
       data: {
         user: {
           id: user.id,
@@ -113,7 +133,9 @@ export async function getExpertHomeDataAction(userId: number) {
           idCardApproved: (user as any).idCardApproved,
           businessLicenseApproved: (user as any).businessLicenseApproved,
           image: user.image,
-          specialties: (user as any).specialties?.map((s: any) => s.name) || [],
+          specialties: specialtiesFormatted,
+          specialtyCategories: rawSpecialties.map((s) => s.name),
+          serviceDetails,
           regions: user.regions || [],
           career: user.career,
           idCardUrl: user.idCardUrl,
@@ -315,6 +337,7 @@ export async function updateFullExpertProfileAction({
   name,
   regions,
   specialties,
+  serviceDetails,
   career,
   introduction,
   idCardUrl,
@@ -326,6 +349,7 @@ export async function updateFullExpertProfileAction({
   name: string;
   regions: string[];
   specialties: string[];
+  serviceDetails?: { category: string; service: string }[];
   career?: string | null;
   introduction: string;
   idCardUrl?: string | null;
@@ -336,13 +360,30 @@ export async function updateFullExpertProfileAction({
     const result = await prisma.$transaction(async (tx) => {
       // Check current user
       const currentUser = await tx.user.findUnique({ where: { id: userId } });
-      
+
       // Determine if documents changed
       const idCardChanged = idCardUrl !== undefined && currentUser?.idCardUrl !== idCardUrl;
-      const businessLicenseChanged = 
+      const businessLicenseChanged =
         businessLicenseUrls && JSON.stringify(currentUser?.businessLicenseUrls || []) !== JSON.stringify(businessLicenseUrls);
 
       const categoryRecords = await tx.category.findMany({ where: { name: { in: specialties } } });
+
+      // 서비스 상세(subcategory) 레코드 조회
+      let serviceRecords: { id: number }[] = [];
+      if (serviceDetails && serviceDetails.length > 0) {
+        const categoryMap = new Map(categoryRecords.map(c => [c.name, c.id]));
+        const serviceFilters = serviceDetails
+          .map(sd => ({ categoryId: categoryMap.get(sd.category), name: sd.service }))
+          .filter(f => f.categoryId !== undefined && f.name) as { categoryId: number; name: string }[];
+
+        if (serviceFilters.length > 0) {
+          const found = await tx.service.findMany({
+            where: { OR: serviceFilters.map(f => ({ categoryId: f.categoryId, name: f.name })) },
+            select: { id: true },
+          });
+          serviceRecords = found;
+        }
+      }
 
       // 1. Update User info
       const user = await (tx.user as any).update({
@@ -350,8 +391,11 @@ export async function updateFullExpertProfileAction({
         data: {
           name,
           regions: { set: regions },
-          specialties: { 
+          specialties: {
             set: categoryRecords.map(c => ({ id: c.id }))
+          },
+          expertServices: {
+            set: serviceRecords.map(s => ({ id: s.id }))
           },
           career,
           ...(image !== undefined && { image }),

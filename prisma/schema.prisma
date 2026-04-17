@@ -31,6 +31,7 @@ model Service {
   updatedAt  DateTime   @updatedAt
   category   Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   estimates  Estimate[] @relation("EstimateServices")
+  experts    User[]     @relation("ExpertServices")
 
   @@unique([name, categoryId])
   @@map("services")
@@ -80,6 +81,7 @@ model User {
   schedules               Schedule[]          @relation("ExpertSchedules")
   sessions                Session[]
   specialties             Category[]          @relation("UserSpecialties")
+  expertServices          Service[]           @relation("ExpertServices")
 
   @@map("users")
 }

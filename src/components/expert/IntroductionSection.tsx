@@ -34,6 +34,33 @@ export default function IntroductionSection({ user, profile, isOwner, categories
     ? categoriesData.map(c => c.name)
     : ['도배/장판', '욕실/주방', '전기/조명', '청소/이사', '가전/에어컨', '자동차 수리', '베이비/펫시터', '과외/레슨', '디자인/IT', '기타 서비스'];
 
+  // 제공 서비스 selectbox 상태
+  const [selectedSpecialtyCategory, setSelectedSpecialtyCategory] = useState<string>('');
+  const [selectedSpecialtySub, setSelectedSpecialtySub] = useState<string>('');
+
+  // 선택된 카테고리의 상세 서비스 목록 (DB에서 가져온 categoriesData 기반)
+  const specialtySubList = (() => {
+    if (!categoriesData || categoriesData.length === 0) return [];
+    const target = categoriesData.find(c => c.name === selectedSpecialtyCategory);
+    return target ? target.subcategories : [];
+  })();
+
+  const handleAddSpecialty = () => {
+    if (!selectedSpecialtyCategory) return;
+    const entry = selectedSpecialtySub
+      ? `${selectedSpecialtyCategory} > ${selectedSpecialtySub}`
+      : selectedSpecialtyCategory;
+    if (!editSpecialties.includes(entry)) {
+      setEditSpecialties(prev => [...prev, entry]);
+    }
+    setSelectedSpecialtyCategory('');
+    setSelectedSpecialtySub('');
+  };
+
+  const handleRemoveSpecialty = (value: string) => {
+    setEditSpecialties(prev => prev.filter(item => item !== value));
+  };
+
   // Document Edit States
   const [editIdCard, setEditIdCard] = useState<{ name: string } | null>(null);
   const [editBusinessLicenses, setEditBusinessLicenses] = useState<{ id: number; name: string }[]>([]);
@@ -93,7 +120,17 @@ export default function IntroductionSection({ user, profile, isOwner, categories
       }
 
       setEditRegions(user.regions || []);
-      setEditSpecialties(user.specialties || []);
+      // 초기 specialty 태그를 기존 데이터에서 생성:
+      //  - serviceDetails(카테고리+상세)가 있으면 "카테고리 > 상세" 형태로 추가
+      //  - 상세가 없는 카테고리는 카테고리명만 추가
+      const existingCategories: string[] = user.specialtyCategories || user.specialties || [];
+      const existingServiceDetails: { category: string; service: string }[] = user.serviceDetails || [];
+      const categoriesWithDetails = new Set(existingServiceDetails.map((sd) => sd.category));
+      const initSpecialties: string[] = [
+        ...existingServiceDetails.map((sd) => `${sd.category} > ${sd.service}`),
+        ...existingCategories.filter((c: string) => !categoriesWithDetails.has(c)),
+      ];
+      setEditSpecialties(initSpecialties);
       setEditIntroduction(profile?.introduction || '');
       setEditImagePreview(user.image || null);
       setEditIdCard(user.idCardUrl ? { name: user.idCardUrl } : null);
@@ -185,12 +222,27 @@ export default function IntroductionSection({ user, profile, isOwner, categories
       return;
     }
     setIsLoading(true);
+    // "카테고리 > 상세" 형태로 저장된 specialty에서 카테고리명만 추출 (DB의 Category 이름과 매칭되도록)
+    const specialtiesForDb = Array.from(new Set(
+      editSpecialties
+        .map(s => s.includes(' > ') ? s.split(' > ')[0].trim() : s.trim())
+        .filter(Boolean)
+    ));
+    // 상세 서비스(Service)는 카테고리+상세 페어로 분리하여 별도 저장
+    const serviceDetailsForDb = editSpecialties
+      .filter(s => s.includes(' > '))
+      .map(s => {
+        const [category, service] = s.split(' > ');
+        return { category: category.trim(), service: (service || '').trim() };
+      })
+      .filter(sd => sd.category && sd.service);
     const result = await updateFullExpertProfileAction({
       userId: user.id,
       image: editImagePreview,
       name: editName,
       regions: editRegions,
-      specialties: editSpecialties,
+      specialties: specialtiesForDb,
+      serviceDetails: serviceDetailsForDb,
       career: (editCareerYear && editCareerMonth) ? `${editCareerYear}년 ${editCareerMonth}월 시작` : (editCareerYear ? `${editCareerYear}년 시작` : '경력 미입력'),
       introduction: editIntroduction,
       idCardUrl: editIdCard ? editIdCard.name : null,
@@ -433,27 +485,58 @@ export default function IntroductionSection({ user, profile, isOwner, categories
 
               {/* Specialties */}
               <div className="space-y-3 pt-6 border-t border-slate-100">
-                <label className="block text-sm font-bold text-slate-700">제공 서비스 설정 <span className="text-xs font-normal text-slate-400 ml-1">(다중 선택 가능)</span></label>
-                <div className="flex flex-wrap gap-2">
-                  {categoriesList.map(cat => (
-                    <button 
-                      key={cat}
-                      type="button"
-                      onClick={() => {
-                        setEditSpecialties(prev => 
-                          prev.includes(cat) ? prev.filter(item => item !== cat) : [...prev, cat]
-                        );
-                      }}
-                      className={`px-3 py-2 text-sm font-bold rounded-xl border transition-colors ${
-                        editSpecialties.includes(cat)
-                        ? 'bg-emerald-50 border-emerald-500 text-emerald-600'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-300'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
+                <label className="block text-sm font-bold text-slate-700">제공 서비스 설정 <span className="text-xs font-normal text-slate-400 ml-1">(추가 등록 가능)</span></label>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedSpecialtyCategory}
+                    onChange={(e) => {
+                      setSelectedSpecialtyCategory(e.target.value);
+                      setSelectedSpecialtySub('');
+                    }}
+                    className="flex-1 text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-emerald-500 bg-white"
+                  >
+                    <option value="">서비스 카테고리 선택</option>
+                    {categoriesList.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={selectedSpecialtySub}
+                    onChange={(e) => setSelectedSpecialtySub(e.target.value)}
+                    disabled={!selectedSpecialtyCategory || specialtySubList.length === 0}
+                    className="flex-1 text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-emerald-500 bg-white disabled:bg-slate-50"
+                  >
+                    <option value="">서비스 상세 선택</option>
+                    {specialtySubList.map(sub => (
+                      <option key={sub.id} value={sub.name}>{sub.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleAddSpecialty}
+                    disabled={!selectedSpecialtyCategory}
+                    className="px-4 py-2.5 bg-slate-800 text-white text-sm font-bold rounded-xl disabled:bg-slate-300 hover:bg-slate-700 transition-colors whitespace-nowrap"
+                  >
+                    추가
+                  </button>
                 </div>
+                {/* Specialty Tags */}
+                {editSpecialties.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {editSpecialties.map((specialty, idx) => (
+                      <div key={idx} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-lg text-xs font-bold shrink-0">
+                        <span>{specialty}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSpecialty(specialty)}
+                          className="text-emerald-400 hover:text-red-500 focus:outline-none flex items-center justify-center p-0.5"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Service Regions */}
